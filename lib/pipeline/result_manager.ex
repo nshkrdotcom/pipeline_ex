@@ -248,28 +248,37 @@ defmodule Pipeline.ResultManager do
 
   defp format_for_prompt(content, format) do
     case format do
-      :json ->
-        case Jason.encode(content, pretty: true) do
-          {:ok, json} -> json
-          {:error, _} -> inspect(content)
-        end
+      :json -> format_as_json(content)
+      :text -> format_as_text(content)
+      :auto -> format_as_auto(content)
+    end
+  end
 
-      :text ->
-        cond do
-          is_binary(content) -> content
-          is_map(content) and Map.has_key?(content, :text) -> content.text
-          is_map(content) and Map.has_key?(content, "text") -> content["text"]
-          is_map(content) and Map.has_key?(content, :content) -> content.content
-          is_map(content) and Map.has_key?(content, "content") -> content["content"]
-          true -> inspect(content)
-        end
+  defp format_as_json(content) do
+    case Jason.encode(content, pretty: true) do
+      {:ok, json} -> json
+      {:error, _} -> inspect(content)
+    end
+  end
 
-      :auto ->
-        cond do
-          is_binary(content) -> content
-          is_map(content) -> format_for_prompt(content, :text)
-          true -> inspect(content)
-        end
+  defp format_as_text(content) do
+    cond do
+      is_binary(content) -> content
+      is_map(content) -> extract_text_from_map(content)
+      true -> inspect(content)
+    end
+  end
+
+  defp extract_text_from_map(content) do
+    content[:text] || content["text"] || content[:content] || content["content"] ||
+      inspect(content)
+  end
+
+  defp format_as_auto(content) do
+    cond do
+      is_binary(content) -> content
+      is_map(content) -> format_as_text(content)
+      true -> inspect(content)
     end
   end
 

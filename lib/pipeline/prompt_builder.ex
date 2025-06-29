@@ -134,24 +134,22 @@ defmodule Pipeline.PromptBuilder do
   end
 
   defp read_file_with_error_handling(path) do
-    try do
-      case File.read(path) do
-        {:ok, content} ->
-          content
+    case File.read(path) do
+      {:ok, content} ->
+        content
 
-        {:error, :enoent} ->
-          raise "File not found: #{path}. Please check the file path and ensure the file exists."
+      {:error, :enoent} ->
+        raise "File not found: #{path}. Please check the file path and ensure the file exists."
 
-        {:error, :eacces} ->
-          raise "Permission denied reading file: #{path}. Please check file permissions."
+      {:error, :eacces} ->
+        raise "Permission denied reading file: #{path}. Please check file permissions."
 
-        {:error, reason} ->
-          raise "Failed to read file #{path}: #{:file.format_error(reason)}"
-      end
-    rescue
-      e in File.Error ->
-        reraise "File operation failed for #{path}: #{Exception.message(e)}", __STACKTRACE__
+      {:error, reason} ->
+        raise "Failed to read file #{path}: #{:file.format_error(reason)}"
     end
+  rescue
+    e in File.Error ->
+      reraise "File operation failed for #{path}: #{Exception.message(e)}", __STACKTRACE__
   end
 
   defp get_results_from_context(%{results: results}), do: results
@@ -172,27 +170,7 @@ defmodule Pipeline.PromptBuilder do
     fields = String.split(field_path, ".")
 
     {result, status} =
-      Enum.reduce(fields, {map, :found}, fn field, {acc, status} ->
-        case {acc, status} do
-          {%{}, :found} ->
-            cond do
-              Map.has_key?(acc, field) ->
-                {Map.get(acc, field), :found}
-
-              Map.has_key?(acc, String.to_atom(field)) ->
-                {Map.get(acc, String.to_atom(field)), :found}
-
-              true ->
-                {nil, :not_found}
-            end
-
-          {_, :not_found} ->
-            {nil, :not_found}
-
-          _ ->
-            {nil, :not_found}
-        end
-      end)
+      Enum.reduce(fields, {map, :found}, &reduce_field_path/2)
 
     case status do
       :found -> {:found, result}
@@ -201,6 +179,22 @@ defmodule Pipeline.PromptBuilder do
   end
 
   defp get_nested_field_with_presence(_, _), do: :not_found
+
+  defp reduce_field_path(field, {acc, status}) do
+    case {acc, status} do
+      {%{}, :found} -> get_field_from_map(acc, field)
+      {_, :not_found} -> {nil, :not_found}
+      _ -> {nil, :not_found}
+    end
+  end
+
+  defp get_field_from_map(map, field) do
+    cond do
+      Map.has_key?(map, field) -> {Map.get(map, field), :found}
+      Map.has_key?(map, String.to_atom(field)) -> {Map.get(map, String.to_atom(field)), :found}
+      true -> {nil, :not_found}
+    end
+  end
 
   defp format_result(result) when is_map(result) do
     # Return full JSON representation when no specific field is requested

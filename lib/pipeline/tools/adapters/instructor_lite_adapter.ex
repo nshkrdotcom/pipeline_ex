@@ -140,24 +140,22 @@ defmodule Pipeline.Tools.Adapters.InstructorLiteAdapter do
 
   defp extract_function_calls(response) when is_map(response) do
     case Map.get(response, "function_call") do
-      nil ->
-        []
-
-      function_call when is_map(function_call) ->
-        # Extract function calls from the nested structure
-        Enum.flat_map(function_call, fn {_key, call_data} ->
-          case call_data do
-            %{"function_name" => name, "args" => args} ->
-              [%{name: name, args: args, reasoning: Map.get(call_data, "reasoning")}]
-
-            _ ->
-              []
-          end
-        end)
+      nil -> []
+      function_call when is_map(function_call) -> parse_function_call_data(function_call)
     end
   end
 
   defp extract_function_calls(_), do: []
+
+  defp parse_function_call_data(function_call) do
+    Enum.flat_map(function_call, &extract_call_data/1)
+  end
+
+  defp extract_call_data({_key, %{"function_name" => name, "args" => args} = call_data}) do
+    [%{name: name, args: args, reasoning: Map.get(call_data, "reasoning")}]
+  end
+
+  defp extract_call_data(_), do: []
 
   defp execute_single_function_call(%{name: name, args: args} = call) do
     case ToolRegistry.execute_tool(name, args) do

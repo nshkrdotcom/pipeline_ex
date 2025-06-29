@@ -150,13 +150,9 @@ defmodule Mix.Tasks.Showcase do
       IO.puts("   Status: #{status}")
 
       if success do
-        content = extract_content(result)
-        preview = String.slice(content, 0, 200)
-        preview = if String.length(content) > 200, do: preview <> "...", else: preview
-        IO.puts("   Output: #{preview}")
+        display_success_output(result)
       else
-        error = result[:error] || result["error"] || "Unknown error"
-        IO.puts("   Error: #{error}")
+        display_error_output(result)
       end
     end)
 
@@ -177,5 +173,17 @@ defmodule Mix.Tasks.Showcase do
   defp extract_content_from_map(result) when is_map(result) do
     result[:content] || result["content"] || result[:text] || result["text"] ||
       inspect(result, limit: 200)
+  end
+
+  defp display_success_output(result) do
+    content = extract_content(result)
+    preview = String.slice(content, 0, 200)
+    preview = if String.length(content) > 200, do: preview <> "...", else: preview
+    IO.puts("   Output: #{preview}")
+  end
+
+  defp display_error_output(result) do
+    error = result[:error] || result["error"] || "Unknown error"
+    IO.puts("   Error: #{error}")
   end
 end

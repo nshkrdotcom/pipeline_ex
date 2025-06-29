@@ -128,18 +128,29 @@ defmodule Pipeline.Executor do
   defp execute_steps(steps, context) do
     steps
     |> Enum.with_index()
-    |> Enum.reduce_while({:ok, context}, fn {step, index}, {:ok, ctx} ->
-      # Skip steps if we're resuming from checkpoint
-      if index < ctx.step_index do
-        Logger.info("⏭️  Skipping step #{index + 1}: #{step["name"]} (already completed)")
-        {:cont, {:ok, ctx}}
-      else
-        case execute_step_with_checkpoint(step, index, ctx) do
-          {:ok, updated_ctx} -> {:cont, {:ok, updated_ctx}}
-          {:error, reason} -> {:halt, {:error, reason}}
-        end
-      end
-    end)
+    |> Enum.reduce_while({:ok, context}, &execute_single_step/2)
+  end
+
+  defp execute_single_step({step, index}, {:ok, ctx}) do
+    if should_skip_step?(index, ctx) do
+      log_skipped_step(step, index)
+      {:cont, {:ok, ctx}}
+    else
+      execute_step_and_handle_result(step, index, ctx)
+    end
+  end
+
+  defp should_skip_step?(index, ctx), do: index < ctx.step_index
+
+  defp log_skipped_step(step, index) do
+    Logger.info("⏭️  Skipping step #{index + 1}: #{step["name"]} (already completed)")
+  end
+
+  defp execute_step_and_handle_result(step, index, ctx) do
+    case execute_step_with_checkpoint(step, index, ctx) do
+      {:ok, updated_ctx} -> {:cont, {:ok, updated_ctx}}
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
   end
 
   defp execute_step_with_checkpoint(step, index, context) do
@@ -180,90 +191,104 @@ defmodule Pipeline.Executor do
   end
 
   defp execute_step_unconditionally(step, index, context) do
-    # Record step start
     step_start = DateTime.utc_now()
 
     case do_execute_step(step, context) do
       {:ok, result} ->
-        # Optimize result for memory usage
-        optimized_result = optimize_result_for_memory(result)
-
-        # Update context with result
-        updated_context = %{
-          context
-          | results: Map.put(context.results, step["name"], optimized_result),
-            step_index: index + 1,
-            execution_log: [
-              %{
-                step: step["name"],
-                type: step["type"],
-                status: :completed,
-                duration_ms: DateTime.diff(DateTime.utc_now(), step_start, :millisecond),
-                timestamp: DateTime.utc_now()
-              }
-              | context.execution_log
-            ]
-        }
-
-        # Save checkpoint if enabled
-        if context.checkpoint_enabled do
-          case CheckpointManager.save(
-                 context.checkpoint_dir,
-                 context.workflow_name,
-                 updated_context
-               ) do
-            :ok -> :ok
-            {:error, reason} -> Logger.warning("Failed to save checkpoint: #{inspect(reason)}")
-          end
-        end
-
-        # Save step output if specified
-        if step["output_to_file"] do
-          save_step_output(step["output_to_file"], result, context.output_dir)
-        end
-
-        Logger.info("✅ Step completed: #{step["name"]}")
-        {:ok, updated_context}
+        handle_step_success(step, index, context, result, step_start)
 
       {:error, reason} ->
-        Logger.error("❌ Step failed: #{step["name"]} - #{reason}")
-
-        # Record failure in log
-        updated_context = %{
-          context
-          | execution_log: [
-              %{
-                step: step["name"],
-                type: step["type"],
-                status: :failed,
-                error: reason,
-                duration_ms: DateTime.diff(DateTime.utc_now(), step_start, :millisecond),
-                timestamp: DateTime.utc_now()
-              }
-              | context.execution_log
-            ]
-        }
-
-        # Save checkpoint even on failure
-        if context.checkpoint_enabled do
-          case CheckpointManager.save(
-                 context.checkpoint_dir,
-                 context.workflow_name,
-                 updated_context
-               ) do
-            :ok -> :ok
-            {:error, reason} -> Logger.warning("Failed to save checkpoint: #{inspect(reason)}")
-          end
-        end
-
-        error_context = """
-        Step '#{step["name"]}' failed: #{reason}
-        Step type: #{step["type"]}
-        Execution time: #{DateTime.diff(DateTime.utc_now(), step_start, :millisecond)}ms
-        """
-
-        {:error, error_context}
+        handle_step_failure(step, context, reason, step_start)
     end
+  end
+
+  defp handle_step_success(step, index, context, result, step_start) do
+    optimized_result = optimize_result_for_memory(result)
+
+    updated_context =
+      update_context_with_success(step, index, context, optimized_result, step_start)
+
+    save_checkpoint_if_enabled(context, updated_context)
+    save_step_output_if_needed(step, result, context.output_dir)
+
+    Logger.info("✅ Step completed: #{step["name"]}")
+    {:ok, updated_context}
+  end
+
+  defp handle_step_failure(step, context, reason, step_start) do
+    Logger.error("❌ Step failed: #{step["name"]} - #{reason}")
+
+    updated_context = update_context_with_failure(step, context, reason, step_start)
+    save_checkpoint_if_enabled(context, updated_context)
+
+    error_context = create_error_context(step, reason, step_start)
+    {:error, error_context}
+  end
+
+  defp update_context_with_success(step, index, context, result, step_start) do
+    %{
+      context
+      | results: Map.put(context.results, step["name"], result),
+        step_index: index + 1,
+        execution_log: [create_success_log_entry(step, step_start) | context.execution_log]
+    }
+  end
+
+  defp update_context_with_failure(step, context, reason, step_start) do
+    %{
+      context
+      | execution_log: [
+          create_failure_log_entry(step, reason, step_start) | context.execution_log
+        ]
+    }
+  end
+
+  defp create_success_log_entry(step, step_start) do
+    %{
+      step: step["name"],
+      type: step["type"],
+      status: :completed,
+      duration_ms: DateTime.diff(DateTime.utc_now(), step_start, :millisecond),
+      timestamp: DateTime.utc_now()
+    }
+  end
+
+  defp create_failure_log_entry(step, reason, step_start) do
+    %{
+      step: step["name"],
+      type: step["type"],
+      status: :failed,
+      error: reason,
+      duration_ms: DateTime.diff(DateTime.utc_now(), step_start, :millisecond),
+      timestamp: DateTime.utc_now()
+    }
+  end
+
+  defp save_checkpoint_if_enabled(context, updated_context) do
+    if context.checkpoint_enabled do
+      case CheckpointManager.save(
+             context.checkpoint_dir,
+             context.workflow_name,
+             updated_context
+           ) do
+        :ok -> :ok
+        {:error, reason} -> Logger.warning("Failed to save checkpoint: #{inspect(reason)}")
+      end
+    end
+  end
+
+  defp save_step_output_if_needed(step, result, output_dir) do
+    if step["output_to_file"] do
+      save_step_output(step["output_to_file"], result, output_dir)
+    end
+  end
+
+  defp create_error_context(step, reason, step_start) do
+    """
+    Step '#{step["name"]}' failed: #{reason}
+    Step type: #{step["type"]}
+    Execution time: #{DateTime.diff(DateTime.utc_now(), step_start, :millisecond)}ms
+    """
   end
 
   defp do_execute_step(step, context) do

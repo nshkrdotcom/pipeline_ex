@@ -262,22 +262,22 @@ defmodule Pipeline.Test.Helpers do
   #
   ### Options
   #
-  #* `:config` - Configuration map
-  #* `:workspace_dir` - Workspace directory (default: "/tmp/test_workspace")
-  #* `:output_dir` - Output directory (default: "/tmp/test_output")
+  # * `:config` - Configuration map
+  # * `:workspace_dir` - Workspace directory (default: "/tmp/test_workspace")
+  # * `:output_dir` - Output directory (default: "/tmp/test_output")
   # """
   # def create_test_orchestrator(opts \\ []) do
-  #config = Keyword.get(opts, :config, create_test_config())
-  #workspace_dir = Keyword.get(opts, :workspace_dir, "/tmp/test_workspace")
-  #output_dir = Keyword.get(opts, :output_dir, "/tmp/test_output")
+  # config = Keyword.get(opts, :config, create_test_config())
+  # workspace_dir = Keyword.get(opts, :workspace_dir, "/tmp/test_workspace")
+  # output_dir = Keyword.get(opts, :output_dir, "/tmp/test_output")
   #
-  #%Pipeline.Orchestrator{
+  # %Pipeline.Orchestrator{
   # config: %{workflow: config.workflow},
   # results: %{},
   # debug_log: "/tmp/test_debug.log",
   # output_dir: output_dir,
   # workspace_dir: workspace_dir
-  #}
+  # }
   # end
 
   @doc """

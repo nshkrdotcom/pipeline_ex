@@ -12,57 +12,83 @@ defmodule Pipeline.Test.Mocks do
 
     @impl true
     def generate(prompt, opts \\ []) do
-      # Return predictable responses based on prompt patterns
       cond do
-        String.contains?(prompt, "analyze") or String.contains?(prompt, "review") ->
-          {:ok,
-           %{
-             "analysis" => "Code review completed",
-             "issues" => ["Missing error handling", "Needs optimization"],
-             "quality_score" => 7,
-             "needs_fixes" => true,
-             "recommendations" => ["Add tests", "Improve documentation"]
-           }}
-
-        String.contains?(prompt, "plan") or String.contains?(prompt, "design") ->
-          {:ok,
-           %{
-             "plan" => "Implementation plan created",
-             "steps" => [
-               "Setup project structure",
-               "Implement core functionality",
-               "Add tests",
-               "Documentation"
-             ],
-             "estimated_time" => "4 hours",
-             "priority" => "high"
-           }}
-
-        String.contains?(prompt, "function") and opts[:functions] ->
-          {:ok,
-           %{
-             "function_call" => %{
-               "name" => "evaluate_code",
-               "arguments" => %{
-                 "quality_score" => 8,
-                 "security_issues" => [],
-                 "needs_refactoring" => false
-               }
-             }
-           }}
-
-        String.contains?(prompt, "error") or String.contains?(prompt, "fail") ->
-          {:error, "Simulated API failure"}
-
-        true ->
-          {:ok,
-           %{
-             "response" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
-             "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601(),
-             "model" => opts[:model] || "gemini-mock",
-             "tokens_used" => 150
-           }}
+        has_analysis_keywords?(prompt) -> generate_analysis_response()
+        has_planning_keywords?(prompt) -> generate_planning_response()
+        has_function_keywords?(prompt) and opts[:functions] -> generate_function_response()
+        has_error_keywords?(prompt) -> generate_error_response()
+        true -> generate_default_response(prompt, opts)
       end
+    end
+
+    defp has_analysis_keywords?(prompt) do
+      String.contains?(prompt, "analyze") or String.contains?(prompt, "review")
+    end
+
+    defp has_planning_keywords?(prompt) do
+      String.contains?(prompt, "plan") or String.contains?(prompt, "design")
+    end
+
+    defp has_function_keywords?(prompt) do
+      String.contains?(prompt, "function")
+    end
+
+    defp has_error_keywords?(prompt) do
+      String.contains?(prompt, "error") or String.contains?(prompt, "fail")
+    end
+
+    defp generate_analysis_response do
+      {:ok,
+       %{
+         "analysis" => "Code review completed",
+         "issues" => ["Missing error handling", "Needs optimization"],
+         "quality_score" => 7,
+         "needs_fixes" => true,
+         "recommendations" => ["Add tests", "Improve documentation"]
+       }}
+    end
+
+    defp generate_planning_response do
+      {:ok,
+       %{
+         "plan" => "Implementation plan created",
+         "steps" => [
+           "Setup project structure",
+           "Implement core functionality",
+           "Add tests",
+           "Documentation"
+         ],
+         "estimated_time" => "4 hours",
+         "priority" => "high"
+       }}
+    end
+
+    defp generate_function_response do
+      {:ok,
+       %{
+         "function_call" => %{
+           "name" => "evaluate_code",
+           "arguments" => %{
+             "quality_score" => 8,
+             "security_issues" => [],
+             "needs_refactoring" => false
+           }
+         }
+       }}
+    end
+
+    defp generate_error_response do
+      {:error, "Simulated API failure"}
+    end
+
+    defp generate_default_response(prompt, opts) do
+      {:ok,
+       %{
+         "response" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
+         "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601(),
+         "model" => opts[:model] || "gemini-mock",
+         "tokens_used" => 150
+       }}
     end
   end
 

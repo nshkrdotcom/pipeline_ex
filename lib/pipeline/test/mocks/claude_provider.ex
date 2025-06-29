@@ -10,37 +10,41 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
         {:ok, response}
 
       :not_found ->
-        # Fall back to existing pattern matching
-        case prompt do
-          "simple test" ->
-            {:ok,
-             %{"text" => "Mock response for simple test", "success" => true, "cost" => 0.001}}
+        handle_fallback_patterns(prompt)
+    end
+  end
 
-          "error test" ->
-            {:error, "Mock error for testing"}
+  defp handle_fallback_patterns(prompt) do
+    case prompt do
+      "simple test" ->
+        {:ok, %{"text" => "Mock response for simple test", "success" => true, "cost" => 0.001}}
 
-          prompt when is_binary(prompt) ->
-            cond do
-              String.contains?(prompt, "Python") ->
-                {:ok,
-                 %{"text" => "Mock Python code response", "success" => true, "cost" => 0.002}}
+      "error test" ->
+        {:error, "Mock error for testing"}
 
-              String.contains?(prompt, "calculator") ->
-                {:ok,
-                 %{"text" => "Mock calculator implementation", "success" => true, "cost" => 0.004}}
+      prompt when is_binary(prompt) ->
+        handle_content_based_patterns(prompt)
 
-              true ->
-                {:ok,
-                 %{
-                   "text" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
-                   "success" => true,
-                   "cost" => 0.001
-                 }}
-            end
+      _ ->
+        {:ok, %{"text" => "Mock response", "success" => true, "cost" => 0.001}}
+    end
+  end
 
-          _ ->
-            {:ok, %{"text" => "Mock response", "success" => true, "cost" => 0.001}}
-        end
+  defp handle_content_based_patterns(prompt) do
+    cond do
+      String.contains?(prompt, "Python") ->
+        {:ok, %{"text" => "Mock Python code response", "success" => true, "cost" => 0.002}}
+
+      String.contains?(prompt, "calculator") ->
+        {:ok, %{"text" => "Mock calculator implementation", "success" => true, "cost" => 0.004}}
+
+      true ->
+        {:ok,
+         %{
+           "text" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
+           "success" => true,
+           "cost" => 0.001
+         }}
     end
   end
 

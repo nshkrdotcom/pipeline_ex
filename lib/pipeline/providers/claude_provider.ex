@@ -39,13 +39,17 @@ defmodule Pipeline.Providers.ClaudeProvider do
 
   defp build_claude_options(options) do
     %{
-      max_turns: options["max_turns"] || options[:max_turns] || 3,
-      allowed_tools: options["allowed_tools"] || options[:allowed_tools] || [],
-      disallowed_tools: options["disallowed_tools"] || options[:disallowed_tools] || [],
-      system_prompt: options["system_prompt"] || options[:system_prompt],
-      verbose: options["verbose"] || options[:verbose] || false,
-      cwd: options["cwd"] || options[:cwd] || "./workspace"
+      max_turns: get_option_value(options, "max_turns", :max_turns, 3),
+      allowed_tools: get_option_value(options, "allowed_tools", :allowed_tools, []),
+      disallowed_tools: get_option_value(options, "disallowed_tools", :disallowed_tools, []),
+      system_prompt: get_option_value(options, "system_prompt", :system_prompt, nil),
+      verbose: get_option_value(options, "verbose", :verbose, false),
+      cwd: get_option_value(options, "cwd", :cwd, "./workspace")
     }
+  end
+
+  defp get_option_value(options, string_key, atom_key, default) do
+    options[string_key] || options[atom_key] || default
   end
 
   defp execute_claude_sdk(prompt, options) do

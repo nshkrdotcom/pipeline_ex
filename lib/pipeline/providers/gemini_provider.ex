@@ -94,47 +94,52 @@ defmodule Pipeline.Providers.GeminiProvider do
   # Private helper functions
 
   defp build_instruction_config(options) do
-    model = options["model"] || options[:model] || "gemini-2.5-flash-lite-preview-06-17"
-    token_budget = options["token_budget"] || options[:token_budget] || %{}
+    model = get_model_from_options(options)
+    token_budget = get_token_budget_from_options(options)
 
-    # InstructorLite adapter context for Gemini - only include supported parameters
-    adapter_context = [
-      model: model,
-      api_key: get_api_key()
-    ]
+    base_config = build_base_config(model)
+    generation_config = build_generation_config(token_budget)
 
-    # Create JSON schema for Gemini adapter
+    apply_generation_config(base_config, generation_config)
+  end
+
+  defp get_model_from_options(options) do
+    options["model"] || options[:model] || "gemini-2.5-flash-lite-preview-06-17"
+  end
+
+  defp get_token_budget_from_options(options) do
+    options["token_budget"] || options[:token_budget] || %{}
+  end
+
+  defp build_base_config(model) do
+    adapter_context = [model: model, api_key: get_api_key()]
+
     json_schema = %{
       type: "object",
       required: ["content"],
-      properties: %{
-        content: %{type: "string", description: "The response content"}
-      }
+      properties: %{content: %{type: "string", description: "The response content"}}
     }
 
-    base_config = [
+    [
       adapter: InstructorLite.Adapters.Gemini,
       adapter_context: adapter_context,
       response_model: Pipeline.Providers.GeminiProvider.TextResponse,
       json_schema: json_schema
     ]
+  end
 
-    # The Gemini API expects a `generationConfig` object with camelCase keys.
-    # We'll build this from the `token_budget` map in the workflow config.
-    generation_config =
-      %{
-        "temperature" => token_budget["temperature"] || token_budget[:temperature],
-        "maxOutputTokens" =>
-          token_budget["max_output_tokens"] || token_budget[:max_output_tokens],
-        "topP" => token_budget["top_p"] || token_budget[:top_p],
-        "topK" => token_budget["top_k"] || token_budget[:top_k]
-      }
-      # Remove any keys that weren't specified in the config
-      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-      |> Map.new()
+  defp build_generation_config(token_budget) do
+    %{
+      "temperature" => token_budget["temperature"] || token_budget[:temperature],
+      "maxOutputTokens" => token_budget["max_output_tokens"] || token_budget[:max_output_tokens],
+      "topP" => token_budget["top_p"] || token_budget[:top_p],
+      "topK" => token_budget["top_k"] || token_budget[:top_k]
+    }
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Map.new()
+  end
 
-    # The `InstructorLite` library allows passing extra parameters to the underlying
-    # API call via the `:extra` key. We'll use this to pass the `generationConfig`.
+  defp apply_generation_config(base_config, generation_config) do
     if map_size(generation_config) > 0 do
       Keyword.put(base_config, :extra, %{generation_config: generation_config})
     else

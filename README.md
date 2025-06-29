@@ -1,5 +1,7 @@
 # Pipeline
 
+[![CI](https://github.com/nshkrdotcom/pipeline_ex/actions/workflows/elixir.yaml/badge.svg)](https://github.com/nshkrdotcom/pipeline_ex/actions/workflows/elixir.yaml)
+
 A flexible Elixir pipeline for chaining AI providers (Claude and Gemini) with support for both live API calls and mocked responses for testing.
 
 ## Features

@@ -98,45 +98,41 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
   end
 
   defp execute_curl(url, timeout) do
-    try do
-      case System.cmd(
-             "curl",
-             [
-               "--silent",
-               "--show-error",
-               "--max-time",
-               to_string(timeout),
-               "--user-agent",
-               "Pipeline-Tools/1.0",
-               url
-             ],
-             stderr_to_stdout: true
-           ) do
-        {output, 0} ->
-          {:ok, output}
+    case System.cmd(
+           "curl",
+           [
+             "--silent",
+             "--show-error",
+             "--max-time",
+             to_string(timeout),
+             "--user-agent",
+             "Pipeline-Tools/1.0",
+             url
+           ],
+           stderr_to_stdout: true
+         ) do
+      {output, 0} ->
+        {:ok, output}
 
-        {error_output, exit_code} ->
-          {:error, "curl failed (exit #{exit_code}): #{error_output}"}
-      end
-    rescue
-      error ->
-        {:error, "curl execution failed: #{inspect(error)}"}
+      {error_output, exit_code} ->
+        {:error, "curl failed (exit #{exit_code}): #{error_output}"}
     end
+  rescue
+    error ->
+      {:error, "curl execution failed: #{inspect(error)}"}
   end
 
   defp parse_httpbin_response({:ok, json_response}) do
-    try do
-      case Jason.decode(json_response) do
-        {:ok, %{"origin" => ip}} ->
-          {:ok, ip}
+    case Jason.decode(json_response) do
+      {:ok, %{"origin" => ip}} ->
+        {:ok, ip}
 
-        {:error, _} ->
-          {:error, "Failed to parse JSON response from httpbin"}
-      end
-    rescue
-      _ ->
-        {:error, "Invalid JSON response from httpbin"}
+      {:error, _} ->
+        {:error, "Failed to parse JSON response from httpbin"}
     end
+  rescue
+    _ ->
+      {:error, "Invalid JSON response from httpbin"}
   end
 
   defp parse_httpbin_response({:error, reason}), do: {:error, reason}

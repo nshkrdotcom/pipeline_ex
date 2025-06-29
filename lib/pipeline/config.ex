@@ -14,21 +14,16 @@ defmodule Pipeline.Config do
   """
   @spec load_workflow(String.t()) :: {:ok, config} | {:error, String.t()}
   def load_workflow(file_path) do
-    case File.read(file_path) do
-      {:ok, content} ->
-        case YamlElixir.read_from_string(content) do
-          {:ok, config} ->
-            case validate_workflow(config) do
-              :ok -> {:ok, config}
-              {:error, reason} -> {:error, "Invalid workflow: #{reason}"}
-            end
-
-          {:error, reason} ->
-            {:error, "Failed to parse YAML: #{inspect(reason)}"}
-        end
-
-      {:error, reason} ->
-        {:error, "Failed to read file: #{inspect(reason)}"}
+    with {:ok, content} <- File.read(file_path),
+         {:ok, config} <- YamlElixir.read_from_string(content),
+         :ok <- validate_workflow(config) do
+      {:ok, config}
+    else
+      {:error, :enoent} -> {:error, "Failed to read file: #{file_path}"}
+      {:error, %YamlElixir.FileNotFoundError{}} -> {:error, "Failed to read file: #{file_path}"}
+      {:error, %YamlElixir.ParsingError{}} -> {:error, "Failed to parse YAML: #{file_path}"}
+      {:error, reason} when is_binary(reason) -> {:error, "Invalid workflow: #{reason}"}
+      {:error, reason} -> {:error, "Failed to parse YAML: #{inspect(reason)}"}
     end
   end
 
@@ -130,23 +125,22 @@ defmodule Pipeline.Config do
   end
 
   defp validate_functions(config) do
-    workflow = config["workflow"]
-
-    case workflow["gemini_functions"] do
-      nil ->
-        :ok
-
-      functions when is_map(functions) ->
-        Enum.reduce_while(functions, :ok, fn {function_name, function_def}, _acc ->
-          case validate_function_definition(function_name, function_def) do
-            :ok -> {:cont, :ok}
-            error -> {:halt, error}
-          end
-        end)
-
-      _ ->
-        {:error, "gemini_functions must be a map of function definitions"}
+    case get_gemini_functions(config) do
+      nil -> :ok
+      functions when is_map(functions) -> validate_all_function_definitions(functions)
+      _ -> {:error, "gemini_functions must be a map of function definitions"}
     end
+  end
+
+  defp get_gemini_functions(config), do: config["workflow"]["gemini_functions"]
+
+  defp validate_all_function_definitions(functions) do
+    Enum.reduce_while(functions, :ok, fn {function_name, function_def}, _acc ->
+      case validate_function_definition(function_name, function_def) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   defp validate_function_definition(function_name, function_def) do
@@ -263,17 +257,22 @@ defmodule Pipeline.Config do
       functions when is_list(functions) ->
         available_functions = get_available_functions(config)
 
-        Enum.reduce_while(functions, :ok, fn function_name, _acc ->
-          if function_name in available_functions do
-            {:cont, :ok}
-          else
-            {:halt,
-             {:error, "Step '#{step["name"]}' references undefined function: #{function_name}"}}
-          end
-        end)
+        Enum.reduce_while(
+          functions,
+          :ok,
+          &validate_function_reference(step, available_functions, &1, &2)
+        )
 
       _ ->
         {:error, "Step '#{step["name"]}' functions must be a list"}
+    end
+  end
+
+  defp validate_function_reference(step, available_functions, function_name, _acc) do
+    if function_name in available_functions do
+      {:cont, :ok}
+    else
+      {:halt, {:error, "Step '#{step["name"]}' references undefined function: #{function_name}"}}
     end
   end
 
@@ -337,47 +336,43 @@ defmodule Pipeline.Config do
 
   defp apply_type_specific_defaults(step, defaults) do
     case step["type"] do
-      "claude" ->
-        claude_defaults = defaults["claude_options"] || %{}
-        current_options = step["claude_options"] || %{}
-
-        # Apply claude_output_format default if not specified
-        output_format = defaults["claude_output_format"] || "json"
-        merged_options = Map.merge(claude_defaults, current_options)
-        merged_options = Map.put_new(merged_options, "output_format", output_format)
-
-        Map.put(step, "claude_options", merged_options)
-
-      "gemini" ->
-        # Apply Gemini-specific defaults
-        step
-        |> Map.put_new("model", defaults["gemini_model"])
-        |> Map.put_new("token_budget", defaults["gemini_token_budget"])
-
-      "parallel_claude" ->
-        # Apply defaults to parallel tasks
-        tasks = step["parallel_tasks"] || []
-
-        updated_tasks =
-          Enum.map(tasks, fn task ->
-            claude_defaults = defaults["claude_options"] || %{}
-            current_options = task["claude_options"] || %{}
-            output_format = defaults["claude_output_format"] || "json"
-            merged_options = Map.merge(claude_defaults, current_options)
-            merged_options = Map.put_new(merged_options, "output_format", output_format)
-            Map.put(task, "claude_options", merged_options)
-          end)
-
-        Map.put(step, "parallel_tasks", updated_tasks)
-
-      "gemini_instructor" ->
-        # Apply Gemini-specific defaults with instructor settings
-        step
-        |> Map.put_new("model", defaults["gemini_model"])
-        |> Map.put_new("token_budget", defaults["gemini_token_budget"])
-
-      _ ->
-        step
+      "claude" -> apply_claude_defaults(step, defaults)
+      "gemini" -> apply_gemini_defaults(step, defaults)
+      "parallel_claude" -> apply_parallel_claude_defaults(step, defaults)
+      "gemini_instructor" -> apply_gemini_defaults(step, defaults)
+      _ -> step
     end
+  end
+
+  defp apply_claude_defaults(step, defaults) do
+    merged_options = merge_claude_options(step["claude_options"], defaults)
+    Map.put(step, "claude_options", merged_options)
+  end
+
+  defp apply_gemini_defaults(step, defaults) do
+    step
+    |> Map.put_new("model", defaults["gemini_model"])
+    |> Map.put_new("token_budget", defaults["gemini_token_budget"])
+  end
+
+  defp apply_parallel_claude_defaults(step, defaults) do
+    tasks = step["parallel_tasks"] || []
+    updated_tasks = Enum.map(tasks, &apply_claude_task_defaults(&1, defaults))
+    Map.put(step, "parallel_tasks", updated_tasks)
+  end
+
+  defp apply_claude_task_defaults(task, defaults) do
+    merged_options = merge_claude_options(task["claude_options"], defaults)
+    Map.put(task, "claude_options", merged_options)
+  end
+
+  defp merge_claude_options(current_options, defaults) do
+    claude_defaults = defaults["claude_options"] || %{}
+    current_options = current_options || %{}
+    output_format = defaults["claude_output_format"] || "json"
+
+    claude_defaults
+    |> Map.merge(current_options)
+    |> Map.put_new("output_format", output_format)
   end
 end

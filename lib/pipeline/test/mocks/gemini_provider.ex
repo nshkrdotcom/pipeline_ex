@@ -4,166 +4,102 @@ defmodule Pipeline.Test.Mocks.GeminiProvider do
   """
 
   def query(prompt, options \\ %{}) do
-    # Check for pattern-specific responses first
-    case find_matching_pattern(prompt) do
-      {:ok, response} ->
-        {:ok, response}
+    with :not_found <- find_matching_pattern(prompt),
+         :not_found <- find_function_response(prompt) do
+      handle_prompt_pattern(prompt, options)
+    else
+      {:ok, response} -> {:ok, response}
+    end
+  end
 
-      :not_found ->
-        # Check for function responses
-        case find_function_response(prompt) do
-          {:ok, function_response} ->
-            {:ok, function_response}
+  defp handle_prompt_pattern("simple test", options) do
+    response = create_base_response("Mock Gemini analysis", true, 0.001)
+    response_with_tools = add_function_calls_if_needed(response, options)
+    {:ok, response_with_tools}
+  end
 
-          :not_found ->
-            # Fall back to existing pattern matching
-            case prompt do
-              "simple test" ->
-                response = %{
-                  "content" => "Mock Gemini analysis",
-                  "success" => true,
-                  "cost" => 0.001
-                }
+  defp handle_prompt_pattern(prompt, options) when is_binary(prompt) do
+    handle_prompt_content_patterns(prompt, options)
+  end
 
-                # Only add function_calls if tools are provided
-                response =
-                  if options[:tools] && length(options[:tools]) > 0 do
-                    function_calls =
-                      Enum.map(options["tools"], fn tool ->
-                        %{
-                          "name" => tool["name"] || "mock_function",
-                          "arguments" => %{
-                            "result" => "mock_function_result",
-                            "status" => "completed"
-                          }
-                        }
-                      end)
+  defp handle_prompt_pattern(_, _options) do
+    {:ok, create_base_response("Mock fallback response", true, 0.001)}
+  end
 
-                    Map.put(response, "function_calls", function_calls)
-                  else
-                    response
-                  end
+  defp create_base_response(content, success, cost) do
+    %{"content" => content, "success" => success, "cost" => cost}
+  end
 
-                {:ok, response}
+  defp add_function_calls_if_needed(response, options) do
+    if options[:tools] && length(options[:tools]) > 0 do
+      function_calls = create_mock_function_calls(options[:tools])
+      Map.put(response, "function_calls", function_calls)
+    else
+      response
+    end
+  end
 
-              prompt when is_binary(prompt) ->
-                cond do
-                  String.contains?(prompt, "This will fail") ->
-                    {:error, "Mock function calling error"}
+  defp create_mock_function_calls(tools) do
+    Enum.map(tools, fn tool ->
+      %{
+        "name" => tool["name"] || "mock_function",
+        "arguments" => %{
+          "result" => "mock_function_result",
+          "status" => "completed"
+        }
+      }
+    end)
+  end
 
-                  String.contains?(prompt, "plan") ->
-                    response = %{
-                      "content" =>
-                        ~s({"plan": "Mock implementation plan", "complexity": "medium"}),
-                      "success" => true,
-                      "cost" => 0.003
-                    }
+  defp handle_prompt_content_patterns(prompt, options) do
+    cond do
+      String.contains?(prompt, "This will fail") ->
+        {:error, "Mock function calling error"}
 
-                    response =
-                      if options[:tools] && length(options[:tools]) > 0 do
-                        function_calls =
-                          Enum.map(options[:tools], fn tool ->
-                            %{
-                              "name" => tool["name"] || "mock_function",
-                              "arguments" => %{
-                                "result" => "mock_function_result",
-                                "status" => "completed"
-                              }
-                            }
-                          end)
+      String.contains?(prompt, "plan") ->
+        response = create_plan_response()
+        {:ok, add_function_calls_with_empty_default(response, options)}
 
-                        Map.put(response, "function_calls", function_calls)
-                      else
-                        Map.put(response, "function_calls", [])
-                      end
+      String.contains?(String.downcase(prompt), "analyze") ->
+        response = create_analysis_response()
+        {:ok, add_function_calls_with_empty_default(response, options)}
 
-                    {:ok, response}
+      true ->
+        response = create_generic_response(prompt)
+        {:ok, add_function_calls_if_needed(response, options)}
+    end
+  end
 
-                  String.contains?(String.downcase(prompt), "analyze") ->
-                    response = %{
-                      "content" => ~s({"analysis": "Mock analysis result", "confidence": 0.9}),
-                      "success" => true,
-                      "cost" => 0.004
-                    }
+  defp create_plan_response do
+    %{
+      "content" => ~s({"plan": "Mock implementation plan", "complexity": "medium"}),
+      "success" => true,
+      "cost" => 0.003
+    }
+  end
 
-                    response =
-                      if options[:tools] && length(options[:tools]) > 0 do
-                        function_calls =
-                          Enum.map(options[:tools], fn tool ->
-                            %{
-                              "name" => tool["name"] || "mock_function",
-                              "arguments" => %{
-                                "result" => "mock_function_result",
-                                "status" => "completed"
-                              }
-                            }
-                          end)
+  defp create_analysis_response do
+    %{
+      "content" => ~s({"analysis": "Mock analysis result", "confidence": 0.9}),
+      "success" => true,
+      "cost" => 0.004
+    }
+  end
 
-                        Map.put(response, "function_calls", function_calls)
-                      else
-                        Map.put(response, "function_calls", [])
-                      end
+  defp create_generic_response(prompt) do
+    %{
+      "content" => "Mock Gemini response for: #{String.slice(prompt, 0, 50)}...",
+      "success" => true,
+      "cost" => 0.002
+    }
+  end
 
-                    {:ok, response}
-
-                  true ->
-                    response = %{
-                      "content" => "Mock Gemini response for: #{String.slice(prompt, 0, 50)}...",
-                      "success" => true,
-                      "cost" => 0.002
-                    }
-
-                    # Only add function_calls if tools are provided
-                    response =
-                      if options[:tools] && length(options[:tools]) > 0 do
-                        function_calls =
-                          Enum.map(options[:tools], fn tool ->
-                            %{
-                              "name" => tool["name"] || "mock_function",
-                              "arguments" => %{
-                                "result" => "mock_function_result",
-                                "status" => "completed"
-                              }
-                            }
-                          end)
-
-                        Map.put(response, "function_calls", function_calls)
-                      else
-                        response
-                      end
-
-                    {:ok, response}
-                end
-
-              _ ->
-                response = %{
-                  "content" => "Mock Gemini response",
-                  "success" => true,
-                  "cost" => 0.001
-                }
-
-                # Only add function_calls if tools are provided
-                response =
-                  if options[:tools] && length(options[:tools]) > 0 do
-                    function_calls =
-                      Enum.map(options[:tools], fn tool ->
-                        %{
-                          "name" => tool["name"] || "mock_function",
-                          "arguments" => %{
-                            "result" => "mock_function_result",
-                            "status" => "completed"
-                          }
-                        }
-                      end)
-
-                    Map.put(response, "function_calls", function_calls)
-                  else
-                    response
-                  end
-
-                {:ok, response}
-            end
-        end
+  defp add_function_calls_with_empty_default(response, options) do
+    if options[:tools] && length(options[:tools]) > 0 do
+      function_calls = create_mock_function_calls(options[:tools])
+      Map.put(response, "function_calls", function_calls)
+    else
+      Map.put(response, "function_calls", [])
     end
   end
 
@@ -207,38 +143,46 @@ defmodule Pipeline.Test.Mocks.GeminiProvider do
   end
 
   defp find_function_response(prompt) do
-    # First try to match by function name in prompt
-    result =
-      Process.get_keys()
-      |> Enum.filter(fn key -> match?({:mock_function, _}, key) end)
-      |> Enum.find_value(:not_found, fn {_, function_name} ->
-        if String.contains?(prompt, function_name) do
-          {:ok, Process.get({:mock_function, function_name})}
-        else
-          nil
-        end
-      end)
+    case find_exact_function_match(prompt) do
+      :not_found -> find_keyword_function_match(prompt)
+      found -> found
+    end
+  end
 
-    # If no direct match and we have common function keywords, return the first function response
-    case result do
-      :not_found ->
-        if String.contains?(prompt, "Analyze") or String.contains?(prompt, "analyze") or
-             String.contains?(prompt, "Validate") or String.contains?(prompt, "validate") or
-             String.contains?(prompt, "Design") or String.contains?(prompt, "design") do
-          # Return the first available function response
-          Process.get_keys()
-          |> Enum.filter(fn key -> match?({:mock_function, _}, key) end)
-          |> Enum.take(1)
-          |> case do
-            [{_, function_name}] -> {:ok, Process.get({:mock_function, function_name})}
-            [] -> :not_found
-          end
-        else
-          :not_found
-        end
+  defp find_exact_function_match(prompt) do
+    Process.get_keys()
+    |> Enum.filter(fn key -> match?({:mock_function, _}, key) end)
+    |> Enum.find_value(:not_found, &check_function_name_match(prompt, &1))
+  end
 
-      found ->
-        found
+  defp check_function_name_match(prompt, {_, function_name}) do
+    if String.contains?(prompt, function_name) do
+      {:ok, Process.get({:mock_function, function_name})}
+    else
+      nil
+    end
+  end
+
+  defp find_keyword_function_match(prompt) do
+    if has_common_keywords?(prompt) do
+      get_first_available_function()
+    else
+      :not_found
+    end
+  end
+
+  defp has_common_keywords?(prompt) do
+    keywords = ["Analyze", "analyze", "Validate", "validate", "Design", "design"]
+    Enum.any?(keywords, &String.contains?(prompt, &1))
+  end
+
+  defp get_first_available_function do
+    Process.get_keys()
+    |> Enum.filter(fn key -> match?({:mock_function, _}, key) end)
+    |> Enum.take(1)
+    |> case do
+      [{_, function_name}] -> {:ok, Process.get({:mock_function, function_name})}
+      [] -> :not_found
     end
   end
 end

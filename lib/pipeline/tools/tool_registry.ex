@@ -12,27 +12,25 @@ defmodule Pipeline.Tools.ToolRegistry do
   Register a tool module in the registry.
   """
   def register_tool(tool_module) when is_atom(tool_module) do
-    try do
-      definition = tool_module.get_definition()
+    definition = tool_module.get_definition()
 
-      # Validate the tool can run in current environment
-      case validate_tool(tool_module) do
-        :ok ->
-          Agent.update(:tool_registry, fn registry ->
-            Map.put(registry, definition.name, tool_module)
-          end)
+    # Validate the tool can run in current environment
+    case validate_tool(tool_module) do
+      :ok ->
+        Agent.update(:tool_registry, fn registry ->
+          Map.put(registry, definition.name, tool_module)
+        end)
 
-          Logger.info("🔧 Registered tool: #{definition.name}")
-          :ok
+        Logger.info("🔧 Registered tool: #{definition.name}")
+        :ok
 
-        {:error, reason} ->
-          Logger.warning("⚠️ Tool #{definition.name} failed validation: #{reason}")
-          {:error, reason}
-      end
-    rescue
-      UndefinedFunctionError ->
-        {:error, "Tool module #{tool_module} does not implement get_definition/0"}
+      {:error, reason} ->
+        Logger.warning("⚠️ Tool #{definition.name} failed validation: #{reason}")
+        {:error, reason}
     end
+  rescue
+    UndefinedFunctionError ->
+      {:error, "Tool module #{tool_module} does not implement get_definition/0"}
   end
 
   @doc """

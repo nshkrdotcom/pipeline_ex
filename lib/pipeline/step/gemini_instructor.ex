@@ -8,78 +8,72 @@ defmodule Pipeline.Step.GeminiInstructor do
   require Logger
 
   def execute(step, context) do
+    log_execution_start(step)
+
+    prompt = PromptBuilder.build(step["prompt"], context.results)
+    log_prompt_preview(prompt)
+
+    model = step["model"] || "gemini-2.5-flash"
+    start_time = System.monotonic_time(:millisecond)
+    Logger.info("🚀 Debug: Starting LLM call to Gemini NOW at #{DateTime.utc_now()}")
+
+    result = execute_gemini_call(step, prompt, model, start_time)
+    save_output_if_needed(step, context, result)
+
+    {:ok, result}
+  end
+
+  defp log_execution_start(step) do
     Logger.info("🧠 Gemini Brain analyzing: #{step["name"] || "task"}")
     Logger.info("🔍 Debug: LLM call type: SYNCHRONOUS (blocking)")
+  end
 
-    # Build prompt
-    prompt = PromptBuilder.build(step["prompt"], context.results)
-
-    # Show prompt preview
+  defp log_prompt_preview(prompt) do
     prompt_preview =
       if String.length(prompt) > 200, do: String.slice(prompt, 0, 200) <> "...", else: prompt
 
     Logger.info("📝 Prompt preview: #{prompt_preview}")
+  end
 
-    # Get model from step config or defaults
-    model = step["model"] || "gemini-2.5-flash"
+  defp execute_gemini_call(step, prompt, model, start_time) do
+    case step["functions"] do
+      nil ->
+        execute_regular_generation(prompt, model, start_time)
 
-    start_time = System.monotonic_time(:millisecond)
-    Logger.info("🚀 Debug: Starting LLM call to Gemini NOW at #{DateTime.utc_now()}")
+      functions when is_list(functions) ->
+        execute_function_calling(prompt, functions, model, start_time)
+    end
+  end
 
-    result =
-      case step["functions"] do
-        nil ->
-          # Regular generation - use basic text response schema
+  defp execute_regular_generation(prompt, model, start_time) do
+    case call_instructor_lite(prompt, Pipeline.Schemas.AnalysisResponse, model) do
+      {:ok, response} ->
+        elapsed = System.monotonic_time(:millisecond) - start_time
+        Logger.info("📤 Raw Gemini response (took #{elapsed / 1000}s):")
+        Logger.info("  Response received")
+        response
 
-          case call_instructor_lite(prompt, Pipeline.Schemas.AnalysisResponse, model) do
-            {:ok, response} ->
-              elapsed = System.monotonic_time(:millisecond) - start_time
-              Logger.info("📤 Raw Gemini response (took #{elapsed / 1000}s):")
-              Logger.info("  Response received")
+      {:error, error} ->
+        Logger.error("❌ Gemini call failed: #{inspect(error)}")
+        raise "Gemini call failed: #{inspect(error)}"
+    end
+  end
 
-              # Debug log would go here if available
+  defp execute_function_calling(prompt, functions, model, start_time) do
+    Logger.info("🔧 Function calling enabled with #{length(functions)} tools")
 
-              response
+    tool_schema = InstructorLiteAdapter.create_function_schema(functions)
 
-            {:error, error} ->
-              Logger.error("❌ Gemini call failed: #{inspect(error)}")
-              raise "Gemini call failed: #{inspect(error)}"
-          end
+    case call_instructor_lite_with_tools(prompt, tool_schema, model) do
+      {:ok, response} -> handle_tool_response(response, start_time)
+      {:error, error} -> handle_tool_error(error)
+    end
+  end
 
-        functions when is_list(functions) ->
-          # Generation with function calling using the tool system
-          Logger.info("🔧 Function calling enabled with #{length(functions)} tools")
-
-          # Create function call schema using the tool adapter
-          tool_schema =
-            InstructorLiteAdapter.create_function_schema(functions)
-
-          case call_instructor_lite_with_tools(prompt, tool_schema, model) do
-            {:ok, response} ->
-              elapsed = System.monotonic_time(:millisecond) - start_time
-              Logger.info("📤 Raw Gemini response with tool calls (took #{elapsed / 1000}s):")
-              Logger.info("  Tool calling completed")
-
-              # Debug log would go here if available
-
-              # Execute function calls using the tool system
-              case InstructorLiteAdapter.execute_function_calls(response) do
-                {:ok, enhanced_response} ->
-                  enhanced_response
-              end
-
-            {:error, error} ->
-              Logger.error("❌ Gemini tool calling failed: #{inspect(error)}")
-              raise "Gemini tool calling failed: #{inspect(error)}"
-          end
-      end
-
-    # Save to file if specified
+  defp save_output_if_needed(step, context, result) do
     if step["output_to_file"] do
       save_output(context.output_dir, step["output_to_file"], result)
     end
-
-    {:ok, result}
   end
 
   defp call_instructor_lite(prompt, response_model, model) do
@@ -196,5 +190,21 @@ defmodule Pipeline.Step.GeminiInstructor do
 
     File.write!(filepath, content)
     Logger.info("📁 Saved output to: #{filepath}")
+  end
+
+  defp handle_tool_response(response, start_time) do
+    elapsed = System.monotonic_time(:millisecond) - start_time
+    Logger.info("📤 Raw Gemini response with tool calls (took #{elapsed / 1000}s):")
+    Logger.info("  Tool calling completed")
+
+    case InstructorLiteAdapter.execute_function_calls(response) do
+      {:ok, enhanced_response} -> enhanced_response
+    end
+  end
+
+  @spec handle_tool_error(any()) :: no_return()
+  defp handle_tool_error(error) do
+    Logger.error("❌ Gemini tool calling failed: #{inspect(error)}")
+    raise "Gemini tool calling failed: #{inspect(error)}"
   end
 end

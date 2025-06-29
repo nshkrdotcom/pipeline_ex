@@ -72,7 +72,6 @@
           {Credo.Check.Refactor.CyclomaticComplexity, []},
           {Credo.Check.Refactor.FunctionArity, []},
           {Credo.Check.Refactor.LongQuoteBlocks, []},
-          {Credo.Check.Refactor.MapInto, []},
           {Credo.Check.Refactor.MatchInCondition, []},
           {Credo.Check.Refactor.NegatedConditionsInUnless, []},
           {Credo.Check.Refactor.NegatedConditionsWithElse, []},
@@ -88,7 +87,6 @@
           {Credo.Check.Warning.ExpensiveEmptyEnumCheck, []},
           {Credo.Check.Warning.IExPry, []},
           {Credo.Check.Warning.IoInspect, []},
-          {Credo.Check.Warning.LazyLogging, []},
           {Credo.Check.Warning.MixEnv, false},
           {Credo.Check.Warning.OperationOnSameValues, []},
           {Credo.Check.Warning.OperationWithConstantResult, []},
@@ -106,6 +104,11 @@
           {Credo.Check.Warning.UnsafeExec, []}
         ],
         disabled: [
+          #
+          # Checks incompatible with current Elixir version (1.18.3)
+          {Credo.Check.Refactor.MapInto, []},     # requires Elixir < 1.8.0
+          {Credo.Check.Warning.LazyLogging, []}, # requires Elixir < 1.7.0
+
           #
           # Checks scheduled for next check update (opt-in for now)
           {Credo.Check.Refactor.UtcNowTruncate, []},
