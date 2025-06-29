@@ -22,12 +22,15 @@ defmodule Pipeline.Providers.ClaudeProvider do
       IO.puts("DEBUG: Built claude_options: #{inspect(claude_options)}")
 
       # Use the existing Claude SDK via the step module
-      # In a real implementation, this would call the Claude SDK directly
-      # For now, execute_claude_sdk always returns {:ok, response}
-      # In production, this would handle both success and error cases
-      {:ok, response} = execute_claude_sdk(prompt, claude_options)
-      Logger.debug("✅ Claude query successful")
-      {:ok, response}
+      case execute_claude_sdk(prompt, claude_options) do
+        {:ok, response} ->
+          Logger.debug("✅ Claude query successful")
+          {:ok, response}
+
+        {:error, reason} ->
+          Logger.error("❌ Claude query failed: #{reason}")
+          {:error, reason}
+      end
     rescue
       error ->
         Logger.error("💥 Claude query crashed: #{inspect(error)}")
@@ -206,6 +209,9 @@ defmodule Pipeline.Providers.ClaudeProvider do
 
       Map.has_key?(data, :result) and data.result not in [nil, ""] ->
         data.result
+
+      subtype == :error_max_turns ->
+        "The task exceeded the maximum number of turns allowed. Consider increasing max_turns option for complex tasks."
 
       true ->
         "Claude SDK error (#{subtype}): No error details available"
