@@ -28,7 +28,6 @@ defmodule Pipeline.Providers.ClaudeProvider do
           {:ok, response}
 
         {:error, reason} ->
-          Logger.error("❌ Claude query failed: #{reason}")
           {:error, reason}
       end
     rescue
@@ -127,7 +126,6 @@ defmodule Pipeline.Providers.ClaudeProvider do
       format_claude_response(text_content, messages)
     catch
       {:error, reason} ->
-        Logger.error("ClaudeCodeSDK extraction error: #{reason}")
         {:error, reason}
     end
   end
@@ -195,12 +193,14 @@ defmodule Pipeline.Providers.ClaudeProvider do
   defp validate_result_message(%{subtype: subtype} = result_msg, _messages)
        when subtype != :success do
     error_text = extract_error_text(result_msg.data, subtype)
-    Logger.error("❌ Claude SDK error: #{error_text}")
-    throw({:error, "Claude SDK error: #{error_text}"})
+    throw({:error, error_text})
   end
 
   defp extract_error_text(data, subtype) do
     cond do
+      subtype == :error_max_turns ->
+        "Task exceeded max_turns limit. Increase max_turns in claude_options for complex tasks."
+
       Map.has_key?(data, :error) and data.error not in [nil, ""] ->
         data.error
 
@@ -209,9 +209,6 @@ defmodule Pipeline.Providers.ClaudeProvider do
 
       Map.has_key?(data, :result) and data.result not in [nil, ""] ->
         data.result
-
-      subtype == :error_max_turns ->
-        "The task exceeded the maximum number of turns allowed. Consider increasing max_turns option for complex tasks."
 
       true ->
         "Claude SDK error (#{subtype}): No error details available"
