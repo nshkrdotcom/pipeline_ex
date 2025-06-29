@@ -3,30 +3,61 @@ defmodule Pipeline.Providers.GeminiProvider do
   Live Gemini provider using InstructorLite for structured generation.
   """
 
+  use Ecto.Schema
   require Logger
+  
+  # Simple response schema for text responses
+  @derive Jason.Encoder
+  defmodule TextResponse do
+    use Ecto.Schema
+    
+    @primary_key false
+    embedded_schema do
+      field :content, :string
+    end
+  end
 
   @doc """
   Query Gemini using InstructorLite for structured responses.
   """
   def query(prompt, options \\ %{}) do
     Logger.debug("🧠 Querying Gemini with prompt: #{String.slice(prompt, 0, 100)}...")
+    IO.puts("DEBUG: GeminiProvider.query called with prompt length: #{String.length(prompt)}")
+    IO.puts("DEBUG: Options: #{inspect(options)}")
     
     # Build instruction configuration
     instruction_config = build_instruction_config(options)
+    IO.puts("DEBUG: Built instruction_config: #{inspect(instruction_config)}")
+    
+    # Format prompt for Gemini adapter - it expects a structured format
+    formatted_prompt = %{
+      contents: [
+        %{
+          role: "user",
+          parts: [%{text: prompt}]
+        }
+      ]
+    }
+    IO.puts("DEBUG: Formatted prompt: #{inspect(formatted_prompt)}")
     
     # Execute the instruction
-    case InstructorLite.instruct(prompt, instruction_config) do
+    IO.puts("DEBUG: About to call InstructorLite.instruct")
+    case InstructorLite.instruct(formatted_prompt, instruction_config) do
       {:ok, response} ->
+        IO.puts("DEBUG: InstructorLite.instruct returned success: #{inspect(response)}")
         formatted_response = format_gemini_response(response)
+        IO.puts("DEBUG: Formatted response: #{inspect(formatted_response)}")
         Logger.debug("✅ Gemini query successful")
         {:ok, formatted_response}
         
       {:error, reason} ->
+        IO.puts("DEBUG: InstructorLite.instruct returned error: #{inspect(reason)}")
         Logger.error("❌ Gemini query failed: #{inspect(reason)}")
         {:error, format_error(reason)}
     end
   rescue
     error ->
+      IO.puts("DEBUG: Exception in GeminiProvider.query: #{inspect(error)}")
       Logger.error("💥 Gemini query crashed: #{inspect(error)}")
       {:error, "Gemini query crashed: #{Exception.message(error)}"}
   end
@@ -63,22 +94,40 @@ defmodule Pipeline.Providers.GeminiProvider do
     model = options["model"] || options[:model] || "gemini-2.5-flash-lite-preview-06-17"
     token_budget = options["token_budget"] || options[:token_budget] || %{}
     
-    base_config = %{
-      adapter: :gemini,
+    # InstructorLite adapter context for Gemini - only include supported parameters
+    adapter_context = [
       model: model,
-      api_key: get_api_key(),
-      stream: false
+      api_key: get_api_key()
+    ]
+    
+    # Create JSON schema for Gemini adapter
+    json_schema = %{
+      type: "object",
+      required: ["content"],
+      properties: %{
+        content: %{type: "string", description: "The response content"}
+      }
     }
     
-    # Add token budget parameters if specified
+    base_config = [
+      adapter: InstructorLite.Adapters.Gemini,
+      adapter_context: adapter_context,
+      response_model: Pipeline.Providers.GeminiProvider.TextResponse,
+      json_schema: json_schema
+    ]
+    
+    # Add token budget parameters to adapter context if specified
+    # Note: Gemini adapter may not support all these parameters, but we'll let it validate
     config_with_budget = case token_budget do
       %{} when map_size(token_budget) == 0 -> base_config
       budget ->
-        base_config
-        |> maybe_add_param(:max_output_tokens, budget["max_output_tokens"] || budget[:max_output_tokens])
-        |> maybe_add_param(:temperature, budget["temperature"] || budget[:temperature])
-        |> maybe_add_param(:top_p, budget["top_p"] || budget[:top_p])
-        |> maybe_add_param(:top_k, budget["top_k"] || budget[:top_k])
+        updated_adapter_context = adapter_context
+        |> add_if_present(:max_output_tokens, budget["max_output_tokens"] || budget[:max_output_tokens])
+        |> add_if_present(:temperature, budget["temperature"] || budget[:temperature])
+        |> add_if_present(:top_p, budget["top_p"] || budget[:top_p])
+        |> add_if_present(:top_k, budget["top_k"] || budget[:top_k])
+        
+        Keyword.put(base_config, :adapter_context, updated_adapter_context)
     end
     
     config_with_budget
@@ -100,7 +149,7 @@ defmodule Pipeline.Providers.GeminiProvider do
       }
     }
     
-    Map.put(base_config, :response_schema, function_call_schema)
+    Keyword.put(base_config, :response_schema, function_call_schema)
   end
 
   defp build_function_calling_prompt(prompt, tools) do
@@ -132,6 +181,9 @@ defmodule Pipeline.Providers.GeminiProvider do
 
   defp maybe_add_param(config, _key, nil), do: config
   defp maybe_add_param(config, key, value), do: Map.put(config, key, value)
+  
+  defp add_if_present(list, _key, nil), do: list
+  defp add_if_present(list, key, value), do: Keyword.put(list, key, value)
 
   defp format_gemini_response(response) do
     %{
@@ -145,6 +197,7 @@ defmodule Pipeline.Providers.GeminiProvider do
   defp extract_content(response) do
     cond do
       is_binary(response) -> response
+      is_struct(response, Pipeline.Providers.GeminiProvider.TextResponse) -> response.content
       is_map(response) and Map.has_key?(response, :content) -> response.content
       is_map(response) and Map.has_key?(response, "content") -> response["content"]
       is_map(response) and Map.has_key?(response, :text) -> response.text

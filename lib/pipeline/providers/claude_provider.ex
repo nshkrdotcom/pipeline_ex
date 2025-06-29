@@ -10,6 +10,8 @@ defmodule Pipeline.Providers.ClaudeProvider do
   """
   def query(prompt, options \\ %{}) do
     Logger.debug("💪 Querying Claude with prompt: #{String.slice(prompt, 0, 100)}...")
+    IO.puts("DEBUG: ClaudeProvider.query called with prompt length: #{String.length(prompt)}")
+    IO.puts("DEBUG: Options: #{inspect(options)}")
     
     # For now, delegate to the existing Claude step implementation
     # This maintains compatibility with the working Claude SDK integration
@@ -17,6 +19,7 @@ defmodule Pipeline.Providers.ClaudeProvider do
     try do
       # Build Claude options from the provider options
       claude_options = build_claude_options(options)
+      IO.puts("DEBUG: Built claude_options: #{inspect(claude_options)}")
       
       # Use the existing Claude SDK via the step module
       # In a real implementation, this would call the Claude SDK directly
@@ -59,17 +62,15 @@ defmodule Pipeline.Providers.ClaudeProvider do
       _live_or_mixed ->
         # Make real API call using ClaudeCodeSDK
         try do
-          # Convert options to ClaudeCodeSDK Options struct
-          sdk_options = %ClaudeCodeSDK.Options{
-            verbose: options[:verbose] || false,
-            cwd: options[:cwd] || "./workspace",
-            system_prompt: options[:system_prompt],
-            max_turns: options[:max_turns] || 3,
-            allowed_tools: options[:allowed_tools],
-            disallowed_tools: options[:disallowed_tools]
-          }
+          # Convert options to ClaudeCodeSDK Options struct - use minimal options like the working test
+          sdk_options = ClaudeCodeSDK.Options.new([
+            max_turns: options[:max_turns] || 1,
+            verbose: options[:verbose] || true
+          ])
           
           # Query using the SDK (returns a stream)
+          IO.puts("DEBUG: Calling ClaudeCodeSDK.query with prompt length: #{String.length(prompt)}")
+          IO.puts("DEBUG: SDK options: #{inspect(sdk_options)}")
           stream = ClaudeCodeSDK.query(prompt, sdk_options)
           
           # Collect all messages from the stream
