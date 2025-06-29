@@ -1,0 +1,37 @@
+workflow:
+  name: "test_live_simple"
+  description: "Simple test for live mode with realistic but manageable tasks"
+  
+  workspace_dir: "./workspace"
+  checkpoint_enabled: false
+  
+  defaults:
+    claude_options:
+      max_turns: 3
+      verbose: true
+      allowed_tools: ["Read", "Write", "LS"]
+
+  steps:
+    - name: "analysis"
+      type: "gemini"
+      model: "gemini-2.5-flash"
+      prompt:
+        - type: "static"
+          content: "Analyze this simple workflow configuration and provide brief feedback."
+
+    - name: "simple_task"
+      type: "claude"
+      claude_options:
+        max_turns: 4
+        allowed_tools: ["Read", "LS"]
+      prompt:
+        - type: "static"
+          content: "Please list the files in the current directory and read the README.md file. Provide a brief summary."
+
+    - name: "final_step"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "Thank you for the analysis. Please provide a final summary."
+        - type: "previous_response"
+          step: "simple_task"

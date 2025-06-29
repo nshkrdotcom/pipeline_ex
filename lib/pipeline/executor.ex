@@ -350,6 +350,13 @@ defmodule Pipeline.Executor do
   defp truthy?([]), do: false
   defp truthy?(_), do: true
 
+  defp optimize_result_for_memory(result) when is_struct(result) do
+    # Convert struct to map first to enable enumeration
+    result
+    |> Map.from_struct()
+    |> optimize_result_for_memory()
+  end
+
   defp optimize_result_for_memory(result) when is_map(result) do
     # Trim very large text fields to prevent memory issues
     # 100KB

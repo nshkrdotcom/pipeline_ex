@@ -80,28 +80,59 @@ defmodule Pipeline.Providers.ClaudeProvider do
           )
 
           IO.puts("DEBUG: SDK options: #{inspect(sdk_options)}")
+          
+          Logger.debug("🚀 Starting Claude SDK query...")
           stream = ClaudeCodeSDK.query(prompt, sdk_options)
 
-          # Collect all messages from the stream
-          messages = Enum.to_list(stream)
+          # Collect all messages from the stream with error handling
+          Logger.debug("📥 Collecting messages from Claude SDK stream...")
+          
+          messages = 
+            try do
+              Enum.to_list(stream)
+            rescue
+              error ->
+                Logger.error("💥 Failed to collect Claude SDK stream: #{inspect(error)}")
+                reraise error, __STACKTRACE__
+            end
 
-          # Debug: log the messages structure
-          Logger.debug("ClaudeCodeSDK messages: #{inspect(messages, limit: :infinity)}")
+          Logger.debug("📋 Collected #{length(messages)} messages from Claude SDK")
+          
+          # Check if we have any messages
+          if Enum.empty?(messages) do
+            Logger.error("❌ No messages received from Claude SDK")
+            {:error, "No response from Claude SDK"}
+          else
+            # Debug: log the messages structure with better formatting
+            Logger.debug("ClaudeCodeSDK messages: #{inspect(messages, limit: :infinity)}")
+            
+            # Log message types for debugging
+            message_types = Enum.map(messages, fn msg -> 
+              "#{msg.type}:#{msg.subtype || "nil"}" 
+            end) |> Enum.join(", ")
+            Logger.debug("📋 Message types: #{message_types}")
 
-          # Extract text content from messages
-          try do
-            text_content = extract_text_from_messages(messages)
+            # Extract text content from messages
+            try do
+              text_content = extract_text_from_messages(messages)
 
-            {:ok,
-             %{
-               text: text_content,
-               success: true,
-               cost: calculate_cost(messages)
-             }}
-          catch
-            {:error, reason} ->
-              Logger.error("ClaudeCodeSDK extraction error: #{reason}")
-              {:error, reason}
+              if String.trim(text_content) == "" do
+                Logger.warning("⚠️ Extracted empty text from Claude response")
+                {:error, "Empty response from Claude"}
+              else
+                Logger.debug("✅ Successfully extracted Claude response")
+                {:ok,
+                 %{
+                   text: text_content,
+                   success: true,
+                   cost: calculate_cost(messages)
+                 }}
+              end
+            catch
+              {:error, reason} ->
+                Logger.error("ClaudeCodeSDK extraction error: #{reason}")
+                {:error, reason}
+            end
           end
         rescue
           error ->
@@ -112,34 +143,67 @@ defmodule Pipeline.Providers.ClaudeProvider do
   end
 
   defp extract_text_from_messages(messages) do
-    # Check for errors first
-    error_msg =
-      Enum.find(messages, fn msg ->
-        msg.type == :result and msg.subtype != :success
-      end)
-
-    if error_msg do
-      error_text =
-        if Map.has_key?(error_msg.data, :error) do
-          error_msg.data.error
-        else
-          inspect(error_msg.data)
+    Logger.debug("📋 Extracting text from #{length(messages)} Claude SDK messages")
+    
+    # Check if we have a result message - this tells us if the conversation completed
+    result_msg = Enum.find(messages, fn msg -> msg.type == :result end)
+    
+    case result_msg do
+      nil ->
+        # No result message means the conversation didn't complete properly
+        Logger.error("❌ Claude SDK conversation incomplete - no result message found")
+        Logger.debug("Available message types: #{inspect(Enum.map(messages, &{&1.type, &1.subtype}))}")
+        throw({:error, "Claude SDK conversation incomplete"})
+        
+      %{subtype: :success} ->
+        # Success - continue with extraction
+        Logger.debug("✅ Claude SDK conversation completed successfully")
+        
+      %{subtype: subtype} when subtype != :success ->
+        # Failed result - extract error message from the data
+        error_text = cond do
+          Map.has_key?(result_msg.data, :error) and result_msg.data.error not in [nil, ""] ->
+            result_msg.data.error
+          Map.has_key?(result_msg.data, :message) and result_msg.data.message not in [nil, ""] ->
+            result_msg.data.message  
+          Map.has_key?(result_msg.data, :result) and result_msg.data.result not in [nil, ""] ->
+            result_msg.data.result
+          true ->
+            "Claude SDK error (#{subtype}): No error details available"
         end
 
-      throw({:error, "Claude SDK error: #{error_text}"})
+        Logger.error("❌ Claude SDK error: #{error_text}")
+        throw({:error, "Claude SDK error: #{error_text}"})
     end
 
-    # Extract assistant messages
-    messages
-    |> Enum.filter(fn msg -> msg.type == :assistant end)
-    |> Enum.map(fn msg ->
-      case msg.data.message do
-        %{"content" => text} when is_binary(text) -> text
-        %{"content" => [%{"text" => text}]} -> text
-        other -> inspect(other)
-      end
-    end)
-    |> Enum.join("\n")
+    # Extract assistant messages  
+    assistant_messages = Enum.filter(messages, fn msg -> msg.type == :assistant end)
+    Logger.debug("🔍 Found #{length(assistant_messages)} assistant messages")
+
+    text_parts = 
+      assistant_messages
+      |> Enum.map(fn msg ->
+        case msg.data.message["content"] do
+          text when is_binary(text) -> 
+            text
+          [%{"text" => text} | _] -> 
+            text
+          content_array when is_list(content_array) ->
+            # Handle list of content items, extract just text parts
+            text_items = Enum.filter(content_array, fn item -> 
+              Map.has_key?(item, "text") and item["type"] == "text"
+            end)
+            texts = Enum.map(text_items, fn item -> item["text"] end)
+            Enum.join(texts, " ")
+          other -> 
+            Logger.warning("⚠️ Unknown Claude content format: #{inspect(other, limit: 100)}")
+            inspect(other)
+        end
+      end)
+
+    result = Enum.join(text_parts, "\n")
+    Logger.debug("✅ Extracted #{String.length(result)} characters from Claude response")
+    result
   end
 
   defp calculate_cost(messages) do

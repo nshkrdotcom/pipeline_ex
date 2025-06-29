@@ -10,12 +10,45 @@ defmodule Pipeline.Providers.GeminiProvider do
     @moduledoc """
     Simple response schema for Gemini text responses.
     """
-    @derive Jason.Encoder
-    @type t :: %__MODULE__{
-            content: String.t()
-          }
+    use Ecto.Schema
 
-    defstruct [:content]
+    @primary_key false
+    embedded_schema do
+      field(:content, :string)
+    end
+
+    @behaviour Access
+
+    def fetch(struct, key) do
+      case key do
+        :content -> {:ok, struct.content}
+        "content" -> {:ok, struct.content}
+        _ -> :error
+      end
+    end
+
+    def get_and_update(struct, key, function) do
+      case key do
+        :content ->
+          {current, new} = function.(struct.content)
+          {current, %{struct | content: new}}
+
+        "content" ->
+          {current, new} = function.(struct.content)
+          {current, %{struct | content: new}}
+
+        _ ->
+          {nil, struct}
+      end
+    end
+
+    def pop(struct, key) do
+      case key do
+        :content -> {struct.content, %{struct | content: nil}}
+        "content" -> {struct.content, %{struct | content: nil}}
+        _ -> {nil, struct}
+      end
+    end
   end
 
   @doc """

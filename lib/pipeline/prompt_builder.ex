@@ -37,7 +37,13 @@ defmodule Pipeline.PromptBuilder do
   defp ensure_cache_started do
     case :ets.whereis(@file_cache_name) do
       :undefined ->
-        :ets.new(@file_cache_name, [:named_table, :public, :set])
+        try do
+          :ets.new(@file_cache_name, [:named_table, :public, :set])
+        rescue
+          ArgumentError ->
+            # Table was created by another process in the meantime
+            :ok
+        end
 
       _tid ->
         :ok

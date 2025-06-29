@@ -1,0 +1,195 @@
+# Comprehensive Pipeline Configuration Example
+# This demonstrates ALL available configuration options with minimal steps (6 total)
+# Covers every feature: both AI providers, all step types, all prompt types, 
+# function calling, parallel execution, conditionals, and all configuration options
+
+workflow:
+  name: "complete_feature_demo"
+  description: "Comprehensive demonstration of all pipeline features"
+  
+  # All workspace/checkpoint options
+  workspace_dir: "./workspace"
+  checkpoint_enabled: true
+  checkpoint_dir: "./checkpoints"
+  
+  # All default options
+  defaults:
+    gemini_model: "gemini-2.5-flash"
+    gemini_token_budget:
+      max_output_tokens: 2048
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 30
+    claude_options:
+      max_turns: 3
+      verbose: true
+      output_format: "json"
+    claude_output_format: "json"
+    output_dir: "./outputs"
+
+  # Function calling definitions (all parameter types)
+  gemini_functions:
+    comprehensive_analysis:
+      description: "Complete code analysis with all parameter types"
+      parameters:
+        type: object
+        properties:
+          quality_score:
+            type: integer
+            minimum: 1
+            maximum: 10
+            description: "Overall quality score"
+          issues:
+            type: array
+            items:
+              type: string
+            description: "List of identified issues"
+          metrics:
+            type: object
+            properties:
+              complexity:
+                type: number
+              maintainability:
+                type: boolean
+            description: "Code metrics"
+          recommendations:
+            type: array
+            items:
+              type: object
+              properties:
+                priority:
+                  type: string
+                  enum: ["high", "medium", "low"]
+                description:
+                  type: string
+        required: ["quality_score", "issues"]
+
+  steps:
+    # Step 1: Gemini with ALL features - function calling, model override, token budget override
+    - name: "comprehensive_analysis"
+      type: "gemini"
+      role: "brain"
+      model: "gemini-2.5-pro"  # Override default
+      functions: ["comprehensive_analysis"]  # Function calling
+      token_budget:  # Override all token settings
+        max_output_tokens: 4096
+        temperature: 0.3
+        top_p: 0.8
+        top_k: 20
+      output_to_file: "analysis.json"
+      prompt:
+        - type: "static"  # Static content
+          content: "Analyze this codebase comprehensively. Use the comprehensive_analysis function:"
+        - type: "file"  # File content
+          path: "./lib/pipeline/config.ex"
+
+    # Step 2: Claude with ALL options - every claude_option available
+    - name: "implement_fixes"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        print: false
+        max_turns: 8
+        allowed_tools: ["Write", "Edit", "Read", "Bash", "Search", "Glob", "Grep"]
+        disallowed_tools: []
+        system_prompt: "You are a senior software engineer."
+        append_system_prompt: "Focus on clean, maintainable code."
+        verbose: true
+        output_format: "json"
+        cwd: "./workspace/fixes"
+      output_to_file: "implementation.json"
+      prompt:
+        - type: "static"
+          content: "Fix all issues identified in the analysis:"
+        - type: "previous_response"  # Previous response reference
+          step: "comprehensive_analysis"
+          extract: "issues"  # Field extraction
+        - type: "static"
+          content: "\nImplement the high-priority recommendations first."
+
+    # Step 3: Parallel Claude - demonstrates parallel execution with different configs
+    - name: "parallel_tasks"
+      type: "parallel_claude"
+      parallel_tasks:
+        - id: "documentation"
+          claude_options:
+            max_turns: 4
+            allowed_tools: ["Write", "Read"]
+            cwd: "./workspace/docs"
+            output_format: "text"
+          prompt:
+            - type: "static"
+              content: "Create comprehensive documentation:"
+            - type: "previous_response"
+              step: "comprehensive_analysis"
+          output_to_file: "documentation.md"
+        
+        - id: "testing"
+          claude_options:
+            max_turns: 6
+            allowed_tools: ["Write", "Edit", "Bash"]
+            cwd: "./workspace/tests"
+            output_format: "json"
+            verbose: false
+          prompt:
+            - type: "static"
+              content: "Create test suite for the fixes:"
+            - type: "previous_response"
+              step: "implement_fixes"
+          output_to_file: "test_suite.json"
+
+    # Step 4: Gemini Instructor - structured output without functions
+    - name: "quality_assessment"
+      type: "gemini_instructor"
+      model: "gemini-2.0-flash"  # Different model
+      condition: "implement_fixes.success"  # Conditional execution
+      token_budget:
+        max_output_tokens: 1024
+        temperature: 0.1
+      output_to_file: "quality_report.json"
+      prompt:
+        - type: "static"
+          content: "Assess the overall quality after fixes:"
+        - type: "previous_response"
+          step: "parallel_tasks"
+          extract: "testing.coverage"
+
+    # Step 5: Regular Gemini - no functions, minimal config (using defaults)
+    - name: "final_review"
+      type: "gemini"
+      # Uses all defaults - no overrides
+      output_to_file: "final_review.md"
+      prompt:
+        - type: "static"
+          content: "Provide final project review combining all outputs:"
+        - type: "previous_response"
+          step: "quality_assessment"
+        - type: "file"
+          path: "./workspace/docs/documentation.md"
+
+    # Step 6: Final Claude with complex conditional and minimal options
+    - name: "deployment_prep"
+      type: "claude"
+      condition: "quality_assessment.overall_score >= 8"  # Complex conditional
+      claude_options:
+        max_turns: 3
+        allowed_tools: ["Write", "Bash"]
+      prompt:
+        - type: "static"
+          content: "Prepare deployment package:"
+        - type: "previous_response"
+          step: "final_review"
+
+# Configuration coverage:
+# ✓ All workflow-level options (name, description, workspace_dir, checkpoint_enabled, checkpoint_dir)
+# ✓ All defaults (gemini_model, gemini_token_budget, claude_options, claude_output_format, output_dir)
+# ✓ Function calling with all parameter types (integer, string, array, object, boolean, enums)
+# ✓ All step types (gemini, claude, parallel_claude, gemini_instructor)
+# ✓ All common step fields (name, type, role, condition, output_to_file)
+# ✓ All Gemini options (model override, token_budget override, functions)
+# ✓ All Claude options (print, max_turns, allowed_tools, disallowed_tools, system_prompt, append_system_prompt, verbose, output_format, cwd)
+# ✓ All prompt types (static, file, previous_response with extraction)
+# ✓ Parallel tasks with different configurations
+# ✓ Conditional execution (simple and complex)
+# ✓ All available models
+# ✓ Using defaults vs overrides

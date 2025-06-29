@@ -1,0 +1,18 @@
+workflow:
+  name: "simple_test"
+  
+  steps:
+    - name: "gemini_test"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "Hello from Gemini! Respond with a simple greeting."
+    
+    - name: "claude_test"
+      type: "claude"
+      claude_options:
+        max_turns: 1
+        allowed_tools: []
+      prompt:
+        - type: "static"
+          content: "Hello from Claude! Respond with a simple greeting."

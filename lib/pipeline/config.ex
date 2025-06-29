@@ -65,9 +65,7 @@ defmodule Pipeline.Config do
         }
   def get_provider_config(:claude) do
     %{
-      base_url: System.get_env("CLAUDE_BASE_URL"),
-      api_key: System.get_env("CLAUDE_API_KEY"),
-      model: System.get_env("CLAUDE_MODEL") || "claude-3-sonnet-20240229",
+      model: System.get_env("CLAUDE_MODEL") || "claude-4-sonnet",
       timeout: String.to_integer(System.get_env("CLAUDE_TIMEOUT") || "30000")
     }
   end
@@ -175,6 +173,16 @@ defmodule Pipeline.Config do
   end
 
   defp validate_step(step, config) do
+    with :ok <- validate_step_required_fields(step),
+         :ok <- validate_step_type(step),
+         :ok <- validate_step_type_specific(step),
+         :ok <- validate_step_prompt(step),
+         :ok <- validate_step_function_references(step, config) do
+      :ok
+    end
+  end
+
+  defp validate_step_required_fields(step) do
     cond do
       is_nil(step["name"]) ->
         {:error, "Step missing required 'name' field. Add: name: \"step_name\""}
@@ -183,9 +191,33 @@ defmodule Pipeline.Config do
         {:error,
          "Step '#{step["name"]}' missing required 'type' field. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
 
-      step["type"] not in ["claude", "gemini", "parallel_claude", "gemini_instructor"] ->
-        {:error,
-         "Step '#{step["name"]}' has invalid type '#{step["type"]}'. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_step_type(step) do
+    if step["type"] in ["claude", "gemini", "parallel_claude", "gemini_instructor"] do
+      :ok
+    else
+      {:error,
+       "Step '#{step["name"]}' has invalid type '#{step["type"]}'. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
+    end
+  end
+
+  defp validate_step_type_specific(step) do
+    if step["type"] == "parallel_claude" and is_nil(step["parallel_tasks"]) do
+      {:error,
+       "Step '#{step["name"]}' of type 'parallel_claude' missing required 'parallel_tasks' field"}
+    else
+      :ok
+    end
+  end
+
+  defp validate_step_prompt(step) do
+    cond do
+      step["type"] == "parallel_claude" ->
+        :ok
 
       is_nil(step["prompt"]) ->
         {:error,
@@ -195,15 +227,8 @@ defmodule Pipeline.Config do
         {:error,
          "Step '#{step["name"]}' prompt must be an array of prompt parts. Format: [{\"type\": \"static\", \"content\": \"...\"}]"}
 
-      step["type"] == "parallel_claude" and is_nil(step["parallel_tasks"]) ->
-        {:error,
-         "Step '#{step["name"]}' of type 'parallel_claude' missing required 'parallel_tasks' field"}
-
       true ->
-        with :ok <- validate_prompt_parts(step["prompt"], step["name"]),
-             :ok <- validate_step_function_references(step, config) do
-          :ok
-        end
+        validate_prompt_parts(step["prompt"], step["name"])
     end
   end
 

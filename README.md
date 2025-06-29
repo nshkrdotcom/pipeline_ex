@@ -178,6 +178,88 @@ Code.compile_file(\"run_example.exs\")
 elixir run_example.exs
 ```
 
+## Running the Comprehensive Example
+
+The project includes a comprehensive configuration example that demonstrates **all available features** with minimal steps. This example showcases every configuration option, step type, and feature available in the pipeline system.
+
+### Mock Mode (Safe, No API Keys Required)
+
+```bash
+# Run the comprehensive example with mocked AI responses
+mix pipeline.run examples/comprehensive_config_example.yaml
+
+# Run with debug output to see detailed execution
+PIPELINE_DEBUG=true mix pipeline.run examples/comprehensive_config_example.yaml
+```
+
+### Live Mode (Real AI Providers)
+
+To run the comprehensive example with actual AI providers:
+
+#### 1. Set Up API Keys
+
+```bash
+# Set your Gemini API key (get from https://aistudio.google.com/)
+export GEMINI_API_KEY="your_gemini_api_key_here"
+
+# Authenticate Claude CLI (pre-authenticated, no API key needed)
+claude auth
+```
+
+#### 2. Run in Live Mode
+
+```bash
+# Run with real AI providers
+TEST_MODE=live mix pipeline.run examples/comprehensive_config_example.yaml
+
+# Run with full debug logging
+TEST_MODE=live PIPELINE_DEBUG=true PIPELINE_LOG_LEVEL=debug mix pipeline.run examples/comprehensive_config_example.yaml
+```
+
+### What the Comprehensive Example Demonstrates
+
+The `examples/comprehensive_config_example.yaml` shows:
+
+- ✅ **All 4 step types**: `gemini`, `claude`, `parallel_claude`, `gemini_instructor`
+- ✅ **Function calling**: Gemini with structured function definitions
+- ✅ **All Claude tools**: Write, Edit, Read, Bash, Search, Glob, Grep
+- ✅ **Parallel execution**: Multiple Claude instances running simultaneously
+- ✅ **Conditional steps**: Steps that run based on previous results
+- ✅ **All prompt types**: Static content, file content, previous responses
+- ✅ **Workspace management**: Sandboxed file operations
+- ✅ **Token budgets**: Fine-tuned AI response configurations
+- ✅ **Model selection**: Different AI models for different tasks
+- ✅ **Output management**: Structured result saving and organization
+
+### Environment Configuration
+
+For advanced configuration, you can set these environment variables:
+
+```bash
+# API Configuration
+export GEMINI_API_KEY="your_gemini_api_key"
+# Note: Claude uses CLI authentication (claude auth), no API key needed
+
+# Pipeline Directories
+export PIPELINE_WORKSPACE_DIR="./workspace"     # Claude's sandbox
+export PIPELINE_OUTPUT_DIR="./outputs"          # Result storage
+export PIPELINE_CHECKPOINT_DIR="./checkpoints"  # State management
+
+# Logging and Debug
+export PIPELINE_LOG_LEVEL="debug"               # debug, info, warn, error
+export PIPELINE_DEBUG="true"                    # Detailed execution logs
+
+# Execution Mode
+export TEST_MODE="live"                          # live, mock, mixed
+```
+
+### Creating Your Own Workflows
+
+1. **Start with the example**: Copy `examples/comprehensive_config_example.yaml`
+2. **Read the guide**: See [Pipeline Configuration Guide](PIPELINE_CONFIG_GUIDE.md) for all options
+3. **Test in mock mode**: Validate your workflow logic without API costs
+4. **Run live**: Execute with real AI providers when ready
+
 ## Development
 
 ### Running the Example

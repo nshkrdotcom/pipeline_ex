@@ -24,3 +24,7 @@ pipeline-*.tar
 
 # Ignore priv directory (contains build artifacts like PLT files)
 /priv/
+
+/outputs/
+/workspace/
+/checkpoints/
