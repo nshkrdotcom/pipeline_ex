@@ -1,0 +1,196 @@
+workflow:
+  name: "comprehensive_test_workflow"
+  workspace_dir: "./test_workspace"
+  checkpoint_enabled: true
+  checkpoint_dir: "./test_checkpoints"
+  
+  defaults:
+    gemini_model: "gemini-2.5-flash"
+    gemini_token_budget:
+      max_output_tokens: 2048
+      temperature: 0.7
+      top_p: 0.95
+      top_k: 40
+    claude_options:
+      max_turns: 10
+      allowed_tools: ["Write", "Read", "Edit"]
+      verbose: true
+    output_dir: "./test_outputs"
+    
+  gemini_functions:
+    analyze_code:
+      description: "Analyze code for quality and issues"
+      parameters:
+        type: object
+        properties:
+          quality_score:
+            type: integer
+            minimum: 1
+            maximum: 10
+            description: "Overall quality score"
+          issues:
+            type: array
+            items:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: ["bug", "style", "performance", "security"]
+                severity:
+                  type: string
+                  enum: ["low", "medium", "high", "critical"]
+                description:
+                  type: string
+                line:
+                  type: integer
+          suggestions:
+            type: array
+            items:
+              type: string
+        required: ["quality_score", "issues", "suggestions"]
+        
+    validate_config:
+      description: "Validate configuration settings"
+      parameters:
+        type: object
+        properties:
+          is_valid:
+            type: boolean
+          errors:
+            type: array
+            items:
+              type: string
+          warnings:
+            type: array
+            items:
+              type: string
+        required: ["is_valid"]
+        
+  steps:
+    - name: "requirements_analysis"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "Analyze the following requirements and identify key components:"
+        - type: "file"
+          path: "./requirements.txt"
+      output_to_file: "requirements_analysis.json"
+      
+    - name: "architecture_design"
+      type: "gemini"
+      functions: ["validate_config"]
+      token_budget:
+        max_output_tokens: 4096
+        temperature: 0.5
+      prompt:
+        - type: "static"
+          content: "Based on this requirements analysis:"
+        - type: "previous_response"
+          step: "requirements_analysis"
+        - type: "static"
+          content: "\nDesign a system architecture and validate it using the validate_config function."
+      output_to_file: "architecture_design.json"
+      
+    - name: "code_implementation"
+      type: "claude"
+      claude_options:
+        max_turns: 20
+        allowed_tools: ["Write", "Edit", "Read", "Bash"]
+        cwd: "./implementation"
+        system_prompt: "You are an expert software developer focused on clean, maintainable code."
+      prompt:
+        - type: "static"
+          content: "Implement the system based on:"
+        - type: "static"
+          content: "\nRequirements:"
+        - type: "previous_response"
+          step: "requirements_analysis"
+        - type: "static"
+          content: "\nArchitecture:"
+        - type: "previous_response"
+          step: "architecture_design"
+        - type: "static"
+          content: "\nCreate all necessary code files and structure."
+      output_to_file: "implementation.py"
+      
+    - name: "code_review"
+      type: "gemini"
+      functions: ["analyze_code"]
+      prompt:
+        - type: "static"
+          content: "Review the implemented code for quality, security, and best practices:"
+        - type: "previous_response"
+          step: "code_implementation"
+        - type: "static"
+          content: "\nUse the analyze_code function to provide detailed analysis."
+      output_to_file: "code_review.json"
+      
+    - name: "test_generation"
+      type: "claude"
+      claude_options:
+        max_turns: 15
+        allowed_tools: ["Write", "Read"]
+        cwd: "./tests"
+      prompt:
+        - type: "static"
+          content: "Generate comprehensive tests based on:"
+        - type: "static"
+          content: "\nImplementation:"
+        - type: "previous_response"
+          step: "code_implementation"
+        - type: "static"
+          content: "\nCode Review Issues:"
+        - type: "previous_response"
+          step: "code_review"
+          extract: "issues"
+        - type: "static"
+          content: "\nCreate unit tests, integration tests, and edge case tests."
+      output_to_file: "test_suite.py"
+      
+    - name: "documentation"
+      type: "claude"
+      claude_options:
+        max_turns: 12
+        allowed_tools: ["Write", "Read"]
+        verbose: false
+      prompt:
+        - type: "static"
+          content: "Create comprehensive documentation including:"
+        - type: "static"
+          content: "\nRequirements:"
+        - type: "previous_response"
+          step: "requirements_analysis"
+        - type: "static"
+          content: "\nArchitecture:"
+        - type: "previous_response"
+          step: "architecture_design"
+        - type: "static"
+          content: "\nQuality Analysis:"
+        - type: "previous_response"
+          step: "code_review"
+          extract: "suggestions"
+        - type: "static"
+          content: "\nGenerate README.md, API documentation, and deployment guide."
+      output_to_file: "README.md"
+      
+    - name: "final_validation"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "Perform final validation of the complete project:"
+        - type: "static"
+          content: "\nImplementation Quality:"
+        - type: "previous_response"
+          step: "code_review"
+          extract: "quality_score"
+        - type: "static"
+          content: "\nTest Coverage Assessment:"
+        - type: "previous_response"
+          step: "test_generation"
+        - type: "static"
+          content: "\nDocumentation Completeness:"
+        - type: "previous_response"
+          step: "documentation"
+        - type: "static"
+          content: "\nProvide final project assessment and recommendations."
+      output_to_file: "final_validation.json"

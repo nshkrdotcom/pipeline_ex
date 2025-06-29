@@ -4,7 +4,12 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
   """
 
   def query(prompt, _options \\ %{}) do
-    case prompt do
+    # Check for pattern-specific responses first
+    case find_matching_pattern(prompt) do
+      {:ok, response} -> {:ok, response}
+      :not_found ->
+        # Fall back to existing pattern matching
+        case prompt do
       "simple test" ->
         {:ok, %{"text" => "Mock response for simple test", "success" => true, "cost" => 0.001}}
 
@@ -29,10 +34,33 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
              }}
         end
 
-      _ ->
-        {:ok, %{"text" => "Mock response", "success" => true, "cost" => 0.001}}
+        _ ->
+          {:ok, %{"text" => "Mock response", "success" => true, "cost" => 0.001}}
+        end
     end
   end
 
-  def reset, do: :ok
+  def set_response_pattern(pattern, response) do
+    Process.put({:mock_response, pattern}, response)
+  end
+
+  def reset do
+    # Clear all mock responses
+    Process.get_keys()
+    |> Enum.filter(fn key -> match?({:mock_response, _}, key) end)
+    |> Enum.each(&Process.delete/1)
+    :ok
+  end
+
+  defp find_matching_pattern(prompt) do
+    Process.get_keys()
+    |> Enum.filter(fn key -> match?({:mock_response, _}, key) end)
+    |> Enum.find_value(:not_found, fn {_, pattern} ->
+      if String.contains?(prompt, pattern) do
+        {:ok, Process.get({:mock_response, pattern})}
+      else
+        nil
+      end
+    end)
+  end
 end

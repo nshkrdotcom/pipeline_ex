@@ -1,12 +1,18 @@
 defmodule Pipeline.PromptBuilder do
   @moduledoc """
   Builds prompts from template configurations.
+  Includes file caching for improved performance.
   """
+
+  # File cache for repeated reads
+  @file_cache_name :prompt_builder_file_cache
 
   @doc """
   Build a prompt from prompt parts and previous results.
   """
   def build(prompt_parts, results) when is_list(prompt_parts) do
+    ensure_cache_started()
+    
     prompt_parts
     |> Enum.map(&build_part(&1, results))
     |> Enum.join("\n")
@@ -14,6 +20,28 @@ defmodule Pipeline.PromptBuilder do
 
   def build(nil, _results), do: ""
 
+  @doc """
+  Clear the file cache (useful for testing and memory management).
+  """
+  def clear_cache do
+    case :ets.whereis(@file_cache_name) do
+      :undefined -> :ok
+      _tid -> 
+        :ets.delete_all_objects(@file_cache_name)
+        :ok
+    end
+  end
+
+  defp ensure_cache_started do
+    case :ets.whereis(@file_cache_name) do
+      :undefined ->
+        :ets.new(@file_cache_name, [:named_table, :public, :set])
+      _tid ->
+        :ok
+    end
+  end
+
+  # Static content build_part functions
   defp build_part(%{"type" => "static", "content" => content}, _results) do
     content || ""
   end
@@ -22,24 +50,21 @@ defmodule Pipeline.PromptBuilder do
     content || ""
   end
 
+  # File content build_part functions
   defp build_part(%{"type" => "file", "path" => path}, _results) do
-    case File.read(path) do
-      {:ok, content} -> content
-      {:error, _} -> raise "Failed to read file: #{path}"
-    end
+    read_file_with_cache(path)
   end
 
   defp build_part(%{type: "file", path: path}, _results) do
-    case File.read(path) do
-      {:ok, content} -> content
-      {:error, _} -> raise "Failed to read file: #{path}"
-    end
+    read_file_with_cache(path)
   end
 
-  defp build_part(%{"type" => "previous_response", "step" => step_name} = part, results) do
+  # Previous response build_part functions
+  defp build_part(%{"type" => "previous_response", "step" => step_name} = part, context) do
+    results = get_results_from_context(context)
     case Map.get(results, step_name) do
       nil ->
-        raise "Step '#{step_name}' not found in results"
+        raise KeyError, key: step_name, term: results
 
       result ->
         if part["extract"] do
@@ -50,42 +75,118 @@ defmodule Pipeline.PromptBuilder do
     end
   end
 
-  defp build_part(%{type: "previous_response", step: step_name} = part, results) do
+  defp build_part(%{type: "previous_response", step: step_name} = part, context) do
+    results = get_results_from_context(context)
     case Map.get(results, step_name) do
       nil ->
-        raise "Step '#{step_name}' not found in results"
+        raise KeyError, key: step_name, term: results
 
       result ->
-        if part[:extract] do
-          extract_field(result, part[:extract])
-        else
-          format_result(result)
+        try do
+          if part[:extract] do
+            extract_field(result, part[:extract])
+          else
+            format_result(result)
+          end
+        rescue
+          e ->
+            raise "Failed to process result from step '#{step_name}': #{Exception.message(e)}"
         end
     end
   end
 
+  # Catch-all build_part function
   defp build_part(_, _), do: ""
 
-  defp extract_field(result, field) when is_map(result) do
-    case Map.get(result, field) || Map.get(result, String.to_atom(field)) do
-      nil -> raise "Field '#{field}' not found in result"
-      value -> format_value(value)
+  defp read_file_with_cache(path) do
+    # Get file modification time for cache invalidation
+    case File.stat(path) do
+      {:ok, %File.Stat{mtime: mtime}} ->
+        cache_key = {path, mtime}
+        
+        case :ets.lookup(@file_cache_name, cache_key) do
+          [{^cache_key, content}] ->
+            # Cache hit
+            content
+          [] ->
+            # Cache miss - read file and cache
+            content = read_file_with_error_handling(path)
+            :ets.insert(@file_cache_name, {cache_key, content})
+            content
+        end
+        
+      {:error, :enoent} ->
+        raise "File not found: #{path}. Please check the file path and ensure the file exists."
+      {:error, :eacces} ->
+        raise "Permission denied accessing file: #{path}. Please check file permissions."
+      {:error, reason} ->
+        raise "Failed to access file #{path}: #{:file.format_error(reason)}"
     end
   end
 
-  defp extract_field(result, _field) do
-    format_result(result)
+  defp read_file_with_error_handling(path) do
+    try do
+      case File.read(path) do
+        {:ok, content} -> 
+          content
+        {:error, :enoent} -> 
+          raise "File not found: #{path}. Please check the file path and ensure the file exists."
+        {:error, :eacces} -> 
+          raise "Permission denied reading file: #{path}. Please check file permissions."
+        {:error, reason} -> 
+          raise "Failed to read file #{path}: #{:file.format_error(reason)}"
+      end
+    rescue
+      e in File.Error ->
+        raise "File operation failed for #{path}: #{Exception.message(e)}"
+    end
   end
+
+  
+  defp get_results_from_context(%{results: results}), do: results
+  defp get_results_from_context(results) when is_map(results), do: results
+
+  defp extract_field(result, field_path) do
+    case get_nested_field_with_presence(result, field_path) do
+      {:found, value} ->
+        format_value(value)
+      :not_found ->
+        # Return nil for missing fields, which will be formatted as "nil"
+        format_value(nil)
+    end
+  end
+  
+  defp get_nested_field_with_presence(map, field_path) when is_map(map) do
+    fields = String.split(field_path, ".")
+
+    {result, status} = Enum.reduce(fields, {map, :found}, fn field, {acc, status} ->
+      case {acc, status} do
+        {%{}, :found} -> 
+          cond do
+            Map.has_key?(acc, field) -> 
+              {Map.get(acc, field), :found}
+            Map.has_key?(acc, String.to_atom(field)) -> 
+              {Map.get(acc, String.to_atom(field)), :found}
+            true -> 
+              {nil, :not_found}
+          end
+        {_, :not_found} -> {nil, :not_found}
+        _ -> {nil, :not_found}
+      end
+    end)
+
+    case status do
+      :found -> {:found, result}
+      :not_found -> :not_found
+    end
+  end
+
+  defp get_nested_field_with_presence(_, _), do: :not_found
+  
 
   defp format_result(result) when is_map(result) do
-    # For Claude responses, prefer text field
-    cond do
-      Map.has_key?(result, :text) -> result.text
-      Map.has_key?(result, "text") -> result["text"]
-      Map.has_key?(result, :content) -> result.content
-      Map.has_key?(result, "content") -> result["content"]
-      true -> Jason.encode!(result, pretty: true)
-    end
+    # Return full JSON representation when no specific field is requested
+    Jason.encode!(result, pretty: true)
   end
 
   defp format_result(result) when is_binary(result) do
@@ -102,5 +203,7 @@ defmodule Pipeline.PromptBuilder do
     Jason.encode!(value, pretty: true)
   end
 
+  defp format_value(nil), do: "nil"
+  
   defp format_value(value), do: to_string(value)
 end

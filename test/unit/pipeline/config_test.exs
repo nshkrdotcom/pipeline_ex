@@ -85,7 +85,7 @@ defmodule Pipeline.ConfigTest do
       }
 
       assert {:error, reason} = Config.validate_workflow(config)
-      assert String.contains?(reason, "Missing workflow name")
+      assert String.contains?(reason, "name") and String.contains?(reason, "field")
     end
 
     test "rejects workflow without steps" do
@@ -96,7 +96,7 @@ defmodule Pipeline.ConfigTest do
       }
 
       assert {:error, reason} = Config.validate_workflow(config)
-      assert String.contains?(reason, "Missing or invalid 'steps' section")
+      assert String.contains?(reason, "steps") and String.contains?(reason, "array")
     end
 
     test "rejects step with invalid type" do
@@ -252,6 +252,92 @@ defmodule Pipeline.ConfigTest do
       step = hd(updated_config["workflow"]["steps"])
 
       assert step["claude_options"]["max_turns"] == 3
+    end
+
+    test "applies claude_output_format default" do
+      config = %{
+        "workflow" => %{
+          "name" => "test_workflow",
+          "defaults" => %{
+            "claude_output_format" => "text"
+          },
+          "steps" => [
+            %{
+              "name" => "step1",
+              "type" => "claude",
+              "prompt" => [%{"type" => "static", "content" => "Hello"}]
+            }
+          ]
+        }
+      }
+
+      updated_config = Config.apply_defaults(config)
+      step = hd(updated_config["workflow"]["steps"])
+
+      assert step["claude_options"]["output_format"] == "text"
+    end
+
+    test "uses json as default claude_output_format when not specified" do
+      config = %{
+        "workflow" => %{
+          "name" => "test_workflow",
+          "defaults" => %{},
+          "steps" => [
+            %{
+              "name" => "step1",
+              "type" => "claude",
+              "prompt" => [%{"type" => "static", "content" => "Hello"}]
+            }
+          ]
+        }
+      }
+
+      updated_config = Config.apply_defaults(config)
+      step = hd(updated_config["workflow"]["steps"])
+
+      assert step["claude_options"]["output_format"] == "json"
+    end
+
+    test "applies defaults to parallel_claude tasks" do
+      config = %{
+        "workflow" => %{
+          "name" => "test_workflow",
+          "defaults" => %{
+            "claude_output_format" => "markdown",
+            "claude_options" => %{"max_turns" => 10}
+          },
+          "steps" => [
+            %{
+              "name" => "parallel_step",
+              "type" => "parallel_claude",
+              "parallel_tasks" => [
+                %{
+                  "id" => "task1",
+                  "prompt" => [%{"type" => "static", "content" => "Task 1"}]
+                },
+                %{
+                  "id" => "task2",
+                  "prompt" => [%{"type" => "static", "content" => "Task 2"}],
+                  "claude_options" => %{"max_turns" => 5}
+                }
+              ]
+            }
+          ]
+        }
+      }
+
+      updated_config = Config.apply_defaults(config)
+      step = hd(updated_config["workflow"]["steps"])
+      
+      # Check first task gets defaults
+      task1 = Enum.find(step["parallel_tasks"], &(&1["id"] == "task1"))
+      assert task1["claude_options"]["output_format"] == "markdown"
+      assert task1["claude_options"]["max_turns"] == 10
+      
+      # Check second task keeps existing options but gets defaults for missing ones
+      task2 = Enum.find(step["parallel_tasks"], &(&1["id"] == "task2"))
+      assert task2["claude_options"]["output_format"] == "markdown"
+      assert task2["claude_options"]["max_turns"] == 5  # existing option preserved
     end
   end
 end

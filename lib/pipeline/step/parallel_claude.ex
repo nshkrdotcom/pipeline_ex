@@ -6,8 +6,8 @@ defmodule Pipeline.Step.ParallelClaude do
   alias Pipeline.Step.Claude
   require Logger
 
-  def execute(step, orch) do
-    tasks = step[:parallel_tasks] || []
+  def execute(step, context) do
+    tasks = step["parallel_tasks"] || []
 
     Logger.info("💪💪 Running #{length(tasks)} Claude tasks in parallel")
     Logger.info("🔍 Debug: LLM call type: ASYNCHRONOUS PARALLEL (multiple subprocesses)")
@@ -22,16 +22,16 @@ defmodule Pipeline.Step.ParallelClaude do
         Task.async(fn ->
           # Create a step-like structure for each task
           claude_step = %{
-            name: task[:id],
-            type: "claude",
-            claude_options: task[:claude_options],
-            prompt: task[:prompt],
-            output_to_file: task[:output_to_file]
+            "name" => task["id"],
+            "type" => "claude",
+            "claude_options" => task["claude_options"],
+            "prompt" => task["prompt"],
+            "output_to_file" => task["output_to_file"]
           }
 
           # Execute the task
-          result = Claude.execute(claude_step, orch)
-          {task[:id], result}
+          result = Claude.execute(claude_step, context)
+          {task["id"], result}
         end)
       end)
 
@@ -44,7 +44,7 @@ defmodule Pipeline.Step.ParallelClaude do
     combined_text =
       tasks
       |> Enum.map(fn task ->
-        "\n===[#{task[:id]}]===\n" <> inspect(results[task[:id]])
+        "\n===[#{task["id"]}]===\n" <> inspect(results[task["id"]])
       end)
       |> Enum.join("\n")
 
@@ -54,11 +54,11 @@ defmodule Pipeline.Step.ParallelClaude do
     }
 
     # Save combined results if specified
-    if step[:output_to_file] do
-      save_output(orch.output_dir, step[:output_to_file], combined_result)
+    if step["output_to_file"] do
+      save_output(context.output_dir, step["output_to_file"], combined_result)
     end
 
-    combined_result
+    {:ok, combined_result}
   end
 
   defp save_output(output_dir, filename, data) do

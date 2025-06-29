@@ -3,15 +3,15 @@ defmodule Pipeline.Step.GeminiInstructor do
   Executes Gemini (Brain) steps using InstructorLite for structured output and function calling.
   """
 
-  alias Pipeline.{Debug, PromptBuilder}
+  alias Pipeline.PromptBuilder
   require Logger
 
-  def execute(step, orch) do
-    Logger.info("🧠 Gemini Brain analyzing: #{step[:name] || "task"}")
+  def execute(step, context) do
+    Logger.info("🧠 Gemini Brain analyzing: #{step["name"] || "task"}")
     Logger.info("🔍 Debug: LLM call type: SYNCHRONOUS (blocking)")
 
     # Build prompt
-    prompt = PromptBuilder.build(step[:prompt], orch.results)
+    prompt = PromptBuilder.build(step["prompt"], context.results)
 
     # Show prompt preview
     prompt_preview =
@@ -19,16 +19,14 @@ defmodule Pipeline.Step.GeminiInstructor do
 
     Logger.info("📝 Prompt preview: #{prompt_preview}")
 
-    Debug.log(orch.debug_log, "Gemini prompt:\n#{prompt}\n")
-
-    # Get model from step config or workflow defaults
-    model = step[:model] || orch.config.workflow.defaults[:gemini_model] || "gemini-2.5-flash"
+    # Get model from step config or defaults  
+    model = step["model"] || "gemini-2.5-flash"
 
     start_time = System.monotonic_time(:millisecond)
     Logger.info("🚀 Debug: Starting LLM call to Gemini NOW at #{DateTime.utc_now()}")
 
     result =
-      case step[:functions] do
+      case step["functions"] do
         nil ->
           # Regular generation - use basic text response schema
 
@@ -38,10 +36,7 @@ defmodule Pipeline.Step.GeminiInstructor do
               Logger.info("📤 Raw Gemini response (took #{elapsed / 1000}s):")
               Logger.info("  Response received")
 
-              Debug.log(
-                orch.debug_log,
-                "Gemini response (took #{elapsed / 1000}s):\n#{inspect(response)}\n"
-              )
+              # Debug log would go here if available
 
               response
 
@@ -64,10 +59,7 @@ defmodule Pipeline.Step.GeminiInstructor do
               Logger.info("📤 Raw Gemini response with tool calls (took #{elapsed / 1000}s):")
               Logger.info("  Tool calling completed")
 
-              Debug.log(
-                orch.debug_log,
-                "Gemini response with tool calls (took #{elapsed / 1000}s):\n#{inspect(response)}\n"
-              )
+              # Debug log would go here if available
 
               # Execute function calls using the tool system
               case Pipeline.Tools.Adapters.InstructorLiteAdapter.execute_function_calls(response) do
@@ -82,11 +74,11 @@ defmodule Pipeline.Step.GeminiInstructor do
       end
 
     # Save to file if specified
-    if step[:output_to_file] do
-      save_output(orch.output_dir, step[:output_to_file], result)
+    if step["output_to_file"] do
+      save_output(context.output_dir, step["output_to_file"], result)
     end
 
-    result
+    {:ok, result}
   end
 
   defp call_instructor_lite(prompt, response_model, model) do
