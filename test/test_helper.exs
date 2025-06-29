@@ -1,7 +1,7 @@
 ExUnit.start()
 
 # Configure ExUnit for compact output
-ExUnit.configure(formatters: [ExUnit.CLIFormatter], format: :dot)
+ExUnit.configure(formatters: [ExUnit.CLIFormatter], format: :dot, exclude: [:integration])
 
 # Configure Logger for single-line output
 Logger.configure(format: "$time [$level] $message\n")
