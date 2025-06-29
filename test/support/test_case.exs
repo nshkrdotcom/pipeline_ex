@@ -1,105 +1,52 @@
-defmodule Pipeline.TestCase do
+defmodule Pipeline.Test.Case do
   @moduledoc """
-  Base test case for pipeline tests with common setup and utilities.
+  Base test case for Pipeline tests with mock/live mode support.
   """
-  
-  use ExUnit.CaseTemplate
-  
-  using do
+
+  defmacro __using__(opts \\ []) do
+    mode = Keyword.get(opts, :mode, :mock)
+    
     quote do
-      # Import test helpers and assertions
-      import Pipeline.Test.Helpers
-      import ExUnit.Assertions
+      use ExUnit.Case, async: false
       
-      # Alias commonly used modules
-      alias Pipeline.{Config, Orchestrator, Debug, PromptBuilder}
-      alias Pipeline.Step.{Gemini, Claude, ParallelClaude}
       alias Pipeline.Test.Mocks
       
-      # Setup and teardown for each test
       setup do
-        # Reset mocks before each test
-        Pipeline.Test.Helpers.reset_mocks()
+        # Set test mode for this test
+        original_mode = System.get_env("TEST_MODE")
         
-        # Create temporary directories for this test
-        test_workspace = "/tmp/pipeline_test/workspace_#{:rand.uniform(999999)}"
-        test_output = "/tmp/pipeline_test/output_#{:rand.uniform(999999)}"
+        case unquote(mode) do
+          :mock -> 
+            System.put_env("TEST_MODE", "mock")
+            Pipeline.TestMode.set_test_context(:unit)
+          :live -> 
+            System.put_env("TEST_MODE", "live")
+            Pipeline.TestMode.set_test_context(:integration)
+          :mixed ->
+            # Keep current TEST_MODE setting
+            if String.contains?(to_string(__ENV__.file), "/unit/") do
+              Pipeline.TestMode.set_test_context(:unit)
+            else
+              Pipeline.TestMode.set_test_context(:integration)
+            end
+        end
         
-        File.mkdir_p!(test_workspace)
-        File.mkdir_p!(test_output)
+        # Reset all mocks
+        Mocks.ClaudeProvider.reset()
+        Mocks.GeminiProvider.reset()
         
-        # Provide test context
-        %{
-          test_workspace: test_workspace,
-          test_output: test_output
-        }
-      end
-    end
-  end
-  
-  setup tags do
-    # Tag-based setup
-    if tags[:with_temp_config] do
-      config = Pipeline.Test.Helpers.create_test_config(
-        name: "test_workflow",
-        steps: [
-          Pipeline.Test.Helpers.create_gemini_step(
-            name: "test_step",
-            prompt: "Test prompt"
-          )
-        ]
-      )
-      
-      config_file = Pipeline.Test.Helpers.create_temp_config_file(config)
-      
-      on_exit(fn ->
-        File.rm(config_file)
-      end)
-      
-      {:ok, config_file: config_file, config: config}
-    else
-      :ok
-    end
-  end
-end
-
-defmodule Pipeline.UnitTestCase do
-  @moduledoc """
-  Test case for unit tests with mocked dependencies.
-  """
-  
-  use ExUnit.CaseTemplate
-  
-  using do
-    quote do
-      use Pipeline.TestCase
-      
-      # Additional setup for unit tests
-      setup do
-        # Reset mocks before each unit test
-        Pipeline.Test.Helpers.reset_mocks()
+        on_exit(fn ->
+          Pipeline.TestMode.clear_test_context()
+          
+          # Restore original TEST_MODE
+          case original_mode do
+            nil -> System.delete_env("TEST_MODE")
+            mode -> System.put_env("TEST_MODE", mode)
+          end
+        end)
+        
         :ok
       end
-    end
-  end
-end
-
-defmodule Pipeline.IntegrationTestCase do
-  @moduledoc """
-  Test case for integration tests with real file system but mocked external services.
-  """
-  
-  use ExUnit.CaseTemplate
-  
-  using do
-    quote do
-      use Pipeline.TestCase
-      
-      # Integration tests use real file system
-      @moduletag :integration
-      
-      # Longer timeout for integration tests
-      @moduletag timeout: 30_000
     end
   end
 end

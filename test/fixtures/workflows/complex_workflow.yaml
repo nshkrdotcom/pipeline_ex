@@ -1,0 +1,67 @@
+# Complex test workflow with multiple steps and dependencies
+workflow:
+  name: "complex_test_workflow"
+  checkpoint_enabled: true
+  workspace_dir: "./complex_workspace"
+  
+  defaults:
+    output_dir: "./complex_outputs"
+    
+  steps:
+    - name: "analyze_requirements"
+      type: "gemini"
+      role: "brain"
+      model: "gemini-2.5-flash-lite-preview-06-17"
+      token_budget:
+        max_output_tokens: 2048
+        temperature: 0.5
+      prompt:
+        - type: "static"
+          content: "Analyze the requirements for building a calculator application"
+      output_to_file: "analysis.json"
+      
+    - name: "create_implementation_plan"
+      type: "gemini"
+      role: "brain"
+      prompt:
+        - type: "static"
+          content: "Create detailed implementation tasks based on:"
+        - type: "previous_response"
+          step: "analyze_requirements"
+      output_to_file: "plan.json"
+      
+    - name: "implement_calculator"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 5
+        allowed_tools: ["Write", "Edit", "Read"]
+      prompt:
+        - type: "static"
+          content: "Implement the calculator based on this plan:"
+        - type: "previous_response"
+          step: "create_implementation_plan"
+      output_to_file: "implementation.json"
+      
+    - name: "review_implementation"
+      type: "gemini"
+      role: "brain"
+      prompt:
+        - type: "static"
+          content: "Review the implementation for quality and completeness:"
+        - type: "previous_response"
+          step: "implement_calculator"
+      output_to_file: "review.json"
+      
+    - name: "fix_issues"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 3
+        allowed_tools: ["Edit", "Read", "Bash"]
+      prompt:
+        - type: "static"
+          content: "Fix any issues identified in the review:"
+        - type: "previous_response"
+          step: "review_implementation"
+      output_to_file: "fixes.json"

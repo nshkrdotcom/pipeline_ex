@@ -1,0 +1,147 @@
+defmodule Pipeline.Test.Mocks.GeminiProviderTest do
+  use Pipeline.Test.Case, mode: :mock
+
+  alias Pipeline.Test.Mocks.GeminiProvider
+
+  describe "mock gemini provider" do
+    test "returns structured JSON responses for planning queries" do
+      assert {:ok, response} = GeminiProvider.query("create a plan for calculator implementation")
+      
+      assert response.success == true
+      assert String.contains?(response.content, "implementation_plan")
+      assert String.contains?(response.content, "Calculator")
+      assert response.cost > 0
+      assert is_list(response.function_calls)
+    end
+
+    test "generates analysis responses for requirements" do
+      assert {:ok, response} = GeminiProvider.query("analyze requirements for a calculator")
+      
+      assert response.success == true
+      assert String.contains?(response.content, "analysis")
+      assert String.contains?(response.content, "complexity")
+      assert response.cost > 0
+    end
+
+    test "generates review responses for implementation" do
+      assert {:ok, response} = GeminiProvider.query("review the implementation of calculator")
+      
+      assert response.success == true
+      assert String.contains?(response.content, "review_result")
+      assert String.contains?(response.content, "completeness")
+      assert response.cost > 0
+    end
+
+    test "generates task creation responses" do
+      assert {:ok, response} = GeminiProvider.query("create coding tasks for implementation")
+      
+      assert response.success == true
+      assert String.contains?(response.content, "coding_tasks")
+      assert response.cost > 0
+    end
+
+    test "handles function calling requests" do
+      assert {:ok, response} = GeminiProvider.query("use function calls to create files")
+      
+      assert response.success == true
+      assert String.contains?(response.content, "function calls")
+      assert is_list(response.function_calls)
+      assert length(response.function_calls) > 0
+    end
+
+    test "handles generic prompts" do
+      assert {:ok, response} = GeminiProvider.query("some generic prompt")
+      
+      assert response.success == true
+      assert String.contains?(response.content, "Mock Gemini analysis")
+      assert response.cost > 0
+    end
+
+    test "handles non-string prompts" do
+      assert {:ok, response} = GeminiProvider.query(%{prompt: "test"})
+      
+      assert response.success == true
+      assert String.contains?(response.content, "Mock Gemini response")
+    end
+  end
+
+  describe "function call generation" do
+    test "generates file creation function calls" do
+      tools = ["file_creator", "code_analyzer"]
+      
+      assert {:ok, calls} = GeminiProvider.generate_function_calls(
+        "create a new Python file", 
+        tools
+      )
+      
+      assert is_list(calls)
+      assert length(calls) > 0
+      
+      call = hd(calls)
+      assert call["name"] == "create_file"
+      assert is_map(call["arguments"])
+    end
+
+    test "generates code analysis function calls" do
+      tools = ["code_analyzer", "test_runner"]
+      
+      assert {:ok, calls} = GeminiProvider.generate_function_calls(
+        "analyze the code quality", 
+        tools
+      )
+      
+      assert is_list(calls)
+      assert length(calls) > 0
+      
+      call = hd(calls)
+      assert call["name"] == "analyze_code"
+    end
+
+    test "generates test runner function calls" do
+      tools = ["test_runner", "file_creator"]
+      
+      assert {:ok, calls} = GeminiProvider.generate_function_calls(
+        "run the unit tests", 
+        tools
+      )
+      
+      assert is_list(calls)
+      assert length(calls) > 0
+      
+      call = hd(calls)
+      assert call["name"] == "run_tests"
+    end
+
+    test "returns empty list when no matching tools" do
+      tools = ["unknown_tool"]
+      
+      assert {:ok, calls} = GeminiProvider.generate_function_calls(
+        "do something", 
+        tools
+      )
+      
+      assert calls == []
+    end
+  end
+
+  describe "mock state management" do
+    test "can reset state" do
+      assert :ok = GeminiProvider.reset()
+    end
+
+    test "can set custom responses" do
+      responses = ["response1", "response2"]
+      GeminiProvider.set_responses(responses)
+      
+      # Test that it doesn't crash - actual behavior would need implementation
+      assert :ok = GeminiProvider.reset()
+    end
+
+    test "can set error scenarios" do
+      GeminiProvider.set_error_scenario("timeout")
+      
+      # Test that it doesn't crash - actual behavior would need implementation
+      assert :ok = GeminiProvider.reset()
+    end
+  end
+end

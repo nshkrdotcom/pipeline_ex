@@ -1,0 +1,19 @@
+# Simple test workflow for basic testing
+workflow:
+  name: "simple_test_workflow"
+  checkpoint_enabled: false
+  workspace_dir: "./test_workspace"
+  
+  defaults:
+    output_dir: "./test_outputs"
+    
+  steps:
+    - name: "simple_claude_task"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 1
+      prompt:
+        - type: "static"
+          content: "Create a simple hello world program"
+      output_to_file: "simple_result.json"

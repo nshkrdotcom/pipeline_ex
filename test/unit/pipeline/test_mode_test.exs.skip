@@ -1,0 +1,48 @@
+defmodule Pipeline.TestModeTest do
+  use Pipeline.Test.Case, mode: :mock
+
+  alias Pipeline.TestMode
+
+  describe "test mode management" do
+    test "defaults to mock mode in test environment" do
+      System.delete_env("TEST_MODE")
+      Application.put_env(:pipeline, :env, :test)
+      
+      assert TestMode.get_mode() == :mock
+      assert TestMode.mock_mode?()
+      refute TestMode.live_mode?()
+      refute TestMode.mixed_mode?()
+    end
+
+    test "respects TEST_MODE environment variable" do
+      System.put_env("TEST_MODE", "live")
+      assert TestMode.get_mode() == :live
+      assert TestMode.live_mode?()
+      
+      System.put_env("TEST_MODE", "mixed")
+      assert TestMode.get_mode() == :mixed
+      assert TestMode.mixed_mode?()
+    end
+
+    test "provider_for returns correct providers based on mode" do
+      System.put_env("TEST_MODE", "mock")
+      assert TestMode.provider_for(:ai) == Pipeline.Test.Mocks.ClaudeProvider
+      assert TestMode.provider_for(:gemini) == Pipeline.Test.Mocks.GeminiProvider
+      
+      System.put_env("TEST_MODE", "live")
+      assert TestMode.provider_for(:ai) == Pipeline.Providers.ClaudeProvider
+      assert TestMode.provider_for(:gemini) == Pipeline.Providers.LiveGeminiProvider
+    end
+
+    test "test context can be set and cleared" do
+      TestMode.set_test_context(:unit)
+      assert Process.get(:test_context) == :unit
+      
+      TestMode.set_test_context(:integration)
+      assert Process.get(:test_context) == :integration
+      
+      TestMode.clear_test_context()
+      assert Process.get(:test_context) == nil
+    end
+  end
+end

@@ -21,12 +21,12 @@ defmodule Pipeline.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:jason, "~> 1.4"},
+      {:yaml_elixir, "~> 2.11"},
+      {:req, "~> 0.5"},
       {:instructor_lite, "~> 1.0.0"},
       {:claude_code_sdk, github: "nshkrdotcom/claude_code_sdk_elixir"},
-      {:yaml_elixir, "~> 2.11"},
-      {:jason, "~> 1.4"},
       {:nimble_options, "~> 1.1"},
-      {:req, "~> 0.5"},
       {:ecto, "~> 3.12"}
     ]
   end

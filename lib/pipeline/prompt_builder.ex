@@ -43,10 +43,8 @@ defmodule Pipeline.PromptBuilder do
       
       result ->
         if part["extract"] do
-          # Extract specific field
           extract_field(result, part["extract"])
         else
-          # Use full result
           format_result(result)
         end
     end
@@ -59,10 +57,8 @@ defmodule Pipeline.PromptBuilder do
       
       result ->
         if part[:extract] do
-          # Extract specific field
           extract_field(result, part[:extract])
         else
-          # Use full result
           format_result(result)
         end
     end
@@ -82,7 +78,14 @@ defmodule Pipeline.PromptBuilder do
   end
 
   defp format_result(result) when is_map(result) do
-    Jason.encode!(result, pretty: true)
+    # For Claude responses, prefer text field
+    cond do
+      Map.has_key?(result, :text) -> result.text
+      Map.has_key?(result, "text") -> result["text"]
+      Map.has_key?(result, :content) -> result.content
+      Map.has_key?(result, "content") -> result["content"]
+      true -> Jason.encode!(result, pretty: true)
+    end
   end
 
   defp format_result(result) when is_binary(result) do

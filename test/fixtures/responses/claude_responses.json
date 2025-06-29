@@ -1,0 +1,27 @@
+{
+  "simple_python_program": {
+    "text": "Here's a simple Python hello world program:\n\n```python\nprint(\"Hello, World!\")\n```\n\nThis program uses the print() function to display the text \"Hello, World!\" on the console when executed.",
+    "success": true,
+    "cost": 0.0023
+  },
+  "calculator_implementation": {
+    "text": "I'll create a Calculator class with basic operations:\n\n```python\nclass Calculator:\n    def __init__(self):\n        self.memory = 0\n    \n    def add(self, a, b):\n        return a + b\n    \n    def subtract(self, a, b):\n        return a - b\n    \n    def multiply(self, a, b):\n        return a * b\n    \n    def divide(self, a, b):\n        if b == 0:\n            raise ValueError(\"Cannot divide by zero\")\n        return a / b\n    \n    def store(self, value):\n        self.memory = value\n    \n    def recall(self):\n        return self.memory\n    \n    def clear(self):\n        self.memory = 0\n```",
+    "success": true,
+    "cost": 0.0156
+  },
+  "unit_tests": {
+    "text": "Here are comprehensive unit tests for the Calculator:\n\n```python\nimport unittest\nfrom calculator import Calculator\n\nclass TestCalculator(unittest.TestCase):\n    def setUp(self):\n        self.calc = Calculator()\n    \n    def test_addition(self):\n        self.assertEqual(self.calc.add(2, 3), 5)\n        self.assertEqual(self.calc.add(-1, 1), 0)\n    \n    def test_subtraction(self):\n        self.assertEqual(self.calc.subtract(5, 3), 2)\n        self.assertEqual(self.calc.subtract(1, 1), 0)\n    \n    def test_multiplication(self):\n        self.assertEqual(self.calc.multiply(4, 3), 12)\n        self.assertEqual(self.calc.multiply(-2, 3), -6)\n    \n    def test_division(self):\n        self.assertEqual(self.calc.divide(10, 2), 5)\n        with self.assertRaises(ValueError):\n            self.calc.divide(5, 0)\n    \n    def test_memory_functions(self):\n        self.calc.store(42)\n        self.assertEqual(self.calc.recall(), 42)\n        self.calc.clear()\n        self.assertEqual(self.calc.recall(), 0)\n\nif __name__ == '__main__':\n    unittest.main()\n```",
+    "success": true,
+    "cost": 0.0234
+  },
+  "code_review": {
+    "text": "Code Review Feedback:\n\n**Strengths:**\n- Clear class structure with well-defined methods\n- Proper error handling for division by zero\n- Good separation of concerns\n- Memory functions implemented correctly\n\n**Suggestions for Improvement:**\n1. Add type hints for better code documentation:\n   ```python\n   def add(self, a: float, b: float) -> float:\n   ```\n\n2. Add docstrings to document method purposes:\n   ```python\n   def divide(self, a: float, b: float) -> float:\n       \"\"\"Divide two numbers, raising ValueError if divisor is zero.\"\"\"\n   ```\n\n3. Consider adding input validation for non-numeric types\n\n4. Add logging for debugging purposes\n\n**Overall Assessment:** The code is well-structured and functional. With the suggested improvements, it would be production-ready.",
+    "success": true,
+    "cost": 0.0187
+  },
+  "error_scenario": {
+    "text": "Error: Unable to process request",
+    "success": false,
+    "error": "API rate limit exceeded"
+  }
+}

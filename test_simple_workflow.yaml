@@ -1,0 +1,37 @@
+# Simple test workflow to verify the system works
+workflow:
+  name: "simple_test_workflow"
+  description: "Test basic claude functionality"
+  
+  steps:
+    - name: "analyze_code"
+      type: "claude"
+      prompt: 
+        - type: "static"
+          content: |
+            Analyze this simple Python function and provide feedback:
+            
+            def add(a, b):
+                return a + b
+            
+            Please provide your analysis in JSON format with the following structure:
+            {
+              "analysis": "your analysis here",
+              "issues": ["issue1", "issue2"],
+              "suggestions": ["suggestion1", "suggestion2"]
+            }
+      
+    - name: "plan_improvements"
+      type: "gemini"  
+      prompt:
+        - type: "static"
+          content: |
+            Based on the previous analysis, create a plan to improve the function.
+            Consider error handling, type hints, and documentation.
+            
+            Provide your response in JSON format with the following structure:
+            {
+              "plan": "overall plan description",
+              "steps": ["step1", "step2", "step3"],
+              "priority": "high|medium|low"
+            }

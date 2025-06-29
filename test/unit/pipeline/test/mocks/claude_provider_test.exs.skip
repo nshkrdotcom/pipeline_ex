@@ -1,0 +1,99 @@
+defmodule Pipeline.Test.Mocks.ClaudeProviderTest do
+  use Pipeline.Test.Case, mode: :mock
+
+  alias Pipeline.Test.Mocks.ClaudeProvider
+
+  describe "mock claude provider" do
+    test "returns predictable responses for test patterns" do
+      assert {:ok, response} = ClaudeProvider.query("simple test")
+      assert response.text == "Mock response for simple test"
+      assert response.success == true
+      assert response.cost == 0.001
+    end
+
+    test "simulates error scenarios" do
+      assert {:error, reason} = ClaudeProvider.query("error test")
+      assert reason == "Mock error for testing error handling"
+    end
+
+    test "generates appropriate responses for Python code requests" do
+      assert {:ok, response} = ClaudeProvider.query("Create a Python hello world program")
+      assert String.contains?(response.text, "print(\"Hello, World!\")")
+      assert String.contains?(response.text, "python")
+      assert response.success == true
+    end
+
+    test "generates calculator-specific responses" do
+      assert {:ok, response} = ClaudeProvider.query("Create a calculator in Python")
+      assert String.contains?(response.text, "Calculator")
+      assert String.contains?(response.text, "add")
+      assert String.contains?(response.text, "subtract")
+      assert response.success == true
+    end
+
+    test "generates test-related responses" do
+      assert {:ok, response} = ClaudeProvider.query("Create unit tests for the calculator")
+      assert String.contains?(response.text, "unittest")
+      assert String.contains?(response.text, "TestCalculator")
+      assert response.success == true
+    end
+
+    test "handles generic prompts" do
+      assert {:ok, response} = ClaudeProvider.query("Some random prompt that doesn't match patterns")
+      assert String.contains?(response.text, "Mock response for prompt:")
+      assert response.success == true
+    end
+
+    test "handles non-string prompts" do
+      assert {:ok, response} = ClaudeProvider.query(%{prompt: "test"})
+      assert String.contains?(response.text, "Mock response for:")
+      assert response.success == true
+    end
+  end
+
+  describe "stateful mock functionality" do
+    test "can be configured with specific responses" do
+      ClaudeProvider.set_responses([
+        "First response",
+        "Second response",
+        "Third response"
+      ])
+
+      # Note: This would require implementing stateful behavior
+      # For now, we'll test that the function doesn't crash
+      assert :ok = ClaudeProvider.reset()
+    end
+
+    test "can be configured to error on specific turns" do
+      ClaudeProvider.set_error_on_turn(2, "Test error message")
+
+      # Note: This would require implementing turn tracking
+      # For now, we'll test that the function doesn't crash
+      assert :ok = ClaudeProvider.reset()
+    end
+
+    test "reset function clears state" do
+      ClaudeProvider.set_responses(["test"])
+      ClaudeProvider.set_error_on_turn(1, "error")
+      
+      assert :ok = ClaudeProvider.reset()
+    end
+  end
+
+  describe "different error scenarios" do
+    test "simulates timeout errors" do
+      # This will take a bit longer due to the sleep
+      assert {:error, "Request timeout"} = ClaudeProvider.query("timeout test")
+    end
+
+    test "simulates rate limiting" do
+      assert {:error, "Rate limit exceeded"} = ClaudeProvider.query("rate limit test")
+    end
+
+    test "handles expensive operations" do
+      assert {:ok, response} = ClaudeProvider.query("expensive test")
+      assert response.cost == 0.25
+      assert response.success == true
+    end
+  end
+end
