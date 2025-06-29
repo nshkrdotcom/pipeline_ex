@@ -12,15 +12,15 @@ defmodule Pipeline.Providers.ClaudeProvider do
     Logger.debug("💪 Querying Claude with prompt: #{String.slice(prompt, 0, 100)}...")
     IO.puts("DEBUG: ClaudeProvider.query called with prompt length: #{String.length(prompt)}")
     IO.puts("DEBUG: Options: #{inspect(options)}")
-    
+
     # For now, delegate to the existing Claude step implementation
     # This maintains compatibility with the working Claude SDK integration
-    
+
     try do
       # Build Claude options from the provider options
       claude_options = build_claude_options(options)
       IO.puts("DEBUG: Built claude_options: #{inspect(claude_options)}")
-      
+
       # Use the existing Claude SDK via the step module
       # In a real implementation, this would call the Claude SDK directly
       # For now, execute_claude_sdk always returns {:ok, response}
@@ -53,41 +53,47 @@ defmodule Pipeline.Providers.ClaudeProvider do
     case Pipeline.TestMode.get_mode() do
       :mock ->
         # Return mock response in mock mode
-        {:ok, %{
-          text: "Mock Claude response for: #{String.slice(prompt, 0, 50)}...",
-          success: true,
-          cost: 0.001
-        }}
-        
+        {:ok,
+         %{
+           text: "Mock Claude response for: #{String.slice(prompt, 0, 50)}...",
+           success: true,
+           cost: 0.001
+         }}
+
       _live_or_mixed ->
         # Make real API call using ClaudeCodeSDK
         try do
           # Convert options to ClaudeCodeSDK Options struct - use minimal options like the working test
-          sdk_options = ClaudeCodeSDK.Options.new([
-            max_turns: options[:max_turns] || 1,
-            verbose: options[:verbose] || true
-          ])
-          
+          sdk_options =
+            ClaudeCodeSDK.Options.new(
+              max_turns: options[:max_turns] || 1,
+              verbose: options[:verbose] || true
+            )
+
           # Query using the SDK (returns a stream)
-          IO.puts("DEBUG: Calling ClaudeCodeSDK.query with prompt length: #{String.length(prompt)}")
+          IO.puts(
+            "DEBUG: Calling ClaudeCodeSDK.query with prompt length: #{String.length(prompt)}"
+          )
+
           IO.puts("DEBUG: SDK options: #{inspect(sdk_options)}")
           stream = ClaudeCodeSDK.query(prompt, sdk_options)
-          
+
           # Collect all messages from the stream
           messages = Enum.to_list(stream)
-          
+
           # Debug: log the messages structure
           Logger.debug("ClaudeCodeSDK messages: #{inspect(messages, limit: :infinity)}")
-          
+
           # Extract text content from messages
           try do
             text_content = extract_text_from_messages(messages)
-            
-            {:ok, %{
-              text: text_content,
-              success: true,
-              cost: calculate_cost(messages)
-            }}
+
+            {:ok,
+             %{
+               text: text_content,
+               success: true,
+               cost: calculate_cost(messages)
+             }}
           catch
             {:error, reason} ->
               Logger.error("ClaudeCodeSDK extraction error: #{reason}")
@@ -100,19 +106,22 @@ defmodule Pipeline.Providers.ClaudeProvider do
         end
     end
   end
-  
+
   defp extract_text_from_messages(messages) do
     # Check for errors first
-    error_msg = Enum.find(messages, fn msg -> 
-      msg.type == :result and msg.subtype != :success 
-    end)
-    
+    error_msg =
+      Enum.find(messages, fn msg ->
+        msg.type == :result and msg.subtype != :success
+      end)
+
     if error_msg do
-      error_text = if Map.has_key?(error_msg.data, :error) do
-        error_msg.data.error
-      else
-        inspect(error_msg.data)
-      end
+      error_text =
+        if Map.has_key?(error_msg.data, :error) do
+          error_msg.data.error
+        else
+          inspect(error_msg.data)
+        end
+
       throw({:error, "Claude SDK error: #{error_text}"})
     end
 
@@ -128,7 +137,7 @@ defmodule Pipeline.Providers.ClaudeProvider do
     end)
     |> Enum.join("\n")
   end
-  
+
   defp calculate_cost(messages) do
     # Simple cost calculation based on message count
     # In reality, this would be based on token usage

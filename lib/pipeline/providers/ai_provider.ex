@@ -1,7 +1,7 @@
 defmodule Pipeline.Providers.AIProvider do
   @moduledoc """
   Behavior for AI service providers (Claude, Gemini, etc.)
-  
+
   This interface allows swapping between live and mock implementations
   for testing and development.
   """
@@ -9,15 +9,15 @@ defmodule Pipeline.Providers.AIProvider do
   @type prompt :: String.t()
   @type options :: map()
   @type response :: %{
-    text: String.t(),
-    success: boolean(),
-    cost: float()
-  }
+          text: String.t(),
+          success: boolean(),
+          cost: float()
+        }
   @type error_reason :: String.t()
 
   @doc """
   Query the AI service with a prompt and options.
-  
+
   Returns either a successful response with text, success status and cost,
   or an error with a reason string.
   """
@@ -28,9 +28,13 @@ defmodule Pipeline.Providers.AIProvider do
   """
   def get_provider do
     case Pipeline.TestMode.get_mode() do
-      :mock -> Pipeline.Test.Mocks.ClaudeProvider
-      :live -> Pipeline.Providers.ClaudeProvider
-      :mixed -> 
+      :mock ->
+        Pipeline.Test.Mocks.ClaudeProvider
+
+      :live ->
+        Pipeline.Providers.ClaudeProvider
+
+      :mixed ->
         if in_unit_test?() do
           Pipeline.Test.Mocks.ClaudeProvider
         else

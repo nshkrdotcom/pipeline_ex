@@ -1,6 +1,6 @@
 defmodule Pipeline.ExecutorTest do
   use ExUnit.Case, async: false
-  
+
   alias Pipeline.{Executor, TestMode}
   alias Pipeline.Test.Mocks
 
@@ -8,11 +8,11 @@ defmodule Pipeline.ExecutorTest do
     # Set test mode
     System.put_env("TEST_MODE", "mock")
     TestMode.set_test_context(:unit)
-    
+
     # Reset mocks
     Mocks.ClaudeProvider.reset()
     Mocks.GeminiProvider.reset()
-    
+
     # Clean up any test directories
     on_exit(fn ->
       File.rm_rf("/tmp/test_workspace")
@@ -20,7 +20,7 @@ defmodule Pipeline.ExecutorTest do
       File.rm_rf("/tmp/test_checkpoints")
       TestMode.clear_test_context()
     end)
-    
+
     :ok
   end
 
@@ -40,7 +40,7 @@ defmodule Pipeline.ExecutorTest do
           ]
         }
       }
-      
+
       assert {:ok, results} = Executor.execute(workflow)
       assert Map.has_key?(results, "simple_claude_step")
       assert results["simple_claude_step"]["success"] == true
@@ -69,7 +69,7 @@ defmodule Pipeline.ExecutorTest do
           ]
         }
       }
-      
+
       assert {:ok, results} = Executor.execute(workflow)
       assert Map.has_key?(results, "gemini_plan")
       assert Map.has_key?(results, "claude_execute")
@@ -92,7 +92,7 @@ defmodule Pipeline.ExecutorTest do
           ]
         }
       }
-      
+
       assert {:error, reason} = Executor.execute(workflow)
       assert String.contains?(reason, "failing_step")
     end
@@ -100,7 +100,7 @@ defmodule Pipeline.ExecutorTest do
     test "creates required directories" do
       workspace_dir = "/tmp/test_workspace_#{System.unique_integer()}"
       output_dir = "/tmp/test_outputs_#{System.unique_integer()}"
-      
+
       workflow = %{
         "workflow" => %{
           "name" => "directory_test",
@@ -115,15 +115,15 @@ defmodule Pipeline.ExecutorTest do
           ]
         }
       }
-      
+
       refute File.exists?(workspace_dir)
       refute File.exists?(output_dir)
-      
+
       assert {:ok, _results} = Executor.execute(workflow)
-      
+
       assert File.exists?(workspace_dir)
       assert File.exists?(output_dir)
-      
+
       # Cleanup
       File.rm_rf(workspace_dir)
       File.rm_rf(output_dir)
@@ -144,7 +144,7 @@ defmodule Pipeline.ExecutorTest do
           ]
         }
       }
-      
+
       assert {:error, reason} = Executor.execute(workflow)
       assert String.contains?(reason, "Unknown step type")
     end
@@ -157,9 +157,9 @@ defmodule Pipeline.ExecutorTest do
         "type" => "claude",
         "prompt" => [%{"type" => "static", "content" => "simple test"}]
       }
-      
+
       context = %{results: %{}}
-      
+
       assert {:ok, result} = Executor.execute_step(step, context)
       assert result["success"] == true
       assert String.contains?(result["text"], "Mock response")
@@ -171,9 +171,9 @@ defmodule Pipeline.ExecutorTest do
         "type" => "gemini",
         "prompt" => [%{"type" => "static", "content" => "analyze this"}]
       }
-      
+
       context = %{results: %{}}
-      
+
       assert {:ok, result} = Executor.execute_step(step, context)
       assert result["success"] == true
       assert Map.has_key?(result, "content")

@@ -5,16 +5,24 @@ defmodule Pipeline.TestMode do
 
   def get_mode do
     case System.get_env("TEST_MODE") do
-      "live" -> :live
-      "mixed" -> :mixed
-      "mock" -> :mock
-      nil -> 
-        if Application.get_env(:pipeline, :env) == :test do
+      "live" ->
+        :live
+
+      "mixed" ->
+        :mixed
+
+      "mock" ->
+        :mock
+
+      nil ->
+        if Mix.env() == :test do
           :mock
         else
           :live
         end
-      _ -> :mock
+
+      _ ->
+        :mock
     end
   end
 
@@ -24,17 +32,31 @@ defmodule Pipeline.TestMode do
 
   def provider_for(:ai) do
     case get_mode() do
-      :mock -> Pipeline.Test.Mocks.ClaudeProvider
-      :live -> Pipeline.Providers.ClaudeProvider
-      :mixed -> if in_unit_test?(), do: Pipeline.Test.Mocks.ClaudeProvider, else: Pipeline.Providers.ClaudeProvider
+      :mock ->
+        Pipeline.Test.Mocks.ClaudeProvider
+
+      :live ->
+        Pipeline.Providers.ClaudeProvider
+
+      :mixed ->
+        if in_unit_test?(),
+          do: Pipeline.Test.Mocks.ClaudeProvider,
+          else: Pipeline.Providers.ClaudeProvider
     end
   end
 
   def provider_for(:gemini) do
     case get_mode() do
-      :mock -> Pipeline.Test.Mocks.GeminiProvider
-      :live -> Pipeline.Providers.GeminiProvider
-      :mixed -> if in_unit_test?(), do: Pipeline.Test.Mocks.GeminiProvider, else: Pipeline.Providers.GeminiProvider
+      :mock ->
+        Pipeline.Test.Mocks.GeminiProvider
+
+      :live ->
+        Pipeline.Providers.GeminiProvider
+
+      :mixed ->
+        if in_unit_test?(),
+          do: Pipeline.Test.Mocks.GeminiProvider,
+          else: Pipeline.Providers.GeminiProvider
     end
   end
 

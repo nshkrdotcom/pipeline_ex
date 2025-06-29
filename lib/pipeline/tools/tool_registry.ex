@@ -1,7 +1,7 @@
 defmodule Pipeline.Tools.ToolRegistry do
   @moduledoc """
   Registry for managing and executing pipeline tools.
-  
+
   Provides a central place to register, discover, and execute tools
   that can be called by LLM adapters.
   """
@@ -14,17 +14,17 @@ defmodule Pipeline.Tools.ToolRegistry do
   def register_tool(tool_module) when is_atom(tool_module) do
     try do
       definition = tool_module.get_definition()
-      
+
       # Validate the tool can run in current environment
       case validate_tool(tool_module) do
         :ok ->
           Agent.update(:tool_registry, fn registry ->
             Map.put(registry, definition.name, tool_module)
           end)
-          
+
           Logger.info("🔧 Registered tool: #{definition.name}")
           :ok
-          
+
         {:error, reason} ->
           Logger.warning("⚠️ Tool #{definition.name} failed validation: #{reason}")
           {:error, reason}
@@ -54,16 +54,16 @@ defmodule Pipeline.Tools.ToolRegistry do
       nil ->
         Logger.error("❌ Tool not found: #{tool_name}")
         {:error, "Tool '#{tool_name}' not found"}
-        
+
       tool_module ->
         Logger.info("🔧 Executing tool: #{tool_name} with args: #{inspect(args)}")
-        
+
         try do
           case tool_module.execute(args) do
             {:ok, result} ->
               Logger.info("✅ Tool #{tool_name} completed successfully")
               {:ok, result}
-              
+
             {:error, reason} ->
               Logger.error("❌ Tool #{tool_name} failed: #{inspect(reason)}")
               {:error, reason}
@@ -103,19 +103,20 @@ defmodule Pipeline.Tools.ToolRegistry do
   def auto_register_tools(base_module \\ Pipeline.Tools.Implementations) do
     # Get all modules in the implementations directory
     modules = discover_tool_modules(base_module)
-    
-    results = Enum.map(modules, fn module ->
-      case register_tool(module) do
-        :ok -> {:ok, module}
-        error -> {:error, {module, error}}
-      end
-    end)
-    
+
+    results =
+      Enum.map(modules, fn module ->
+        case register_tool(module) do
+          :ok -> {:ok, module}
+          error -> {:error, {module, error}}
+        end
+      end)
+
     successful = Enum.count(results, &match?({:ok, _}, &1))
     total = length(results)
-    
+
     Logger.info("🔧 Auto-registered #{successful}/#{total} tools")
-    
+
     results
   end
 

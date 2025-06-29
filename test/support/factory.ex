@@ -23,7 +23,7 @@ defmodule Pipeline.Test.Factory do
         ]
       }
     }
-    
+
     deep_merge(base, overrides)
   end
 
@@ -36,7 +36,7 @@ defmodule Pipeline.Test.Factory do
         ]
       }
     }
-    
+
     deep_merge(base, overrides)
   end
 
@@ -55,7 +55,7 @@ defmodule Pipeline.Test.Factory do
         ]
       }
     }
-    
+
     deep_merge(base, overrides)
   end
 
@@ -76,7 +76,7 @@ defmodule Pipeline.Test.Factory do
       ],
       "output_to_file" => "claude_result.json"
     }
-    
+
     deep_merge(base, overrides)
   end
 
@@ -98,40 +98,42 @@ defmodule Pipeline.Test.Factory do
       ],
       "output_to_file" => "gemini_result.json"
     }
-    
+
     deep_merge(base, overrides)
   end
 
   def build(:claude_step_with_previous, overrides) do
-    base = build(:claude_step, %{
-      "name" => "claude_with_previous",
-      "prompt" => [
-        %{
-          "type" => "static",
-          "content" => "Based on the previous analysis:"
-        },
-        %{
-          "type" => "previous_response",
-          "step" => "gemini_task"
-        }
-      ]
-    })
-    
+    base =
+      build(:claude_step, %{
+        "name" => "claude_with_previous",
+        "prompt" => [
+          %{
+            "type" => "static",
+            "content" => "Based on the previous analysis:"
+          },
+          %{
+            "type" => "previous_response",
+            "step" => "gemini_task"
+          }
+        ]
+      })
+
     deep_merge(base, overrides)
   end
 
   def build(:gemini_function_calling_step, overrides) do
-    base = build(:gemini_step, %{
-      "name" => "gemini_function_calling",
-      "tools" => ["file_creator", "code_analyzer"],
-      "prompt" => [
-        %{
-          "type" => "static",
-          "content" => "Use available tools to create and analyze code"
-        }
-      ]
-    })
-    
+    base =
+      build(:gemini_step, %{
+        "name" => "gemini_function_calling",
+        "tools" => ["file_creator", "code_analyzer"],
+        "prompt" => [
+          %{
+            "type" => "static",
+            "content" => "Use available tools to create and analyze code"
+          }
+        ]
+      })
+
     deep_merge(base, overrides)
   end
 
@@ -142,7 +144,7 @@ defmodule Pipeline.Test.Factory do
       output_dir: "/tmp/test_outputs",
       workspace_dir: "/tmp/test_workspace"
     }
-    
+
     Map.merge(base, overrides)
   end
 
@@ -152,7 +154,7 @@ defmodule Pipeline.Test.Factory do
       success: true,
       cost: 0.002
     }
-    
+
     Map.merge(base, overrides)
   end
 
@@ -168,7 +170,7 @@ defmodule Pipeline.Test.Factory do
       cost: 0.003,
       function_calls: []
     }
-    
+
     Map.merge(base, overrides)
   end
 
@@ -178,7 +180,7 @@ defmodule Pipeline.Test.Factory do
       success: false,
       error: "Test error scenario"
     }
-    
+
     Map.merge(base, overrides)
   end
 

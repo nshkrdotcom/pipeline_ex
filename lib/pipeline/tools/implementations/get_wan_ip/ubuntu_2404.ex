@@ -1,7 +1,7 @@
 defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
   @moduledoc """
   Tool to get the WAN (external) IP address using Ubuntu 24.04 CLI tools.
-  
+
   This implementation uses curl to query external services for the public IP.
   """
 
@@ -40,9 +40,9 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
   def execute(args) do
     service = Map.get(args, "service", "ipify")
     timeout = Map.get(args, "timeout", 10)
-    
+
     Logger.info("🌐 Getting WAN IP using service: #{service}")
-    
+
     case get_wan_ip_with_service(service, timeout) do
       {:ok, ip} ->
         result = %{
@@ -51,10 +51,10 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
           timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
           platform: "ubuntu-24.04"
         }
-        
+
         Logger.info("✅ WAN IP retrieved: #{result.wan_ip}")
         {:ok, result}
-        
+
       {:error, reason} ->
         Logger.error("❌ Failed to get WAN IP: #{reason}")
         {:error, "Failed to retrieve WAN IP: #{reason}"}
@@ -72,7 +72,7 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
     case System.cmd("which", ["curl"], stderr_to_stdout: true) do
       {_output, 0} ->
         :ok
-        
+
       {_output, _} ->
         {:error, "curl is not installed or not in PATH"}
     end
@@ -84,14 +84,14 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
     case service do
       "ipify" ->
         execute_curl("https://api.ipify.org", timeout)
-        
+
       "httpbin" ->
         execute_curl("https://httpbin.org/ip", timeout)
         |> parse_httpbin_response()
-        
+
       "checkip" ->
         execute_curl("https://checkip.amazonaws.com", timeout)
-        
+
       _ ->
         {:error, "Unknown service: #{service}"}
     end
@@ -99,16 +99,22 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
 
   defp execute_curl(url, timeout) do
     try do
-      case System.cmd("curl", [
-        "--silent",
-        "--show-error", 
-        "--max-time", to_string(timeout),
-        "--user-agent", "Pipeline-Tools/1.0",
-        url
-      ], stderr_to_stdout: true) do
+      case System.cmd(
+             "curl",
+             [
+               "--silent",
+               "--show-error",
+               "--max-time",
+               to_string(timeout),
+               "--user-agent",
+               "Pipeline-Tools/1.0",
+               url
+             ],
+             stderr_to_stdout: true
+           ) do
         {output, 0} ->
           {:ok, output}
-          
+
         {error_output, exit_code} ->
           {:error, "curl failed (exit #{exit_code}): #{error_output}"}
       end
@@ -123,7 +129,7 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
       case Jason.decode(json_response) do
         {:ok, %{"origin" => ip}} ->
           {:ok, ip}
-          
+
         {:error, _} ->
           {:error, "Failed to parse JSON response from httpbin"}
       end

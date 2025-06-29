@@ -1,6 +1,6 @@
 defmodule Pipeline.ConfigTest do
   use ExUnit.Case, async: true
-  
+
   alias Pipeline.Config
 
   describe "load_workflow/1" do
@@ -16,14 +16,14 @@ defmodule Pipeline.ConfigTest do
               - type: "static"
                 content: "Hello world"
       """
-      
+
       file_path = "/tmp/test_workflow_#{System.unique_integer()}.yaml"
       File.write!(file_path, yaml_content)
-      
+
       assert {:ok, config} = Config.load_workflow(file_path)
       assert config["workflow"]["name"] == "test_workflow"
       assert length(config["workflow"]["steps"]) == 1
-      
+
       File.rm!(file_path)
     end
 
@@ -35,13 +35,13 @@ defmodule Pipeline.ConfigTest do
           - name: "step1
             invalid yaml here
       """
-      
+
       file_path = "/tmp/invalid_#{System.unique_integer()}.yaml"
       File.write!(file_path, invalid_yaml)
-      
+
       assert {:error, reason} = Config.load_workflow(file_path)
       assert String.contains?(reason, "Failed to parse YAML")
-      
+
       File.rm!(file_path)
     end
 
@@ -67,7 +67,7 @@ defmodule Pipeline.ConfigTest do
           ]
         }
       }
-      
+
       assert :ok = Config.validate_workflow(config)
     end
 
@@ -83,7 +83,7 @@ defmodule Pipeline.ConfigTest do
           ]
         }
       }
-      
+
       assert {:error, reason} = Config.validate_workflow(config)
       assert String.contains?(reason, "Missing workflow name")
     end
@@ -94,7 +94,7 @@ defmodule Pipeline.ConfigTest do
           "name" => "test_workflow"
         }
       }
-      
+
       assert {:error, reason} = Config.validate_workflow(config)
       assert String.contains?(reason, "Missing or invalid 'steps' section")
     end
@@ -112,7 +112,7 @@ defmodule Pipeline.ConfigTest do
           ]
         }
       }
-      
+
       assert {:error, reason} = Config.validate_workflow(config)
       assert String.contains?(reason, "invalid type")
     end
@@ -132,7 +132,7 @@ defmodule Pipeline.ConfigTest do
           ]
         }
       }
-      
+
       assert {:error, reason} = Config.validate_workflow(config)
       assert String.contains?(reason, "invalid type")
     end
@@ -152,7 +152,7 @@ defmodule Pipeline.ConfigTest do
           ]
         }
       }
-      
+
       assert {:error, reason} = Config.validate_workflow(config)
       assert String.contains?(reason, "references non-existent steps")
     end
@@ -161,7 +161,7 @@ defmodule Pipeline.ConfigTest do
   describe "get_app_config/0" do
     test "returns default configuration" do
       config = Config.get_app_config()
-      
+
       assert is_map(config)
       assert Map.has_key?(config, :workspace_dir)
       assert Map.has_key?(config, :output_dir)
@@ -171,12 +171,12 @@ defmodule Pipeline.ConfigTest do
     test "respects environment variables" do
       System.put_env("PIPELINE_WORKSPACE_DIR", "/custom/workspace")
       System.put_env("PIPELINE_DEBUG", "true")
-      
+
       config = Config.get_app_config()
-      
+
       assert config[:workspace_dir] == "/custom/workspace"
       assert config[:debug_enabled] == true
-      
+
       System.delete_env("PIPELINE_WORKSPACE_DIR")
       System.delete_env("PIPELINE_DEBUG")
     end
@@ -185,7 +185,7 @@ defmodule Pipeline.ConfigTest do
   describe "get_provider_config/1" do
     test "returns Claude provider configuration" do
       config = Config.get_provider_config(:claude)
-      
+
       assert is_map(config)
       assert Map.has_key?(config, :model)
       assert Map.has_key?(config, :timeout)
@@ -193,7 +193,7 @@ defmodule Pipeline.ConfigTest do
 
     test "returns Gemini provider configuration" do
       config = Config.get_provider_config(:gemini)
-      
+
       assert is_map(config)
       assert Map.has_key?(config, :model)
       assert Map.has_key?(config, :timeout)
@@ -223,10 +223,10 @@ defmodule Pipeline.ConfigTest do
           ]
         }
       }
-      
+
       updated_config = Config.apply_defaults(config)
       step = hd(updated_config["workflow"]["steps"])
-      
+
       assert step["claude_options"]["max_turns"] == 5
     end
 
@@ -247,10 +247,10 @@ defmodule Pipeline.ConfigTest do
           ]
         }
       }
-      
+
       updated_config = Config.apply_defaults(config)
       step = hd(updated_config["workflow"]["steps"])
-      
+
       assert step["claude_options"]["max_turns"] == 3
     end
   end

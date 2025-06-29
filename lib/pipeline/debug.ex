@@ -17,21 +17,21 @@ defmodule Pipeline.Debug do
   """
   def find_latest_debug_log(output_dir) do
     output_path = Path.expand(output_dir)
-    
+
     case File.ls(output_path) do
       {:ok, files} ->
-        debug_logs = 
+        debug_logs =
           files
           |> Enum.filter(&String.starts_with?(&1, "debug_"))
           |> Enum.filter(&String.ends_with?(&1, ".log"))
           |> Enum.map(&Path.join(output_path, &1))
           |> Enum.sort_by(&File.stat!(&1).mtime, :desc)
-        
+
         case debug_logs do
           [latest | _] -> {:ok, latest}
           [] -> {:error, "No debug logs found"}
         end
-        
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -42,7 +42,7 @@ defmodule Pipeline.Debug do
   """
   def find_output_files(output_dir) do
     output_path = Path.expand(output_dir)
-    
+
     with {:ok, files} <- find_files_recursive(output_path, ".json") do
       files
       |> Enum.reject(&String.contains?(&1, "debug"))
@@ -55,12 +55,13 @@ defmodule Pipeline.Debug do
   """
   def find_workspace_files(workspace_dir \\ "workspace") do
     workspace_path = Path.expand(workspace_dir)
-    
+
     if File.exists?(workspace_path) do
       with {:ok, files} <- find_files_recursive(workspace_path) do
         files
         |> Enum.map(fn file ->
           stat = File.stat!(file)
+
           %{
             path: file,
             size: stat.size,
@@ -77,16 +78,17 @@ defmodule Pipeline.Debug do
 
   defp find_files_recursive(dir, extension \\ nil) do
     if File.exists?(dir) do
-      files = 
+      files =
         Path.wildcard(Path.join(dir, "**/*"))
         |> Enum.filter(&File.regular?/1)
-      
-      files = if extension do
-        Enum.filter(files, &String.ends_with?(&1, extension))
-      else
-        files
-      end
-      
+
+      files =
+        if extension do
+          Enum.filter(files, &String.ends_with?(&1, extension))
+        else
+          files
+        end
+
       {:ok, files}
     else
       {:ok, []}

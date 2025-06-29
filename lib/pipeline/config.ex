@@ -1,7 +1,7 @@
 defmodule Pipeline.Config do
   @moduledoc """
   Configuration management system for the pipeline.
-  
+
   Handles loading and validation of workflow configurations,
   environment variables, and runtime settings.
   """
@@ -22,9 +22,11 @@ defmodule Pipeline.Config do
               :ok -> {:ok, config}
               {:error, reason} -> {:error, "Invalid workflow: #{reason}"}
             end
+
           {:error, reason} ->
             {:error, "Failed to parse YAML: #{inspect(reason)}"}
         end
+
       {:error, reason} ->
         {:error, "Failed to read file: #{inspect(reason)}"}
     end
@@ -43,7 +45,7 @@ defmodule Pipeline.Config do
       test_mode: System.get_env("TEST_MODE") || "live",
       debug_enabled: System.get_env("PIPELINE_DEBUG") == "true"
     }
-    
+
     # Merge with application environment
     app_env = Application.get_all_env(:pipeline)
     Map.merge(base_config, Map.new(app_env))
@@ -91,16 +93,20 @@ defmodule Pipeline.Config do
 
   defp validate_required_fields(config) do
     workflow = config["workflow"]
-    
+
     cond do
       is_nil(workflow) ->
         {:error, "Missing 'workflow' section"}
+
       is_nil(workflow["name"]) ->
         {:error, "Missing workflow name"}
+
       is_nil(workflow["steps"]) or not is_list(workflow["steps"]) ->
         {:error, "Missing or invalid 'steps' section"}
+
       Enum.empty?(workflow["steps"]) ->
         {:error, "Workflow must have at least one step"}
+
       true ->
         :ok
     end
@@ -108,7 +114,7 @@ defmodule Pipeline.Config do
 
   defp validate_steps(config) do
     steps = config["workflow"]["steps"]
-    
+
     # Check each step
     Enum.reduce_while(steps, :ok, fn step, _acc ->
       case validate_step(step) do
@@ -122,14 +128,19 @@ defmodule Pipeline.Config do
     cond do
       is_nil(step["name"]) ->
         {:error, "Step missing 'name' field"}
+
       is_nil(step["type"]) ->
         {:error, "Step '#{step["name"]}' missing 'type' field"}
+
       step["type"] not in ["claude", "gemini"] ->
         {:error, "Step '#{step["name"]}' has invalid type: #{step["type"]}"}
+
       is_nil(step["prompt"]) ->
         {:error, "Step '#{step["name"]}' missing 'prompt' field"}
+
       not is_list(step["prompt"]) ->
         {:error, "Step '#{step["name"]}' prompt must be a list"}
+
       true ->
         validate_prompt_parts(step["prompt"], step["name"])
     end
@@ -146,7 +157,7 @@ defmodule Pipeline.Config do
 
   defp validate_prompt_part(part, step_name) do
     type = part["type"]
-    
+
     case type do
       "static" ->
         if is_nil(part["content"]) do
@@ -154,24 +165,24 @@ defmodule Pipeline.Config do
         else
           :ok
         end
-      
+
       "file" ->
         if is_nil(part["path"]) do
           {:error, "Step '#{step_name}' has file prompt part without path"}
         else
           :ok
         end
-      
+
       "previous_response" ->
         if is_nil(part["step"]) do
           {:error, "Step '#{step_name}' has previous_response prompt part without step reference"}
         else
           :ok
         end
-      
+
       nil ->
         {:error, "Step '#{step_name}' has prompt part without type"}
-      
+
       _ ->
         {:error, "Step '#{step_name}' has prompt part with invalid type: #{type}"}
     end
@@ -180,24 +191,28 @@ defmodule Pipeline.Config do
   defp validate_step_dependencies(config) do
     steps = config["workflow"]["steps"]
     step_names = MapSet.new(steps, & &1["name"])
-    
+
     # Check that all previous_response references point to valid steps
     Enum.reduce_while(steps, :ok, fn step, _acc ->
       case find_invalid_references(step, step_names) do
-        [] -> {:cont, :ok}
-        invalid_refs -> 
-          {:halt, {:error, "Step '#{step["name"]}' references non-existent steps: #{Enum.join(invalid_refs, ", ")}"}}
+        [] ->
+          {:cont, :ok}
+
+        invalid_refs ->
+          {:halt,
+           {:error,
+            "Step '#{step["name"]}' references non-existent steps: #{Enum.join(invalid_refs, ", ")}"}}
       end
     end)
   end
 
   defp find_invalid_references(step, valid_step_names) do
     prompt_parts = step["prompt"] || []
-    
+
     prompt_parts
-    |> Enum.filter(& &1["type"] == "previous_response")
+    |> Enum.filter(&(&1["type"] == "previous_response"))
     |> Enum.map(& &1["step"])
-    |> Enum.filter(& not MapSet.member?(valid_step_names, &1))
+    |> Enum.filter(&(not MapSet.member?(valid_step_names, &1)))
   end
 
   @doc """
@@ -207,11 +222,12 @@ defmodule Pipeline.Config do
   def apply_defaults(config) do
     workflow = config["workflow"]
     defaults = workflow["defaults"] || %{}
-    
-    updated_steps = Enum.map(workflow["steps"], fn step ->
-      apply_step_defaults(step, defaults)
-    end)
-    
+
+    updated_steps =
+      Enum.map(workflow["steps"], fn step ->
+        apply_step_defaults(step, defaults)
+      end)
+
     put_in(config, ["workflow", "steps"], updated_steps)
   end
 
@@ -229,13 +245,13 @@ defmodule Pipeline.Config do
         current_options = step["claude_options"] || %{}
         merged_options = Map.merge(claude_defaults, current_options)
         Map.put(step, "claude_options", merged_options)
-      
+
       "gemini" ->
         # Apply Gemini-specific defaults
         step
         |> Map.put_new("model", defaults["gemini_model"])
         |> Map.put_new("token_budget", defaults["gemini_token_budget"])
-      
+
       _ ->
         step
     end

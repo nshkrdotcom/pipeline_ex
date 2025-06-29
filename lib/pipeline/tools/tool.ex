@@ -1,7 +1,7 @@
 defmodule Pipeline.Tools.Tool do
   @moduledoc """
   Base behavior for pipeline tools that can be called by LLMs.
-  
+
   Tools define functions that can be executed by AI models during conversations.
   Each tool should implement this behavior to provide consistent interface.
   """
@@ -11,10 +11,10 @@ defmodule Pipeline.Tools.Tool do
   This is used by LLM adapters to register the tool with the AI service.
   """
   @callback get_definition() :: %{
-    name: String.t(),
-    description: String.t(), 
-    parameters: map()
-  }
+              name: String.t(),
+              description: String.t(),
+              parameters: map()
+            }
 
   @doc """
   Executes the tool with the given arguments.

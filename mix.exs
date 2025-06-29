@@ -11,6 +11,14 @@ defmodule Pipeline.MixProject do
     ]
   end
 
+  def cli do
+    [
+      preferred_envs: [
+        "pipeline.test.live": :test
+      ]
+    ]
+  end
+
   # Run "mix help compile.app" to learn about applications.
   def application do
     [

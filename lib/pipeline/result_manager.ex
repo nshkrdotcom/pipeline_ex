@@ -1,7 +1,7 @@
 defmodule Pipeline.ResultManager do
   @moduledoc """
   Manages step results throughout pipeline execution.
-  
+
   Provides structured storage, retrieval, and transformation of results
   between pipeline steps with support for serialization and validation.
   """
@@ -32,10 +32,11 @@ defmodule Pipeline.ResultManager do
   @spec store_result(%__MODULE__{}, result_key, result) :: %__MODULE__{}
   def store_result(%__MODULE__{} = manager, step_name, result) do
     validated_result = validate_and_transform_result(result)
-    
-    %{manager |
-      results: Map.put(manager.results, step_name, validated_result),
-      metadata: Map.put(manager.metadata, :last_updated, DateTime.utc_now())
+
+    %{
+      manager
+      | results: Map.put(manager.results, step_name, validated_result),
+        metadata: Map.put(manager.metadata, :last_updated, DateTime.utc_now())
     }
   end
 
@@ -77,30 +78,35 @@ defmodule Pipeline.ResultManager do
           nil -> {:error, :field_not_found}
           value -> {:ok, value}
         end
-      error -> error
+
+      error ->
+        error
     end
   end
 
   @doc """
   Transform results for consumption by next step.
   """
-  @spec transform_for_prompt(%__MODULE__{}, result_key, keyword()) :: {:ok, String.t()} | {:error, atom()}
+  @spec transform_for_prompt(%__MODULE__{}, result_key, keyword()) ::
+          {:ok, String.t()} | {:error, atom()}
   def transform_for_prompt(%__MODULE__{} = manager, step_name, opts \\ []) do
     case get_result(manager, step_name) do
       {:ok, result} ->
         format = Keyword.get(opts, :format, :auto)
         field = Keyword.get(opts, :field, nil)
-        
-        content = if field do
-          get_nested_field(result, field) || result
-        else
-          result
-        end
-        
+
+        content =
+          if field do
+            get_nested_field(result, field) || result
+          else
+            result
+          end
+
         formatted = format_for_prompt(content, format)
         {:ok, formatted}
-        
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -110,7 +116,7 @@ defmodule Pipeline.ResultManager do
   @spec get_summary(%__MODULE__{}) :: map()
   def get_summary(%__MODULE__{} = manager) do
     results = manager.results
-    
+
     %{
       total_steps: map_size(results),
       successful_steps: count_successful_results(results),
@@ -131,7 +137,7 @@ defmodule Pipeline.ResultManager do
       results: manager.results,
       metadata: manager.metadata
     }
-    
+
     Jason.encode(data, pretty: true)
   end
 
@@ -144,16 +150,21 @@ defmodule Pipeline.ResultManager do
       {:ok, data} ->
         # Restore atomized keys for results
         results = data["results"] || %{}
-        restored_results = Map.new(results, fn {step_name, result} ->
-          {step_name, atomize_keys(result)}
-        end)
-        
+
+        restored_results =
+          Map.new(results, fn {step_name, result} ->
+            {step_name, atomize_keys(result)}
+          end)
+
         manager = %__MODULE__{
           results: restored_results,
           metadata: data["metadata"] || %{}
         }
+
         {:ok, manager}
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -166,7 +177,9 @@ defmodule Pipeline.ResultManager do
       {:ok, json} ->
         File.mkdir_p!(Path.dirname(file_path))
         File.write(file_path, json)
-      {:error, _} = error -> error
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -188,19 +201,19 @@ defmodule Pipeline.ResultManager do
       %{success: success} when is_boolean(success) ->
         # Standard result format - keep as is
         result
-      
+
       %{"success" => success} when is_boolean(success) ->
         # Convert string keys to atoms for consistency
         atomize_keys(result)
-      
+
       result when is_map(result) ->
         # Ensure we have a success field
         Map.put_new(result, :success, true)
-      
+
       result when is_binary(result) ->
         # Text result - wrap in standard format
         %{success: true, text: result, cost: 0.0}
-      
+
       result ->
         # Unknown format - wrap safely
         %{success: true, data: result, cost: 0.0}
@@ -216,6 +229,7 @@ defmodule Pipeline.ResultManager do
 
   defp get_nested_field(map, field_path) when is_map(map) do
     fields = String.split(field_path, ".")
+
     Enum.reduce(fields, map, fn field, acc ->
       case acc do
         %{} -> Map.get(acc, field) || Map.get(acc, String.to_atom(field))
@@ -233,7 +247,7 @@ defmodule Pipeline.ResultManager do
           {:ok, json} -> json
           {:error, _} -> inspect(content)
         end
-      
+
       :text ->
         cond do
           is_binary(content) -> content
@@ -243,7 +257,7 @@ defmodule Pipeline.ResultManager do
           is_map(content) and Map.has_key?(content, "content") -> content["content"]
           true -> inspect(content)
         end
-      
+
       :auto ->
         cond do
           is_binary(content) -> content
@@ -275,11 +289,13 @@ defmodule Pipeline.ResultManager do
 
   defp calculate_total_cost(results) do
     Enum.reduce(results, 0.0, fn {_name, result}, acc ->
-      cost = case result do
-        %{cost: cost} when is_number(cost) -> cost
-        %{"cost" => cost} when is_number(cost) -> cost
-        _ -> 0.0
-      end
+      cost =
+        case result do
+          %{cost: cost} when is_number(cost) -> cost
+          %{"cost" => cost} when is_number(cost) -> cost
+          _ -> 0.0
+        end
+
       acc + cost
     end)
   end

@@ -17,7 +17,7 @@ defmodule Pipeline.PromptBuilder do
   defp build_part(%{"type" => "static", "content" => content}, _results) do
     content || ""
   end
-  
+
   defp build_part(%{type: "static", content: content}, _results) do
     content || ""
   end
@@ -40,7 +40,7 @@ defmodule Pipeline.PromptBuilder do
     case Map.get(results, step_name) do
       nil ->
         raise "Step '#{step_name}' not found in results"
-      
+
       result ->
         if part["extract"] do
           extract_field(result, part["extract"])
@@ -54,7 +54,7 @@ defmodule Pipeline.PromptBuilder do
     case Map.get(results, step_name) do
       nil ->
         raise "Step '#{step_name}' not found in results"
-      
+
       result ->
         if part[:extract] do
           extract_field(result, part[:extract])
@@ -97,8 +97,10 @@ defmodule Pipeline.PromptBuilder do
   end
 
   defp format_value(value) when is_binary(value), do: value
+
   defp format_value(value) when is_map(value) or is_list(value) do
     Jason.encode!(value, pretty: true)
   end
+
   defp format_value(value), do: to_string(value)
 end
