@@ -3,7 +3,7 @@ defmodule Pipeline.Step.GeminiInstructor do
   Executes Gemini (Brain) steps using InstructorLite for structured output and function calling.
   """
 
-  alias Pipeline.{PromptBuilder}
+  alias Pipeline.PromptBuilder
   alias Pipeline.Tools.Adapters.InstructorLiteAdapter
   require Logger
 
