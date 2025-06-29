@@ -190,8 +190,6 @@ defmodule Pipeline.Providers.GeminiProvider do
     end
   end
 
-  
-
   defp format_gemini_response(response) do
     %{
       content: extract_content(response),

@@ -52,7 +52,7 @@ defmodule Pipeline.FilePromptTest do
       file2_content = "Second file content"
       file1_path = "/tmp/test_files/file1.txt"
       file2_path = "/tmp/test_files/file2.txt"
-      
+
       File.write!(file1_path, file1_content)
       File.write!(file2_path, file2_content)
 
@@ -79,6 +79,7 @@ defmodule Pipeline.FilePromptTest do
           print("Hello, World!")
           return "success"
       """
+
       code_file = "/tmp/test_files/hello.py"
       File.write!(code_file, code_content)
 
@@ -113,7 +114,7 @@ defmodule Pipeline.FilePromptTest do
       ]
 
       context = %{results: %{}}
-      
+
       # Should raise an error when file doesn't exist
       assert_raise RuntimeError, ~r/File not found/, fn ->
         PromptBuilder.build(prompt_parts, context.results)
@@ -149,7 +150,8 @@ defmodule Pipeline.FilePromptTest do
               "name" => "step_with_invalid_file",
               "type" => "claude",
               "prompt" => [
-                %{"type" => "file"}  # Missing path
+                # Missing path
+                %{"type" => "file"}
               ]
             }
           ]
@@ -201,7 +203,7 @@ defmodule Pipeline.FilePromptTest do
       ]
 
       context = %{results: %{}}
-      
+
       # Should handle large files without issues
       built_prompt = PromptBuilder.build(prompt_parts, context.results)
       assert String.length(built_prompt) > 10000
@@ -216,6 +218,7 @@ defmodule Pipeline.FilePromptTest do
       2. Add data validation
       3. Create REST API endpoints
       """
+
       requirements_file = "/tmp/test_files/requirements.txt"
       File.write!(requirements_file, requirements_content)
 
@@ -263,7 +266,8 @@ defmodule Pipeline.FilePromptTest do
       # Test relative path resolution (assuming we're in the project directory)
       prompt_parts = [
         %{"type" => "static", "content" => "Source code:"},
-        %{"type" => "file", "path" => source_file}  # Use absolute for testing
+        # Use absolute for testing
+        %{"type" => "file", "path" => source_file}
       ]
 
       context = %{results: %{}}
@@ -303,7 +307,7 @@ defmodule Pipeline.FilePromptTest do
   describe "file prompt error handling" do
     test "provides helpful error message for missing files" do
       missing_file = "/tmp/test_files/missing_file.txt"
-      
+
       prompt_parts = [
         %{"type" => "file", "path" => missing_file}
       ]
@@ -319,7 +323,7 @@ defmodule Pipeline.FilePromptTest do
       # This test may not work in all environments, so we'll simulate the behavior
       restricted_file = "/tmp/test_files/restricted.txt"
       File.write!(restricted_file, "restricted content")
-      
+
       # In a real scenario, we'd change permissions, but for testing we'll verify 
       # the file can be read when permissions allow it
       prompt_parts = [

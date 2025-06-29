@@ -87,7 +87,10 @@ defmodule Pipeline.GeminiFunctionsTest do
               "type" => "gemini",
               "functions" => ["analyze_requirements"],
               "prompt" => [
-                %{"type" => "static", "content" => "Analyze these requirements and call analyze_requirements function"}
+                %{
+                  "type" => "static",
+                  "content" => "Analyze these requirements and call analyze_requirements function"
+                }
               ]
             }
           ]
@@ -136,7 +139,11 @@ defmodule Pipeline.GeminiFunctionsTest do
               "type" => "gemini",
               "functions" => ["evaluate_security", "evaluate_performance"],
               "prompt" => [
-                %{"type" => "static", "content" => "Perform comprehensive analysis using both security and performance evaluation"}
+                %{
+                  "type" => "static",
+                  "content" =>
+                    "Perform comprehensive analysis using both security and performance evaluation"
+                }
               ]
             }
           ]
@@ -208,7 +215,10 @@ defmodule Pipeline.GeminiFunctionsTest do
               "prompt" => [
                 %{"type" => "static", "content" => "Based on this analysis:"},
                 %{"type" => "previous_response", "step" => "code_analysis"},
-                %{"type" => "static", "content" => "Generate appropriate tests using generate_tests function"}
+                %{
+                  "type" => "static",
+                  "content" => "Generate appropriate tests using generate_tests function"
+                }
               ]
             }
           ]
@@ -323,7 +333,10 @@ defmodule Pipeline.GeminiFunctionsTest do
               "parameters" => %{
                 "type" => "object",
                 "properties" => %{
-                  "analysis_depth" => %{"type" => "string", "enum" => ["shallow", "deep", "comprehensive"]},
+                  "analysis_depth" => %{
+                    "type" => "string",
+                    "enum" => ["shallow", "deep", "comprehensive"]
+                  },
                   "insights" => %{"type" => "array", "items" => %{"type" => "string"}}
                 }
               }
@@ -364,7 +377,9 @@ defmodule Pipeline.GeminiFunctionsTest do
               "name" => "no_functions_step",
               "type" => "gemini",
               "functions" => [],
-              "prompt" => [%{"type" => "static", "content" => "Regular gemini step without functions"}]
+              "prompt" => [
+                %{"type" => "static", "content" => "Regular gemini step without functions"}
+              ]
             }
           ]
         }

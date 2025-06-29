@@ -6,13 +6,15 @@ defmodule Pipeline.WorkflowPerformanceTest do
 
   # Performance test configuration  
   @moduletag :performance
-  @moduletag timeout: 120_000  # 2 minutes timeout for performance tests
+  # 2 minutes timeout for performance tests
+  @moduletag timeout: 120_000
   @moduletag capture_log: true
 
   setup do
     # Set test mode - performance tests use mocks for consistent measurement
     System.put_env("TEST_MODE", "mock")
-    TestMode.set_test_context(:unit)  # Performance tests are unit tests
+    # Performance tests are unit tests
+    TestMode.set_test_context(:unit)
 
     # Reset mocks
     Mocks.ClaudeProvider.reset()
@@ -35,47 +37,54 @@ defmodule Pipeline.WorkflowPerformanceTest do
   describe "performance benchmarks" do
     @tag :performance
     test "measures execution time for simple workflow" do
-      workflow = create_simple_workflow(5)  # 5 steps
-      
+      # 5 steps
+      workflow = create_simple_workflow(5)
+
       # Setup mocks for fast responses
       setup_fast_mocks()
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       # Assert performance expectations
-      assert execution_time_ms < 1000  # Should complete under 1 second
+      # Should complete under 1 second
+      assert execution_time_ms < 1000
       assert map_size(results) == 5
-      
+
       IO.puts("Simple 5-step workflow execution time: #{execution_time_ms}ms")
     end
 
     @tag :performance
     test "measures execution time for complex workflow with dependencies" do
-      workflow = create_complex_dependency_workflow(10)  # 10 interconnected steps
-      
+      # 10 interconnected steps
+      workflow = create_complex_dependency_workflow(10)
+
       setup_fast_mocks()
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       # Complex workflows should still be reasonably fast
-      assert execution_time_ms < 3000  # Should complete under 3 seconds
+      # Should complete under 3 seconds
+      assert execution_time_ms < 3000
       assert map_size(results) == 10
-      
+
       IO.puts("Complex 10-step workflow execution time: #{execution_time_ms}ms")
     end
 
     @tag :performance
     test "measures memory usage for large workflow" do
-      workflow = create_large_workflow(20)  # 20 steps
-      
+      # 20 steps
+      workflow = create_large_workflow(20)
+
       setup_fast_mocks()
 
       # Measure memory before
@@ -91,8 +100,9 @@ defmodule Pipeline.WorkflowPerformanceTest do
       memory_used_kb = (memory_after - memory_before) / 1024
 
       assert map_size(results) == 20
-      assert memory_used_kb < 1024  # Should use less than 1MB
-      
+      # Should use less than 1MB
+      assert memory_used_kb < 1024
+
       IO.puts("Large 20-step workflow memory usage: #{memory_used_kb}KB")
     end
 
@@ -101,21 +111,23 @@ defmodule Pipeline.WorkflowPerformanceTest do
       # Create multiple test files
       file_count = 50
       test_files = create_test_files(file_count)
-      
+
       workflow = create_file_heavy_workflow(test_files)
-      
+
       setup_fast_mocks()
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       # File operations should still be fast with mocks
-      assert execution_time_ms < 5000  # Should complete under 5 seconds
+      # Should complete under 5 seconds
+      assert execution_time_ms < 5000
       assert map_size(results) == file_count
-      
+
       IO.puts("File-heavy workflow (#{file_count} files) execution time: #{execution_time_ms}ms")
 
       # Cleanup test files
@@ -149,48 +161,53 @@ defmodule Pipeline.WorkflowPerformanceTest do
 
       setup_fast_mocks()
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       # Large file processing should complete reasonably quickly
-      assert execution_time_ms < 2000  # Should complete under 2 seconds
+      # Should complete under 2 seconds
+      assert execution_time_ms < 2000
       assert results["process_large_file"]["success"] == true
-      
+
       IO.puts("Large file processing execution time: #{execution_time_ms}ms")
     end
 
     @tag :performance
     test "concurrent workflow execution simulation" do
       # Create multiple small workflows to simulate concurrent execution
-      workflows = Enum.map(1..5, fn i ->
-        create_simple_workflow(3, "concurrent_workflow_#{i}")
-      end)
+      workflows =
+        Enum.map(1..5, fn i ->
+          create_simple_workflow(3, "concurrent_workflow_#{i}")
+        end)
 
       setup_fast_mocks()
 
       # Execute workflows concurrently using tasks
-      {time_microseconds, results} = :timer.tc(fn ->
-        workflows
-        |> Enum.map(fn workflow ->
-          Task.async(fn -> Executor.execute(workflow) end)
+      {time_microseconds, results} =
+        :timer.tc(fn ->
+          workflows
+          |> Enum.map(fn workflow ->
+            Task.async(fn -> Executor.execute(workflow) end)
+          end)
+          |> Enum.map(&Task.await(&1, 10_000))
         end)
-        |> Enum.map(&Task.await(&1, 10_000))
-      end)
 
       execution_time_ms = time_microseconds / 1000
 
       # All workflows should succeed
       assert Enum.all?(results, fn
-        {:ok, _} -> true
-        _ -> false
-      end)
+               {:ok, _} -> true
+               _ -> false
+             end)
 
       # Concurrent execution should not take much longer than sequential
-      assert execution_time_ms < 3000  # Should complete under 3 seconds
-      
+      # Should complete under 3 seconds
+      assert execution_time_ms < 3000
+
       IO.puts("5 concurrent workflows execution time: #{execution_time_ms}ms")
     end
 
@@ -202,22 +219,26 @@ defmodule Pipeline.WorkflowPerformanceTest do
       File.write!(config_file, yaml_content)
 
       # Measure configuration loading time
-      {load_time_microseconds, {:ok, loaded_config}} = :timer.tc(fn ->
-        Config.load_workflow(config_file)
-      end)
+      {load_time_microseconds, {:ok, loaded_config}} =
+        :timer.tc(fn ->
+          Config.load_workflow(config_file)
+        end)
 
       # Measure validation time
-      {validation_time_microseconds, :ok} = :timer.tc(fn ->
-        Config.validate_workflow(loaded_config)
-      end)
+      {validation_time_microseconds, :ok} =
+        :timer.tc(fn ->
+          Config.validate_workflow(loaded_config)
+        end)
 
       load_time_ms = load_time_microseconds / 1000
       validation_time_ms = validation_time_microseconds / 1000
 
       # Configuration operations should be fast
-      assert load_time_ms < 100  # Should load under 100ms
-      assert validation_time_ms < 50  # Should validate under 50ms
-      
+      # Should load under 100ms
+      assert load_time_ms < 100
+      # Should validate under 50ms
+      assert validation_time_ms < 50
+
       IO.puts("Complex config loading time: #{load_time_ms}ms")
       IO.puts("Complex config validation time: #{validation_time_ms}ms")
     end
@@ -243,8 +264,9 @@ defmodule Pipeline.WorkflowPerformanceTest do
       memory_growth_kb = (final_memory - initial_memory) / 1024
 
       # Memory should not grow significantly
-      assert memory_growth_kb < 500  # Should not grow more than 500KB
-      
+      # Should not grow more than 500KB
+      assert memory_growth_kb < 500
+
       IO.puts("Memory growth after 10 executions: #{memory_growth_kb}KB")
     end
 
@@ -257,31 +279,34 @@ defmodule Pipeline.WorkflowPerformanceTest do
           "checkpoint_enabled" => true,
           "checkpoint_dir" => "/tmp/perf_workspace/.checkpoints",
           "defaults" => %{"output_dir" => "/tmp/perf_outputs"},
-          "steps" => Enum.map(1..15, fn i ->
-            %{
-              "name" => "step_#{i}",
-              "type" => "claude",
-              "prompt" => [%{"type" => "static", "content" => "Step #{i} content"}]
-            }
-          end)
+          "steps" =>
+            Enum.map(1..15, fn i ->
+              %{
+                "name" => "step_#{i}",
+                "type" => "claude",
+                "prompt" => [%{"type" => "static", "content" => "Step #{i} content"}]
+              }
+            end)
         }
       }
 
       setup_fast_mocks()
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       # Checkpoint-enabled workflow should not be significantly slower
-      assert execution_time_ms < 4000  # Should complete under 4 seconds
+      # Should complete under 4 seconds
+      assert execution_time_ms < 4000
       assert map_size(results) == 15
-      
+
       # Verify checkpoints were created
       assert File.exists?("/tmp/perf_workspace/.checkpoints")
-      
+
       IO.puts("Checkpoint-enabled workflow (15 steps) execution time: #{execution_time_ms}ms")
     end
   end
@@ -292,33 +317,40 @@ defmodule Pipeline.WorkflowPerformanceTest do
       workflow = create_large_workflow(50)
       setup_fast_mocks()
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       assert map_size(results) == 50
-      assert execution_time_ms < 10_000  # Should complete under 10 seconds
-      
+      # Should complete under 10 seconds
+      assert execution_time_ms < 10_000
+
       IO.puts("Very large workflow (50 steps) execution time: #{execution_time_ms}ms")
     end
 
     @tag :stress
     test "handles workflow with deep dependency chains" do
-      workflow = create_deep_dependency_workflow(20)  # 20 sequential steps
+      # 20 sequential steps
+      workflow = create_deep_dependency_workflow(20)
       setup_fast_mocks()
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       assert map_size(results) == 20
-      assert execution_time_ms < 5000  # Should complete under 5 seconds
-      
-      IO.puts("Deep dependency workflow (20 sequential steps) execution time: #{execution_time_ms}ms")
+      # Should complete under 5 seconds
+      assert execution_time_ms < 5000
+
+      IO.puts(
+        "Deep dependency workflow (20 sequential steps) execution time: #{execution_time_ms}ms"
+      )
     end
 
     @tag :stress
@@ -342,15 +374,17 @@ defmodule Pipeline.WorkflowPerformanceTest do
 
       # Mock responses are handled automatically by pattern matching
 
-      {time_microseconds, {:ok, results}} = :timer.tc(fn ->
-        Executor.execute(workflow)
-      end)
+      {time_microseconds, {:ok, results}} =
+        :timer.tc(fn ->
+          Executor.execute(workflow)
+        end)
 
       execution_time_ms = time_microseconds / 1000
 
       assert results["step_with_many_functions"]["success"] == true
-      assert execution_time_ms < 3000  # Should complete under 3 seconds
-      
+      # Should complete under 3 seconds
+      assert execution_time_ms < 3000
+
       IO.puts("Many functions workflow (20 functions) execution time: #{execution_time_ms}ms")
     end
   end
@@ -358,13 +392,14 @@ defmodule Pipeline.WorkflowPerformanceTest do
   # Helper functions for creating test workflows
 
   defp create_simple_workflow(step_count, name \\ "simple_perf_test") do
-    steps = Enum.map(1..step_count, fn i ->
-      %{
-        "name" => "step_#{i}",
-        "type" => (if rem(i, 2) == 0, do: "claude", else: "gemini"),
-        "prompt" => [%{"type" => "static", "content" => "Step #{i} content"}]
-      }
-    end)
+    steps =
+      Enum.map(1..step_count, fn i ->
+        %{
+          "name" => "step_#{i}",
+          "type" => if(rem(i, 2) == 0, do: "claude", else: "gemini"),
+          "prompt" => [%{"type" => "static", "content" => "Step #{i} content"}]
+        }
+      end)
 
     %{
       "workflow" => %{
@@ -377,26 +412,30 @@ defmodule Pipeline.WorkflowPerformanceTest do
   end
 
   defp create_complex_dependency_workflow(step_count) do
-    steps = Enum.map(1..step_count, fn i ->
-      prompt_parts = [%{"type" => "static", "content" => "Step #{i} content"}]
-      
-      # Add previous response dependencies for steps after the first few
-      prompt_parts = if i > 3 do
-        dependency_step = "step_#{i - 2}"
-        prompt_parts ++ [
-          %{"type" => "static", "content" => " with dependency on:"},
-          %{"type" => "previous_response", "step" => dependency_step}
-        ]
-      else
-        prompt_parts
-      end
+    steps =
+      Enum.map(1..step_count, fn i ->
+        prompt_parts = [%{"type" => "static", "content" => "Step #{i} content"}]
 
-      %{
-        "name" => "step_#{i}",
-        "type" => (if rem(i, 2) == 0, do: "claude", else: "gemini"),
-        "prompt" => prompt_parts
-      }
-    end)
+        # Add previous response dependencies for steps after the first few
+        prompt_parts =
+          if i > 3 do
+            dependency_step = "step_#{i - 2}"
+
+            prompt_parts ++
+              [
+                %{"type" => "static", "content" => " with dependency on:"},
+                %{"type" => "previous_response", "step" => dependency_step}
+              ]
+          else
+            prompt_parts
+          end
+
+        %{
+          "name" => "step_#{i}",
+          "type" => if(rem(i, 2) == 0, do: "claude", else: "gemini"),
+          "prompt" => prompt_parts
+        }
+      end)
 
     %{
       "workflow" => %{
@@ -413,26 +452,30 @@ defmodule Pipeline.WorkflowPerformanceTest do
   end
 
   defp create_deep_dependency_workflow(step_count) do
-    steps = Enum.map(1..step_count, fn i ->
-      prompt_parts = [%{"type" => "static", "content" => "Sequential step #{i}"}]
-      
-      # Each step depends on the previous one (except the first)
-      prompt_parts = if i > 1 do
-        dependency_step = "sequential_step_#{i - 1}"
-        prompt_parts ++ [
-          %{"type" => "static", "content" => " building on:"},
-          %{"type" => "previous_response", "step" => dependency_step}
-        ]
-      else
-        prompt_parts
-      end
+    steps =
+      Enum.map(1..step_count, fn i ->
+        prompt_parts = [%{"type" => "static", "content" => "Sequential step #{i}"}]
 
-      %{
-        "name" => "sequential_step_#{i}",
-        "type" => (if rem(i, 2) == 0, do: "claude", else: "gemini"),
-        "prompt" => prompt_parts
-      }
-    end)
+        # Each step depends on the previous one (except the first)
+        prompt_parts =
+          if i > 1 do
+            dependency_step = "sequential_step_#{i - 1}"
+
+            prompt_parts ++
+              [
+                %{"type" => "static", "content" => " building on:"},
+                %{"type" => "previous_response", "step" => dependency_step}
+              ]
+          else
+            prompt_parts
+          end
+
+        %{
+          "name" => "sequential_step_#{i}",
+          "type" => if(rem(i, 2) == 0, do: "claude", else: "gemini"),
+          "prompt" => prompt_parts
+        }
+      end)
 
     %{
       "workflow" => %{
@@ -445,17 +488,18 @@ defmodule Pipeline.WorkflowPerformanceTest do
   end
 
   defp create_file_heavy_workflow(file_paths) do
-    steps = Enum.with_index(file_paths, 1)
-    |> Enum.map(fn {file_path, i} ->
-      %{
-        "name" => "file_step_#{i}",
-        "type" => (if rem(i, 2) == 0, do: "claude", else: "gemini"),
-        "prompt" => [
-          %{"type" => "static", "content" => "Process file #{i}:"},
-          %{"type" => "file", "path" => file_path}
-        ]
-      }
-    end)
+    steps =
+      Enum.with_index(file_paths, 1)
+      |> Enum.map(fn {file_path, i} ->
+        %{
+          "name" => "file_step_#{i}",
+          "type" => if(rem(i, 2) == 0, do: "claude", else: "gemini"),
+          "prompt" => [
+            %{"type" => "static", "content" => "Process file #{i}:"},
+            %{"type" => "file", "path" => file_path}
+          ]
+        }
+      end)
 
     %{
       "workflow" => %{
@@ -474,7 +518,6 @@ defmodule Pipeline.WorkflowPerformanceTest do
       file_path
     end)
   end
-
 
   defp create_complex_yaml_content do
     """

@@ -83,10 +83,14 @@ defmodule Pipeline.ClaudeOptionsTest do
       step = hd(config_with_defaults["workflow"]["steps"])
 
       # Check that defaults are merged correctly
-      assert step["claude_options"]["max_turns"] == 8  # Overridden
-      assert step["claude_options"]["verbose"] == false  # From defaults
-      assert step["claude_options"]["system_prompt"] == "Default system prompt"  # From defaults
-      assert step["claude_options"]["allowed_tools"] == ["Write", "Edit"]  # Step-specific
+      # Overridden
+      assert step["claude_options"]["max_turns"] == 8
+      # From defaults
+      assert step["claude_options"]["verbose"] == false
+      # From defaults
+      assert step["claude_options"]["system_prompt"] == "Default system prompt"
+      # Step-specific
+      assert step["claude_options"]["allowed_tools"] == ["Write", "Edit"]
     end
 
     test "handles all supported claude_options" do
@@ -128,8 +132,10 @@ defmodule Pipeline.ClaudeOptionsTest do
               "name" => "claude_step",
               "type" => "claude",
               "claude_options" => %{
-                "max_turns" => "invalid_type",  # Should be integer
-                "allowed_tools" => "not_a_list"  # Should be list
+                # Should be integer
+                "max_turns" => "invalid_type",
+                # Should be list
+                "allowed_tools" => "not_a_list"
               },
               "prompt" => [%{"type" => "static", "content" => "Test"}]
             }
@@ -241,95 +247,100 @@ defmodule Pipeline.ClaudeOptionsTest do
 
   describe "claude_options validation" do
     test "validates max_turns is a positive integer" do
-      config_with_defaults = Config.apply_defaults(%{
-        "workflow" => %{
-          "name" => "max_turns_test",
-          "steps" => [
-            %{
-              "name" => "claude_step",
-              "type" => "claude",
-              "claude_options" => %{"max_turns" => 10},
-              "prompt" => [%{"type" => "static", "content" => "Test"}]
-            }
-          ]
-        }
-      })
+      config_with_defaults =
+        Config.apply_defaults(%{
+          "workflow" => %{
+            "name" => "max_turns_test",
+            "steps" => [
+              %{
+                "name" => "claude_step",
+                "type" => "claude",
+                "claude_options" => %{"max_turns" => 10},
+                "prompt" => [%{"type" => "static", "content" => "Test"}]
+              }
+            ]
+          }
+        })
 
       step = hd(config_with_defaults["workflow"]["steps"])
       assert step["claude_options"]["max_turns"] == 10
     end
 
     test "validates allowed_tools is a list of strings" do
-      config_with_defaults = Config.apply_defaults(%{
-        "workflow" => %{
-          "name" => "tools_test",
-          "steps" => [
-            %{
-              "name" => "claude_step",
-              "type" => "claude",
-              "claude_options" => %{"allowed_tools" => ["Write", "Read", "Edit"]},
-              "prompt" => [%{"type" => "static", "content" => "Test"}]
-            }
-          ]
-        }
-      })
+      config_with_defaults =
+        Config.apply_defaults(%{
+          "workflow" => %{
+            "name" => "tools_test",
+            "steps" => [
+              %{
+                "name" => "claude_step",
+                "type" => "claude",
+                "claude_options" => %{"allowed_tools" => ["Write", "Read", "Edit"]},
+                "prompt" => [%{"type" => "static", "content" => "Test"}]
+              }
+            ]
+          }
+        })
 
       step = hd(config_with_defaults["workflow"]["steps"])
       assert step["claude_options"]["allowed_tools"] == ["Write", "Read", "Edit"]
     end
 
     test "validates system_prompt is a string" do
-      config_with_defaults = Config.apply_defaults(%{
-        "workflow" => %{
-          "name" => "system_prompt_test",
-          "steps" => [
-            %{
-              "name" => "claude_step",
-              "type" => "claude",
-              "claude_options" => %{"system_prompt" => "Custom prompt"},
-              "prompt" => [%{"type" => "static", "content" => "Test"}]
-            }
-          ]
-        }
-      })
+      config_with_defaults =
+        Config.apply_defaults(%{
+          "workflow" => %{
+            "name" => "system_prompt_test",
+            "steps" => [
+              %{
+                "name" => "claude_step",
+                "type" => "claude",
+                "claude_options" => %{"system_prompt" => "Custom prompt"},
+                "prompt" => [%{"type" => "static", "content" => "Test"}]
+              }
+            ]
+          }
+        })
 
       step = hd(config_with_defaults["workflow"]["steps"])
       assert step["claude_options"]["system_prompt"] == "Custom prompt"
     end
 
     test "validates verbose is a boolean" do
-      config_with_defaults = Config.apply_defaults(%{
-        "workflow" => %{
-          "name" => "verbose_test",
-          "steps" => [
-            %{
-              "name" => "claude_step",
-              "type" => "claude",
-              "claude_options" => %{"verbose" => true},
-              "prompt" => [%{"type" => "static", "content" => "Test"}]
-            }
-          ]
-        }
-      })
+      config_with_defaults =
+        Config.apply_defaults(%{
+          "workflow" => %{
+            "name" => "verbose_test",
+            "steps" => [
+              %{
+                "name" => "claude_step",
+                "type" => "claude",
+                "claude_options" => %{"verbose" => true},
+                "prompt" => [%{"type" => "static", "content" => "Test"}]
+              }
+            ]
+          }
+        })
 
       step = hd(config_with_defaults["workflow"]["steps"])
       assert step["claude_options"]["verbose"] == true
     end
 
     test "validates cwd is a string path" do
-      config_with_defaults = Config.apply_defaults(%{
-        "workflow" => %{
-          "name" => "cwd_test",
-          "steps" => [
-            %{
-              "name" => "claude_step",
-              "type" => "claude",
-              "claude_options" => %{"cwd" => "/path/to/directory"},
-              "prompt" => [%{"type" => "static", "content" => "Test"}]
-            }
-          ]
-        }
-      })
+      config_with_defaults =
+        Config.apply_defaults(%{
+          "workflow" => %{
+            "name" => "cwd_test",
+            "steps" => [
+              %{
+                "name" => "claude_step",
+                "type" => "claude",
+                "claude_options" => %{"cwd" => "/path/to/directory"},
+                "prompt" => [%{"type" => "static", "content" => "Test"}]
+              }
+            ]
+          }
+        })
 
       step = hd(config_with_defaults["workflow"]["steps"])
       assert step["claude_options"]["cwd"] == "/path/to/directory"

@@ -25,12 +25,13 @@ defmodule Pipeline.Step.Gemini do
     case provider.query(prompt, options) do
       {:ok, response} ->
         # Handle function calling if functions are specified
-        final_response = if step["functions"] do
-          handle_function_calling(response, step["functions"])
-        else
-          response
-        end
-        
+        final_response =
+          if step["functions"] do
+            handle_function_calling(response, step["functions"])
+          else
+            response
+          end
+
         Logger.info("✅ Gemini step completed successfully")
         {:ok, final_response}
 
@@ -42,13 +43,15 @@ defmodule Pipeline.Step.Gemini do
 
   defp build_options(step) do
     # Convert functions list to tools format for the provider
-    tools = case step["functions"] do
-      functions when is_list(functions) and length(functions) > 0 -> 
-        # Convert function names to tool objects
-        Enum.map(functions, fn func_name -> %{"name" => func_name} end)
-      _ -> 
-        step["tools"] || []
-    end
+    tools =
+      case step["functions"] do
+        functions when is_list(functions) and length(functions) > 0 ->
+          # Convert function names to tool objects
+          Enum.map(functions, fn func_name -> %{"name" => func_name} end)
+
+        _ ->
+          step["tools"] || []
+      end
 
     %{
       model: step["model"] || "gemini-2.5-flash-lite-preview-06-17",
@@ -65,9 +68,11 @@ defmodule Pipeline.Step.Gemini do
         case function_call do
           %{"arguments" => arguments} when is_map(arguments) ->
             Map.merge(response, arguments)
+
           _ ->
             response
         end
+
       _ ->
         response
     end

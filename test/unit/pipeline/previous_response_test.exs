@@ -66,7 +66,7 @@ defmodule Pipeline.PreviousResponseTest do
 
       assert String.contains?(built_prompt, "Issues found:")
       assert String.contains?(built_prompt, "issue1")
-      assert String.contains?(built_prompt, "issue2") 
+      assert String.contains?(built_prompt, "issue2")
       assert String.contains?(built_prompt, "issue3")
       # Should not contain other fields
       refute String.contains?(built_prompt, "metadata")
@@ -96,7 +96,11 @@ defmodule Pipeline.PreviousResponseTest do
 
       prompt_parts = [
         %{"type" => "static", "content" => "Database config:"},
-        %{"type" => "previous_response", "step" => "config_step", "extract" => "configuration.database"}
+        %{
+          "type" => "previous_response",
+          "step" => "config_step",
+          "extract" => "configuration.database"
+        }
       ]
 
       context = %{results: previous_results}
@@ -173,9 +177,17 @@ defmodule Pipeline.PreviousResponseTest do
               "type" => "claude",
               "prompt" => [
                 %{"type" => "static", "content" => "Requirements:"},
-                %{"type" => "previous_response", "step" => "requirements_analysis", "extract" => "key_features"},
+                %{
+                  "type" => "previous_response",
+                  "step" => "requirements_analysis",
+                  "extract" => "key_features"
+                },
                 %{"type" => "static", "content" => "\nArchitecture:"},
-                %{"type" => "previous_response", "step" => "architecture_design", "extract" => "components"},
+                %{
+                  "type" => "previous_response",
+                  "step" => "architecture_design",
+                  "extract" => "components"
+                },
                 %{"type" => "static", "content" => "\nImplement this system"}
               ]
             }
@@ -238,7 +250,11 @@ defmodule Pipeline.PreviousResponseTest do
 
       prompt_parts = [
         %{"type" => "static", "content" => "Performance metrics:"},
-        %{"type" => "previous_response", "step" => "analysis_step", "extract" => "results.metrics"}
+        %{
+          "type" => "previous_response",
+          "step" => "analysis_step",
+          "extract" => "results.metrics"
+        }
       ]
 
       context = %{results: previous_results}
@@ -311,7 +327,8 @@ defmodule Pipeline.PreviousResponseTest do
               "name" => "invalid_step",
               "type" => "claude",
               "prompt" => [
-                %{"type" => "previous_response"}  # Missing step field
+                # Missing step field
+                %{"type" => "previous_response"}
               ]
             }
           ]
@@ -445,7 +462,11 @@ defmodule Pipeline.PreviousResponseTest do
       }
 
       prompt_parts = [
-        %{"type" => "previous_response", "step" => "step1", "extract" => "config.level1.missing_level3"}
+        %{
+          "type" => "previous_response",
+          "step" => "step1",
+          "extract" => "config.level1.missing_level3"
+        }
       ]
 
       context = %{results: previous_results}

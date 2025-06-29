@@ -28,7 +28,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
   describe "workspace_dir configuration" do
     test "creates workspace directory automatically" do
       workspace_dir = "/tmp/test_workspace_#{System.unique_integer()}"
-      
+
       workflow = %{
         "workflow" => %{
           "name" => "workspace_creation_test",
@@ -50,7 +50,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
       # Mock responses are handled automatically by pattern matching
 
       assert {:ok, _results} = Executor.execute(workflow)
-      
+
       # Directory should be created after execution
       assert File.exists?(workspace_dir)
       assert File.dir?(workspace_dir)
@@ -166,7 +166,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
       # Mock responses are handled automatically by pattern matching
 
       assert {:ok, _results} = Executor.execute(workflow)
-      
+
       # All nested directories should be created
       assert File.exists?(nested_workspace)
       assert File.dir?(nested_workspace)
@@ -193,10 +193,10 @@ defmodule Pipeline.WorkspaceIntegrationTest do
       # Mock responses are handled automatically by pattern matching
 
       assert {:ok, _results} = Executor.execute(workflow)
-      
+
       # Verify directory was created with correct permissions
       assert File.exists?(workspace_dir)
-      
+
       # Check basic read/write permissions
       test_file = Path.join(workspace_dir, "test.txt")
       assert :ok = File.write(test_file, "test content")
@@ -322,7 +322,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
       }
 
       config_with_defaults = Config.apply_defaults(config)
-      
+
       # workspace_dir should be applied as a default
       # Note: The actual implementation may handle this differently
       assert :ok = Config.validate_workflow(config_with_defaults)
@@ -350,7 +350,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
       # Mock responses are handled automatically by pattern matching
 
       assert {:error, _reason} = Executor.execute(workflow)
-      
+
       # Workspace directory should still exist for debugging
       assert File.exists?(workspace_dir)
       File.rm_rf(workspace_dir)
@@ -360,7 +360,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
   describe "workspace and file operations integration" do
     test "file prompts work with workspace-relative paths" do
       workspace_dir = "/tmp/test_workspace_files"
-      
+
       # Create a file in workspace
       File.mkdir_p!(workspace_dir)
       workspace_file = Path.join(workspace_dir, "input.txt")
@@ -414,7 +414,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
       # Mock responses are handled automatically by pattern matching
 
       assert {:ok, _results} = Executor.execute(workflow)
-      
+
       # Check that output file was created in the output directory
       output_file = "/tmp/test_outputs/result.json"
       assert File.exists?(output_file)

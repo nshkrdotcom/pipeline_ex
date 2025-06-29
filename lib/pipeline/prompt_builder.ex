@@ -12,7 +12,7 @@ defmodule Pipeline.PromptBuilder do
   """
   def build(prompt_parts, results) when is_list(prompt_parts) do
     ensure_cache_started()
-    
+
     prompt_parts
     |> Enum.map(&build_part(&1, results))
     |> Enum.join("\n")
@@ -25,8 +25,10 @@ defmodule Pipeline.PromptBuilder do
   """
   def clear_cache do
     case :ets.whereis(@file_cache_name) do
-      :undefined -> :ok
-      _tid -> 
+      :undefined ->
+        :ok
+
+      _tid ->
         :ets.delete_all_objects(@file_cache_name)
         :ok
     end
@@ -36,6 +38,7 @@ defmodule Pipeline.PromptBuilder do
     case :ets.whereis(@file_cache_name) do
       :undefined ->
         :ets.new(@file_cache_name, [:named_table, :public, :set])
+
       _tid ->
         :ok
     end
@@ -62,6 +65,7 @@ defmodule Pipeline.PromptBuilder do
   # Previous response build_part functions
   defp build_part(%{"type" => "previous_response", "step" => step_name} = part, context) do
     results = get_results_from_context(context)
+
     case Map.get(results, step_name) do
       nil ->
         raise KeyError, key: step_name, term: results
@@ -77,6 +81,7 @@ defmodule Pipeline.PromptBuilder do
 
   defp build_part(%{type: "previous_response", step: step_name} = part, context) do
     results = get_results_from_context(context)
+
     case Map.get(results, step_name) do
       nil ->
         raise KeyError, key: step_name, term: results
@@ -103,22 +108,25 @@ defmodule Pipeline.PromptBuilder do
     case File.stat(path) do
       {:ok, %File.Stat{mtime: mtime}} ->
         cache_key = {path, mtime}
-        
+
         case :ets.lookup(@file_cache_name, cache_key) do
           [{^cache_key, content}] ->
             # Cache hit
             content
+
           [] ->
             # Cache miss - read file and cache
             content = read_file_with_error_handling(path)
             :ets.insert(@file_cache_name, {cache_key, content})
             content
         end
-        
+
       {:error, :enoent} ->
         raise "File not found: #{path}. Please check the file path and ensure the file exists."
+
       {:error, :eacces} ->
         raise "Permission denied accessing file: #{path}. Please check file permissions."
+
       {:error, reason} ->
         raise "Failed to access file #{path}: #{:file.format_error(reason)}"
     end
@@ -127,13 +135,16 @@ defmodule Pipeline.PromptBuilder do
   defp read_file_with_error_handling(path) do
     try do
       case File.read(path) do
-        {:ok, content} -> 
+        {:ok, content} ->
           content
-        {:error, :enoent} -> 
+
+        {:error, :enoent} ->
           raise "File not found: #{path}. Please check the file path and ensure the file exists."
-        {:error, :eacces} -> 
+
+        {:error, :eacces} ->
           raise "Permission denied reading file: #{path}. Please check file permissions."
-        {:error, reason} -> 
+
+        {:error, reason} ->
           raise "Failed to read file #{path}: #{:file.format_error(reason)}"
       end
     rescue
@@ -142,7 +153,6 @@ defmodule Pipeline.PromptBuilder do
     end
   end
 
-  
   defp get_results_from_context(%{results: results}), do: results
   defp get_results_from_context(results) when is_map(results), do: results
 
@@ -150,30 +160,38 @@ defmodule Pipeline.PromptBuilder do
     case get_nested_field_with_presence(result, field_path) do
       {:found, value} ->
         format_value(value)
+
       :not_found ->
         # Return nil for missing fields, which will be formatted as "nil"
         format_value(nil)
     end
   end
-  
+
   defp get_nested_field_with_presence(map, field_path) when is_map(map) do
     fields = String.split(field_path, ".")
 
-    {result, status} = Enum.reduce(fields, {map, :found}, fn field, {acc, status} ->
-      case {acc, status} do
-        {%{}, :found} -> 
-          cond do
-            Map.has_key?(acc, field) -> 
-              {Map.get(acc, field), :found}
-            Map.has_key?(acc, String.to_atom(field)) -> 
-              {Map.get(acc, String.to_atom(field)), :found}
-            true -> 
-              {nil, :not_found}
-          end
-        {_, :not_found} -> {nil, :not_found}
-        _ -> {nil, :not_found}
-      end
-    end)
+    {result, status} =
+      Enum.reduce(fields, {map, :found}, fn field, {acc, status} ->
+        case {acc, status} do
+          {%{}, :found} ->
+            cond do
+              Map.has_key?(acc, field) ->
+                {Map.get(acc, field), :found}
+
+              Map.has_key?(acc, String.to_atom(field)) ->
+                {Map.get(acc, String.to_atom(field)), :found}
+
+              true ->
+                {nil, :not_found}
+            end
+
+          {_, :not_found} ->
+            {nil, :not_found}
+
+          _ ->
+            {nil, :not_found}
+        end
+      end)
 
     case status do
       :found -> {:found, result}
@@ -182,7 +200,6 @@ defmodule Pipeline.PromptBuilder do
   end
 
   defp get_nested_field_with_presence(_, _), do: :not_found
-  
 
   defp format_result(result) when is_map(result) do
     # Return full JSON representation when no specific field is requested
@@ -204,6 +221,6 @@ defmodule Pipeline.PromptBuilder do
   end
 
   defp format_value(nil), do: "nil"
-  
+
   defp format_value(value), do: to_string(value)
 end

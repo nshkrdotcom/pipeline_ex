@@ -328,16 +328,17 @@ defmodule Pipeline.ConfigTest do
 
       updated_config = Config.apply_defaults(config)
       step = hd(updated_config["workflow"]["steps"])
-      
+
       # Check first task gets defaults
       task1 = Enum.find(step["parallel_tasks"], &(&1["id"] == "task1"))
       assert task1["claude_options"]["output_format"] == "markdown"
       assert task1["claude_options"]["max_turns"] == 10
-      
+
       # Check second task keeps existing options but gets defaults for missing ones
       task2 = Enum.find(step["parallel_tasks"], &(&1["id"] == "task2"))
       assert task2["claude_options"]["output_format"] == "markdown"
-      assert task2["claude_options"]["max_turns"] == 5  # existing option preserved
+      # existing option preserved
+      assert task2["claude_options"]["max_turns"] == 5
     end
   end
 end

@@ -46,17 +46,20 @@ defmodule Pipeline.Executor do
         workflow_name = workflow["workflow"]["name"] || "unnamed"
         step_count = length(workflow["workflow"]["steps"] || [])
         current_step = context.step_index + 1
-        
-        Logger.error("💥 Pipeline '#{workflow_name}' crashed at step #{current_step}/#{step_count}: #{inspect(error)}")
+
+        Logger.error(
+          "💥 Pipeline '#{workflow_name}' crashed at step #{current_step}/#{step_count}: #{inspect(error)}"
+        )
+
         cleanup_context(context)
-        
+
         error_message = """
         Pipeline execution crashed: #{Exception.message(error)}
         Workflow: #{workflow_name}
         Step: #{current_step}/#{step_count}
         Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}
         """
-        
+
         {:error, error_message}
     end
   end
@@ -148,14 +151,14 @@ defmodule Pipeline.Executor do
       execute_step_unconditionally(step, index, context)
     else
       Logger.info("⏭️  Condition not met, skipping step: #{step["name"]}")
-      
+
       # Create a skipped result
       skipped_result = %{
         "success" => true,
         "skipped" => true,
         "reason" => "Condition not met: #{step["condition"] || "N/A"}"
       }
-      
+
       updated_context = %{
         context
         | results: Map.put(context.results, step["name"], skipped_result),
@@ -171,7 +174,7 @@ defmodule Pipeline.Executor do
             | context.execution_log
           ]
       }
-      
+
       {:ok, updated_context}
     end
   end
@@ -184,7 +187,7 @@ defmodule Pipeline.Executor do
       {:ok, result} ->
         # Optimize result for memory usage
         optimized_result = optimize_result_for_memory(result)
-        
+
         # Update context with result
         updated_context = %{
           context
@@ -244,7 +247,7 @@ defmodule Pipeline.Executor do
         Step type: #{step["type"]}
         Execution time: #{DateTime.diff(DateTime.utc_now(), step_start, :millisecond)}ms
         """
-        
+
         {:error, error_context}
     end
   end
@@ -291,10 +294,12 @@ defmodule Pipeline.Executor do
 
   defp evaluate_condition(condition_expr, context) do
     case String.split(condition_expr, ".") do
-      [step_name] -> 
+      [step_name] ->
         get_in(context.results, [step_name]) |> is_truthy()
+
       [step_name, field] ->
         get_in(context.results, [step_name, field]) |> is_truthy()
+
       parts when length(parts) > 2 ->
         get_in(context.results, parts) |> is_truthy()
     end
@@ -308,25 +313,30 @@ defmodule Pipeline.Executor do
 
   defp optimize_result_for_memory(result) when is_map(result) do
     # Trim very large text fields to prevent memory issues
-    max_text_size = 100_000  # 100KB
-    
+    # 100KB
+    max_text_size = 100_000
+
     result
     |> Enum.map(fn {key, value} ->
-      optimized_value = case value do
-        text when is_binary(text) and byte_size(text) > max_text_size ->
-          trimmed = String.slice(text, 0, max_text_size)
-          "#{trimmed}... [TRIMMED: #{byte_size(text)} bytes total]"
-        other ->
-          other
-      end
+      optimized_value =
+        case value do
+          text when is_binary(text) and byte_size(text) > max_text_size ->
+            trimmed = String.slice(text, 0, max_text_size)
+            "#{trimmed}... [TRIMMED: #{byte_size(text)} bytes total]"
+
+          other ->
+            other
+        end
+
       {key, optimized_value}
     end)
     |> Map.new()
   end
 
   defp optimize_result_for_memory(result) when is_binary(result) do
-    max_text_size = 100_000  # 100KB
-    
+    # 100KB
+    max_text_size = 100_000
+
     if byte_size(result) > max_text_size do
       trimmed = String.slice(result, 0, max_text_size)
       "#{trimmed}... [TRIMMED: #{byte_size(result)} bytes total]"
@@ -339,10 +349,10 @@ defmodule Pipeline.Executor do
 
   defp log_pipeline_completion(context) do
     duration = DateTime.diff(DateTime.utc_now(), context.start_time, :millisecond)
-    
+
     # Clear prompt builder cache to free memory
     Pipeline.PromptBuilder.clear_cache()
-    
+
     # Log all completion messages together without blank lines
     Logger.info("✅ Pipeline execution completed successfully")
     Logger.info("🏁 Pipeline execution completed in #{duration}ms")
@@ -352,10 +362,10 @@ defmodule Pipeline.Executor do
   defp cleanup_context(context) do
     # Clean up any temporary resources
     duration = DateTime.diff(DateTime.utc_now(), context.start_time, :millisecond)
-    
+
     # Clear prompt builder cache to free memory
     Pipeline.PromptBuilder.clear_cache()
-    
+
     # Log completion with consolidated messages
     Logger.info("🏁 Pipeline execution completed in #{duration}ms")
     Logger.info("🧹 Cleaned up temporary resources and caches")

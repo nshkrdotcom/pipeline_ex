@@ -6,36 +6,40 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
   def query(prompt, _options \\ %{}) do
     # Check for pattern-specific responses first
     case find_matching_pattern(prompt) do
-      {:ok, response} -> {:ok, response}
+      {:ok, response} ->
+        {:ok, response}
+
       :not_found ->
         # Fall back to existing pattern matching
         case prompt do
-      "simple test" ->
-        {:ok, %{"text" => "Mock response for simple test", "success" => true, "cost" => 0.001}}
-
-      "error test" ->
-        {:error, "Mock error for testing"}
-
-      prompt when is_binary(prompt) ->
-        cond do
-          String.contains?(prompt, "Python") ->
-            {:ok, %{"text" => "Mock Python code response", "success" => true, "cost" => 0.002}}
-
-          String.contains?(prompt, "calculator") ->
+          "simple test" ->
             {:ok,
-             %{"text" => "Mock calculator implementation", "success" => true, "cost" => 0.004}}
+             %{"text" => "Mock response for simple test", "success" => true, "cost" => 0.001}}
 
-          true ->
-            {:ok,
-             %{
-               "text" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
-               "success" => true,
-               "cost" => 0.001
-             }}
-        end
+          "error test" ->
+            {:error, "Mock error for testing"}
 
-        _ ->
-          {:ok, %{"text" => "Mock response", "success" => true, "cost" => 0.001}}
+          prompt when is_binary(prompt) ->
+            cond do
+              String.contains?(prompt, "Python") ->
+                {:ok,
+                 %{"text" => "Mock Python code response", "success" => true, "cost" => 0.002}}
+
+              String.contains?(prompt, "calculator") ->
+                {:ok,
+                 %{"text" => "Mock calculator implementation", "success" => true, "cost" => 0.004}}
+
+              true ->
+                {:ok,
+                 %{
+                   "text" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
+                   "success" => true,
+                   "cost" => 0.001
+                 }}
+            end
+
+          _ ->
+            {:ok, %{"text" => "Mock response", "success" => true, "cost" => 0.001}}
         end
     end
   end
@@ -49,6 +53,7 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
     Process.get_keys()
     |> Enum.filter(fn key -> match?({:mock_response, _}, key) end)
     |> Enum.each(&Process.delete/1)
+
     :ok
   end
 

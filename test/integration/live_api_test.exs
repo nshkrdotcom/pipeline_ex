@@ -17,7 +17,6 @@ defmodule Pipeline.Integration.LiveAPITest do
         IO.puts("Skipping live API test - TEST_MODE is not 'live'")
         :ok
       else
-
         # Claude Code SDK uses CLI authentication, no API key needed
         # Note: This test verifies the integration works, but may fail if
         # the Claude CLI is not properly configured in the environment

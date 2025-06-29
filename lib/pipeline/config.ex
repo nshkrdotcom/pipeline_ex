@@ -97,16 +97,19 @@ defmodule Pipeline.Config do
 
     cond do
       is_nil(workflow) ->
-        {:error, "Configuration missing required 'workflow' section. Expected format: {\"workflow\": {...}}"}
+        {:error,
+         "Configuration missing required 'workflow' section. Expected format: {\"workflow\": {...}}"}
 
       is_nil(workflow["name"]) ->
         {:error, "Workflow missing required 'name' field. Add: name: \"your_workflow_name\""}
 
       is_nil(workflow["steps"]) or not is_list(workflow["steps"]) ->
-        {:error, "Workflow missing required 'steps' array. Expected format: steps: [{\"name\": \"step1\", \"type\": \"claude\", ...}]"}
+        {:error,
+         "Workflow missing required 'steps' array. Expected format: steps: [{\"name\": \"step1\", \"type\": \"claude\", ...}]"}
 
       Enum.empty?(workflow["steps"]) ->
-        {:error, "Workflow must contain at least one step. Add at least one step to the 'steps' array"}
+        {:error,
+         "Workflow must contain at least one step. Add at least one step to the 'steps' array"}
 
       true ->
         :ok
@@ -115,9 +118,11 @@ defmodule Pipeline.Config do
 
   defp validate_functions(config) do
     workflow = config["workflow"]
-    
+
     case workflow["gemini_functions"] do
-      nil -> :ok
+      nil ->
+        :ok
+
       functions when is_map(functions) ->
         Enum.reduce_while(functions, :ok, fn {function_name, function_def}, _acc ->
           case validate_function_definition(function_name, function_def) do
@@ -125,6 +130,7 @@ defmodule Pipeline.Config do
             error -> {:halt, error}
           end
         end)
+
       _ ->
         {:error, "gemini_functions must be a map of function definitions"}
     end
@@ -134,16 +140,16 @@ defmodule Pipeline.Config do
     cond do
       not is_map(function_def) ->
         {:error, "Function '#{function_name}' definition must be a map"}
-        
+
       is_nil(function_def["description"]) ->
         {:error, "Function '#{function_name}' missing 'description' field"}
-        
+
       is_nil(function_def["parameters"]) ->
         {:error, "Function '#{function_name}' missing 'parameters' field"}
-        
+
       not is_map(function_def["parameters"]) ->
         {:error, "Function '#{function_name}' parameters must be a map"}
-        
+
       true ->
         :ok
     end
@@ -167,19 +173,24 @@ defmodule Pipeline.Config do
         {:error, "Step missing required 'name' field. Add: name: \"step_name\""}
 
       is_nil(step["type"]) ->
-        {:error, "Step '#{step["name"]}' missing required 'type' field. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
+        {:error,
+         "Step '#{step["name"]}' missing required 'type' field. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
 
       step["type"] not in ["claude", "gemini", "parallel_claude", "gemini_instructor"] ->
-        {:error, "Step '#{step["name"]}' has invalid type '#{step["type"]}'. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
+        {:error,
+         "Step '#{step["name"]}' has invalid type '#{step["type"]}'. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
 
       is_nil(step["prompt"]) ->
-        {:error, "Step '#{step["name"]}' missing required 'prompt' field. Add: prompt: [{\"type\": \"static\", \"content\": \"...\"}]"}
+        {:error,
+         "Step '#{step["name"]}' missing required 'prompt' field. Add: prompt: [{\"type\": \"static\", \"content\": \"...\"}]"}
 
       not is_list(step["prompt"]) ->
-        {:error, "Step '#{step["name"]}' prompt must be an array of prompt parts. Format: [{\"type\": \"static\", \"content\": \"...\"}]"}
+        {:error,
+         "Step '#{step["name"]}' prompt must be an array of prompt parts. Format: [{\"type\": \"static\", \"content\": \"...\"}]"}
 
       step["type"] == "parallel_claude" and is_nil(step["parallel_tasks"]) ->
-        {:error, "Step '#{step["name"]}' of type 'parallel_claude' missing required 'parallel_tasks' field"}
+        {:error,
+         "Step '#{step["name"]}' of type 'parallel_claude' missing required 'parallel_tasks' field"}
 
       true ->
         with :ok <- validate_prompt_parts(step["prompt"], step["name"]),
@@ -233,17 +244,21 @@ defmodule Pipeline.Config do
 
   defp validate_step_function_references(step, config) do
     case step["functions"] do
-      nil -> :ok
+      nil ->
+        :ok
+
       functions when is_list(functions) ->
         available_functions = get_available_functions(config)
-        
+
         Enum.reduce_while(functions, :ok, fn function_name, _acc ->
           if function_name in available_functions do
             {:cont, :ok}
           else
-            {:halt, {:error, "Step '#{step["name"]}' references undefined function: #{function_name}"}}
+            {:halt,
+             {:error, "Step '#{step["name"]}' references undefined function: #{function_name}"}}
           end
         end)
+
       _ ->
         {:error, "Step '#{step["name"]}' functions must be a list"}
     end
@@ -312,12 +327,12 @@ defmodule Pipeline.Config do
       "claude" ->
         claude_defaults = defaults["claude_options"] || %{}
         current_options = step["claude_options"] || %{}
-        
+
         # Apply claude_output_format default if not specified
         output_format = defaults["claude_output_format"] || "json"
         merged_options = Map.merge(claude_defaults, current_options)
         merged_options = Map.put_new(merged_options, "output_format", output_format)
-        
+
         Map.put(step, "claude_options", merged_options)
 
       "gemini" ->
@@ -329,14 +344,17 @@ defmodule Pipeline.Config do
       "parallel_claude" ->
         # Apply defaults to parallel tasks
         tasks = step["parallel_tasks"] || []
-        updated_tasks = Enum.map(tasks, fn task ->
-          claude_defaults = defaults["claude_options"] || %{}
-          current_options = task["claude_options"] || %{}
-          output_format = defaults["claude_output_format"] || "json"
-          merged_options = Map.merge(claude_defaults, current_options)
-          merged_options = Map.put_new(merged_options, "output_format", output_format)
-          Map.put(task, "claude_options", merged_options)
-        end)
+
+        updated_tasks =
+          Enum.map(tasks, fn task ->
+            claude_defaults = defaults["claude_options"] || %{}
+            current_options = task["claude_options"] || %{}
+            output_format = defaults["claude_output_format"] || "json"
+            merged_options = Map.merge(claude_defaults, current_options)
+            merged_options = Map.put_new(merged_options, "output_format", output_format)
+            Map.put(task, "claude_options", merged_options)
+          end)
+
         Map.put(step, "parallel_tasks", updated_tasks)
 
       "gemini_instructor" ->

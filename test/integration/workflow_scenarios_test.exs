@@ -36,14 +36,14 @@ defmodule Pipeline.WorkflowScenariosTest do
               if item.price > 0:
                   total += item.price
           return total
-      
+
       def process_payment(amount, method="credit"):
           if method == "credit":
               return charge_credit_card(amount)
           else:
               return process_cash(amount)
       """
-      
+
       source_file = "/tmp/integration_files/payment.py"
       File.write!(source_file, source_code)
 
@@ -68,8 +68,14 @@ defmodule Pipeline.WorkflowScenariosTest do
                     "items" => %{
                       "type" => "object",
                       "properties" => %{
-                        "type" => %{"type" => "string", "enum" => ["bug", "style", "performance", "security"]},
-                        "severity" => %{"type" => "string", "enum" => ["low", "medium", "high", "critical"]},
+                        "type" => %{
+                          "type" => "string",
+                          "enum" => ["bug", "style", "performance", "security"]
+                        },
+                        "severity" => %{
+                          "type" => "string",
+                          "enum" => ["low", "medium", "high", "critical"]
+                        },
                         "description" => %{"type" => "string"},
                         "line" => %{"type" => "integer"}
                       }
@@ -87,7 +93,10 @@ defmodule Pipeline.WorkflowScenariosTest do
               "type" => "gemini",
               "functions" => ["analyze_code_quality"],
               "prompt" => [
-                %{"type" => "static", "content" => "Analyze this Python code for quality, bugs, and improvements:"},
+                %{
+                  "type" => "static",
+                  "content" => "Analyze this Python code for quality, bugs, and improvements:"
+                },
                 %{"type" => "file", "path" => source_file}
               ],
               "output_to_file" => "code_analysis.json"
@@ -103,7 +112,11 @@ defmodule Pipeline.WorkflowScenariosTest do
               "prompt" => [
                 %{"type" => "static", "content" => "Based on this code analysis:"},
                 %{"type" => "previous_response", "step" => "code_analysis"},
-                %{"type" => "static", "content" => "\nImprove the original code addressing all identified issues. Create an improved version."}
+                %{
+                  "type" => "static",
+                  "content" =>
+                    "\nImprove the original code addressing all identified issues. Create an improved version."
+                }
               ],
               "output_to_file" => "improved_code.py"
             },
@@ -116,9 +129,15 @@ defmodule Pipeline.WorkflowScenariosTest do
                 "cwd" => "/tmp/integration_workspace/tests"
               },
               "prompt" => [
-                %{"type" => "static", "content" => "Create comprehensive unit tests for the improved code:"},
+                %{
+                  "type" => "static",
+                  "content" => "Create comprehensive unit tests for the improved code:"
+                },
                 %{"type" => "previous_response", "step" => "generate_improvements"},
-                %{"type" => "static", "content" => "\nInclude edge cases and error handling tests."}
+                %{
+                  "type" => "static",
+                  "content" => "\nInclude edge cases and error handling tests."
+                }
               ],
               "output_to_file" => "test_payment.py"
             },
@@ -128,12 +147,19 @@ defmodule Pipeline.WorkflowScenariosTest do
               "prompt" => [
                 %{"type" => "static", "content" => "Review the complete solution:"},
                 %{"type" => "static", "content" => "\n\nOriginal Analysis:"},
-                %{"type" => "previous_response", "step" => "code_analysis", "extract" => "suggestions"},
+                %{
+                  "type" => "previous_response",
+                  "step" => "code_analysis",
+                  "extract" => "suggestions"
+                },
                 %{"type" => "static", "content" => "\n\nImproved Code:"},
                 %{"type" => "previous_response", "step" => "generate_improvements"},
                 %{"type" => "static", "content" => "\n\nTest Coverage:"},
                 %{"type" => "previous_response", "step" => "create_tests"},
-                %{"type" => "static", "content" => "\n\nProvide a final assessment of the improvements."}
+                %{
+                  "type" => "static",
+                  "content" => "\n\nProvide a final assessment of the improvements."
+                }
               ],
               "output_to_file" => "final_review.json"
             }
@@ -144,7 +170,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       # Mocks are set up automatically in setup() for mock mode
 
       assert {:ok, results} = Executor.execute(workflow)
-      
+
       # Verify all steps completed successfully
       assert results["code_analysis"]["success"] == true
       assert results["generate_improvements"]["success"] == true
@@ -162,27 +188,27 @@ defmodule Pipeline.WorkflowScenariosTest do
       # Create requirements file
       requirements = """
       # E-commerce API Requirements
-      
+
       ## Core Features
       1. User authentication and authorization
       2. Product catalog management
       3. Shopping cart functionality
       4. Order processing
       5. Payment integration
-      
+
       ## Technical Requirements
       - REST API using FastAPI
       - PostgreSQL database
       - Redis for caching
       - JWT authentication
       - Docker containerization
-      
+
       ## Performance Goals
       - Handle 1000 concurrent users
       - Response time < 200ms
       - 99.9% uptime
       """
-      
+
       requirements_file = "/tmp/integration_files/requirements.md"
       File.write!(requirements_file, requirements)
 
@@ -237,7 +263,10 @@ defmodule Pipeline.WorkflowScenariosTest do
               "type" => "gemini",
               "functions" => ["design_architecture"],
               "prompt" => [
-                %{"type" => "static", "content" => "Design a comprehensive architecture for these requirements:"},
+                %{
+                  "type" => "static",
+                  "content" => "Design a comprehensive architecture for these requirements:"
+                },
                 %{"type" => "file", "path" => requirements_file}
               ],
               "output_to_file" => "architecture.json"
@@ -249,12 +278,20 @@ defmodule Pipeline.WorkflowScenariosTest do
                 "max_turns" => 25,
                 "allowed_tools" => ["Write", "Edit", "Read", "Bash"],
                 "cwd" => "/tmp/integration_workspace/backend",
-                "system_prompt" => "You are a senior backend developer specializing in FastAPI and microservices."
+                "system_prompt" =>
+                  "You are a senior backend developer specializing in FastAPI and microservices."
               },
               "prompt" => [
-                %{"type" => "static", "content" => "Implement the backend based on this architecture:"},
+                %{
+                  "type" => "static",
+                  "content" => "Implement the backend based on this architecture:"
+                },
                 %{"type" => "previous_response", "step" => "architecture_design"},
-                %{"type" => "static", "content" => "\nCreate the FastAPI application with all required endpoints and models."}
+                %{
+                  "type" => "static",
+                  "content" =>
+                    "\nCreate the FastAPI application with all required endpoints and models."
+                }
               ],
               "output_to_file" => "backend_code.py"
             },
@@ -267,9 +304,19 @@ defmodule Pipeline.WorkflowScenariosTest do
                 "cwd" => "/tmp/integration_workspace/database"
               },
               "prompt" => [
-                %{"type" => "static", "content" => "Create database migrations and setup based on:"},
-                %{"type" => "previous_response", "step" => "architecture_design", "extract" => "database_schema"},
-                %{"type" => "static", "content" => "\nInclude Alembic migrations and SQLAlchemy models."}
+                %{
+                  "type" => "static",
+                  "content" => "Create database migrations and setup based on:"
+                },
+                %{
+                  "type" => "previous_response",
+                  "step" => "architecture_design",
+                  "extract" => "database_schema"
+                },
+                %{
+                  "type" => "static",
+                  "content" => "\nInclude Alembic migrations and SQLAlchemy models."
+                }
               ],
               "output_to_file" => "database_schema.sql"
             },
@@ -282,9 +329,19 @@ defmodule Pipeline.WorkflowScenariosTest do
                 "cwd" => "/tmp/integration_workspace"
               },
               "prompt" => [
-                %{"type" => "static", "content" => "Create Docker configuration for the entire application:"},
-                %{"type" => "previous_response", "step" => "architecture_design", "extract" => "services"},
-                %{"type" => "static", "content" => "\nInclude Dockerfile, docker-compose.yml, and deployment scripts."}
+                %{
+                  "type" => "static",
+                  "content" => "Create Docker configuration for the entire application:"
+                },
+                %{
+                  "type" => "previous_response",
+                  "step" => "architecture_design",
+                  "extract" => "services"
+                },
+                %{
+                  "type" => "static",
+                  "content" => "\nInclude Dockerfile, docker-compose.yml, and deployment scripts."
+                }
               ],
               "output_to_file" => "docker-compose.yml"
             },
@@ -292,12 +349,18 @@ defmodule Pipeline.WorkflowScenariosTest do
               "name" => "testing_strategy",
               "type" => "gemini",
               "prompt" => [
-                %{"type" => "static", "content" => "Design a comprehensive testing strategy for:"},
+                %{
+                  "type" => "static",
+                  "content" => "Design a comprehensive testing strategy for:"
+                },
                 %{"type" => "static", "content" => "\n\nArchitecture:"},
                 %{"type" => "previous_response", "step" => "architecture_design"},
                 %{"type" => "static", "content" => "\n\nBackend Implementation:"},
                 %{"type" => "previous_response", "step" => "backend_implementation"},
-                %{"type" => "static", "content" => "\n\nInclude unit, integration, and load testing approaches."}
+                %{
+                  "type" => "static",
+                  "content" => "\n\nInclude unit, integration, and load testing approaches."
+                }
               ],
               "output_to_file" => "testing_strategy.json"
             }
@@ -308,7 +371,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       # Mocks are set up automatically in setup() for mock mode
 
       assert {:ok, results} = Executor.execute(workflow)
-      
+
       # Verify all steps completed
       assert results["architecture_design"]["success"] == true
       assert results["backend_implementation"]["success"] == true
@@ -336,7 +399,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       2024-01-01 12:00:00,1004,view,0,electronics
       2024-01-01 12:30:00,1001,return,29.99,books
       """
-      
+
       data_file = "/tmp/integration_files/user_data.csv"
       File.write!(data_file, sample_data)
 
@@ -378,9 +441,15 @@ defmodule Pipeline.WorkflowScenariosTest do
                 "system_prompt" => "You are a data analyst expert in Python and pandas."
               },
               "prompt" => [
-                %{"type" => "static", "content" => "Analyze this CSV data and provide initial exploration:"},
+                %{
+                  "type" => "static",
+                  "content" => "Analyze this CSV data and provide initial exploration:"
+                },
                 %{"type" => "file", "path" => data_file},
-                %{"type" => "static", "content" => "\nCreate Python code to load and explore the data."}
+                %{
+                  "type" => "static",
+                  "content" => "\nCreate Python code to load and explore the data."
+                }
               ],
               "output_to_file" => "data_exploration.py"
             },
@@ -391,7 +460,10 @@ defmodule Pipeline.WorkflowScenariosTest do
               "prompt" => [
                 %{"type" => "static", "content" => "Based on the data exploration:"},
                 %{"type" => "previous_response", "step" => "data_exploration"},
-                %{"type" => "static", "content" => "\nAnalyze patterns and extract business insights."}
+                %{
+                  "type" => "static",
+                  "content" => "\nAnalyze patterns and extract business insights."
+                }
               ],
               "output_to_file" => "patterns.json"
             },
@@ -406,7 +478,10 @@ defmodule Pipeline.WorkflowScenariosTest do
               "prompt" => [
                 %{"type" => "static", "content" => "Create visualizations for these insights:"},
                 %{"type" => "previous_response", "step" => "pattern_analysis"},
-                %{"type" => "static", "content" => "\nGenerate Python code for charts and graphs."}
+                %{
+                  "type" => "static",
+                  "content" => "\nGenerate Python code for charts and graphs."
+                }
               ],
               "output_to_file" => "visualizations.py"
             },
@@ -418,13 +493,24 @@ defmodule Pipeline.WorkflowScenariosTest do
                 "allowed_tools" => ["Write", "Read"]
               },
               "prompt" => [
-                %{"type" => "static", "content" => "Generate a comprehensive business report including:"},
+                %{
+                  "type" => "static",
+                  "content" => "Generate a comprehensive business report including:"
+                },
                 %{"type" => "static", "content" => "\n\nData Analysis:"},
                 %{"type" => "previous_response", "step" => "data_exploration"},
                 %{"type" => "static", "content" => "\n\nKey Insights:"},
-                %{"type" => "previous_response", "step" => "pattern_analysis", "extract" => "key_insights"},
+                %{
+                  "type" => "previous_response",
+                  "step" => "pattern_analysis",
+                  "extract" => "key_insights"
+                },
                 %{"type" => "static", "content" => "\n\nRecommendations:"},
-                %{"type" => "previous_response", "step" => "pattern_analysis", "extract" => "recommendations"},
+                %{
+                  "type" => "previous_response",
+                  "step" => "pattern_analysis",
+                  "extract" => "recommendations"
+                },
                 %{"type" => "static", "content" => "\n\nCreate a professional markdown report."}
               ],
               "output_to_file" => "business_report.md"
@@ -436,7 +522,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       # Mocks are set up automatically in setup() for mock mode
 
       assert {:ok, results} = Executor.execute(workflow)
-      
+
       # Verify completion
       assert results["data_exploration"]["success"] == true
       assert results["pattern_analysis"]["success"] == true
@@ -487,7 +573,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       # Create configuration file
       config_content = """
       # Application Configuration
-      
+
       database:
         host: localhost
         port: 5432
@@ -502,7 +588,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         - caching
         - logging
       """
-      
+
       config_file = "/tmp/integration_files/app_config.yaml"
       File.write!(config_file, config_content)
 
@@ -578,9 +664,16 @@ defmodule Pipeline.WorkflowScenariosTest do
                 "allowed_tools" => ["Write", "Read"]
               },
               "prompt" => [
-                %{"type" => "static", "content" => "Create comprehensive documentation including:"},
+                %{
+                  "type" => "static",
+                  "content" => "Create comprehensive documentation including:"
+                },
                 %{"type" => "static", "content" => "\n\nConfig Validation Results:"},
-                %{"type" => "previous_response", "step" => "config_validation", "extract" => "suggestions"},
+                %{
+                  "type" => "previous_response",
+                  "step" => "config_validation",
+                  "extract" => "suggestions"
+                },
                 %{"type" => "static", "content" => "\n\nSetup Instructions:"},
                 %{"type" => "previous_response", "step" => "setup_implementation"},
                 %{"type" => "static", "content" => "\n\nGenerate markdown documentation."}
@@ -594,7 +687,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       # Mocks are set up automatically in setup() for mock mode
 
       assert {:ok, results} = Executor.execute(workflow)
-      
+
       # Verify all advanced features worked
       assert results["config_validation"]["success"] == true
       assert results["setup_implementation"]["success"] == true
@@ -679,95 +772,95 @@ defmodule Pipeline.WorkflowScenariosTest do
   # Helper function to set up mocks for integration tests
   defp setup_integration_mocks do
     # Set up default mock responses that work for most integration scenarios
-    
+
     # Claude responses
     Mocks.ClaudeProvider.set_response_pattern("", %{
       "success" => true,
       "text" => "Integration test mock response"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("improve", %{
       "success" => true,
       "text" => "Improved code with better error handling and validation"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("tests", %{
       "success" => true,
       "text" => "Comprehensive unit tests for the module"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("backend", %{
       "success" => true,
       "text" => "Complete FastAPI backend implementation"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("database", %{
       "success" => true,
       "text" => "Database schema and migration scripts"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("docker", %{
       "success" => true,
       "text" => "Complete Docker containerization setup"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("exploration", %{
       "success" => true,
       "text" => "Python data exploration code with pandas analysis"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("visualization", %{
       "success" => true,
       "text" => "Python visualization code with matplotlib charts"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("report", %{
       "success" => true,
       "text" => "Comprehensive business analysis report"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("setup", %{
       "success" => true,
       "text" => "Complete setup and deployment scripts"
     })
-    
+
     Mocks.ClaudeProvider.set_response_pattern("documentation", %{
       "success" => true,
       "text" => "Comprehensive project documentation"
     })
-    
+
     # Error response for testing failure scenarios
     Mocks.ClaudeProvider.set_response_pattern("error", %{
       "success" => false,
       "error" => "Intentional failure for testing"
     })
-    
+
     # Gemini responses
     Mocks.GeminiProvider.set_response_pattern("", %{
       "success" => true,
       "content" => "Integration test mock response"
     })
-    
+
     Mocks.GeminiProvider.set_response_pattern("analysis", %{
       "success" => true,
       "content" => "Code analysis: Found patterns and potential improvements"
     })
-    
+
     Mocks.GeminiProvider.set_response_pattern("review", %{
       "success" => true,
       "content" => "Final review: All issues addressed, quality improved"
     })
-    
+
     Mocks.GeminiProvider.set_response_pattern("testing", %{
       "success" => true,
       "content" => "Comprehensive testing strategy for the application"
     })
-    
+
     Mocks.GeminiProvider.set_response_pattern("succeed", %{
       "success" => true,
       "content" => "Successful step completed"
     })
-    
+
     # Function calling responses
     Mocks.GeminiProvider.set_function_response("analyze_code_quality", %{
       "success" => true,
@@ -793,7 +886,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         }
       ]
     })
-    
+
     Mocks.GeminiProvider.set_function_response("design_architecture", %{
       "success" => true,
       "function_calls" => [
@@ -801,8 +894,16 @@ defmodule Pipeline.WorkflowScenariosTest do
           "name" => "design_architecture",
           "arguments" => %{
             "services" => [
-              %{"name" => "auth-service", "purpose" => "Authentication", "technologies" => ["FastAPI", "JWT"]},
-              %{"name" => "api-service", "purpose" => "Main API", "technologies" => ["FastAPI", "SQLAlchemy"]}
+              %{
+                "name" => "auth-service",
+                "purpose" => "Authentication",
+                "technologies" => ["FastAPI", "JWT"]
+              },
+              %{
+                "name" => "api-service",
+                "purpose" => "Main API",
+                "technologies" => ["FastAPI", "SQLAlchemy"]
+              }
             ],
             "database_schema" => [
               %{"table" => "users", "purpose" => "User accounts"},
@@ -813,7 +914,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         }
       ]
     })
-    
+
     Mocks.GeminiProvider.set_function_response("analyze_patterns", %{
       "success" => true,
       "function_calls" => [
@@ -837,7 +938,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         }
       ]
     })
-    
+
     Mocks.GeminiProvider.set_function_response("validate_config", %{
       "success" => true,
       "function_calls" => [
