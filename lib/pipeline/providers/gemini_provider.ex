@@ -118,28 +118,27 @@ defmodule Pipeline.Providers.GeminiProvider do
       json_schema: json_schema
     ]
 
-    # Add token budget parameters to adapter context if specified
-    # Note: Gemini adapter may not support all these parameters, but we'll let it validate
-    config_with_budget =
-      case token_budget do
-        %{} when map_size(token_budget) == 0 ->
-          base_config
+    # The Gemini API expects a `generationConfig` object with camelCase keys.
+    # We'll build this from the `token_budget` map in the workflow config.
+    generation_config =
+      %{
+        "temperature" => token_budget["temperature"] || token_budget[:temperature],
+        "maxOutputTokens" =>
+          token_budget["max_output_tokens"] || token_budget[:max_output_tokens],
+        "topP" => token_budget["top_p"] || token_budget[:top_p],
+        "topK" => token_budget["top_k"] || token_budget[:top_k]
+      }
+      # Remove any keys that weren't specified in the config
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Map.new()
 
-        budget ->
-          updated_adapter_context =
-            adapter_context
-            |> add_if_present(
-              :max_output_tokens,
-              budget["max_output_tokens"] || budget[:max_output_tokens]
-            )
-            |> add_if_present(:temperature, budget["temperature"] || budget[:temperature])
-            |> add_if_present(:top_p, budget["top_p"] || budget[:top_p])
-            |> add_if_present(:top_k, budget["top_k"] || budget[:top_k])
-
-          Keyword.put(base_config, :adapter_context, updated_adapter_context)
-      end
-
-    config_with_budget
+    # The `InstructorLite` library allows passing extra parameters to the underlying
+    # API call via the `:extra` key. We'll use this to pass the `generationConfig`.
+    if map_size(generation_config) > 0 do
+      Keyword.put(base_config, :extra, %{generation_config: generation_config})
+    else
+      base_config
+    end
   end
 
   defp build_function_calling_config(options) do
@@ -191,8 +190,7 @@ defmodule Pipeline.Providers.GeminiProvider do
     end
   end
 
-  defp add_if_present(list, _key, nil), do: list
-  defp add_if_present(list, key, value), do: Keyword.put(list, key, value)
+  
 
   defp format_gemini_response(response) do
     %{

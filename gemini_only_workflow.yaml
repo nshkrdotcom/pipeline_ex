@@ -1,0 +1,46 @@
+
+workflow:
+  name: "gemini_code_review_and_refactor"
+  description: "A two-step workflow to analyze and refactor code using different Gemini models."
+
+  steps:
+    - name: "analyze_code_quality"
+      type: "gemini"
+      model: "gemini-2.5-flash-lite-preview-06-17"
+      token_budget:
+        temperature: 0.2
+        max_output_tokens: 1024
+      prompt:
+        - type: "static"
+          content: |
+            Please analyze the following Python code snippet for quality, potential bugs, and adherence to best practices.
+            Provide a detailed analysis in JSON format, identifying specific areas for improvement.
+
+            ```python
+            def process_data(data):
+                if not data:
+                    return None
+                
+                results = []
+                for item in data:
+                    if 'value' in item:
+                        if item['value'] > 10:
+                            results.append(item['value'])
+                
+                return results
+            ```
+
+    - name: "refactor_code"
+      type: "gemini"
+      model: "gemini-2.5-pro"
+      token_budget:
+        temperature: 0.7
+        max_output_tokens: 2048
+      prompt:
+        - type: "static"
+          content: |
+            Based on the following analysis, please refactor the provided Python code to address the identified issues.
+            The refactored code should be more robust, readable, and efficient.
+            Please provide the refactored code along with a brief explanation of the changes made.
+        - type: "previous_response"
+          step: "analyze_code_quality"
