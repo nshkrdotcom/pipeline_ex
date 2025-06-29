@@ -21,3 +21,6 @@ pipeline-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Ignore priv directory (contains build artifacts like PLT files)
+/priv/
