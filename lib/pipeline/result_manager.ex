@@ -15,7 +15,13 @@ defmodule Pipeline.ResultManager do
   @doc """
   Create a new result manager.
   """
-  @spec new() :: %__MODULE__{}
+  @spec new() :: %__MODULE__{
+          results: map(),
+          metadata: %{
+            created_at: DateTime.t(),
+            last_updated: DateTime.t()
+          }
+        }
   def new do
     %__MODULE__{
       results: %{},
@@ -227,18 +233,18 @@ defmodule Pipeline.ResultManager do
     end)
   end
 
-  defp get_nested_field(map, field_path) when is_map(map) do
+  defp get_nested_field(data, field_path) when is_map(data) do
     fields = String.split(field_path, ".")
 
-    Enum.reduce(fields, map, fn field, acc ->
+    Enum.reduce(fields, data, fn field, acc ->
       case acc do
-        %{} -> Map.get(acc, field) || Map.get(acc, String.to_atom(field))
+        %{} when is_map(acc) -> Map.get(acc, field) || Map.get(acc, String.to_atom(field))
         _ -> nil
       end
     end)
   end
 
-  defp get_nested_field(_, _), do: nil
+  defp get_nested_field(_non_map, _field_path), do: nil
 
   defp format_for_prompt(content, format) do
     case format do

@@ -38,7 +38,7 @@ defmodule Pipeline.Tools.ToolRegistry do
   @doc """
   Get all registered tool definitions for LLM adapters.
   """
-  def get_tool_definitions() do
+  def get_tool_definitions do
     Agent.get(:tool_registry, fn registry ->
       Enum.map(registry, fn {_name, tool_module} ->
         tool_module.get_definition()
@@ -86,14 +86,14 @@ defmodule Pipeline.Tools.ToolRegistry do
   @doc """
   List all registered tool names.
   """
-  def list_tools() do
+  def list_tools do
     Agent.get(:tool_registry, fn registry -> Map.keys(registry) end)
   end
 
   @doc """
   Start the tool registry.
   """
-  def start_link() do
+  def start_link do
     Agent.start_link(fn -> %{} end, name: :tool_registry)
   end
 

@@ -3,18 +3,19 @@ defmodule Pipeline.Providers.GeminiProvider do
   Live Gemini provider using InstructorLite for structured generation.
   """
 
-  use Ecto.Schema
   require Logger
 
   # Simple response schema for text responses
   defmodule TextResponse do
-    use Ecto.Schema
-
+    @moduledoc """
+    Simple response schema for Gemini text responses.
+    """
     @derive Jason.Encoder
-    @primary_key false
-    embedded_schema do
-      field(:content, :string)
-    end
+    @type t :: %__MODULE__{
+            content: String.t()
+          }
+
+    defstruct [:content]
   end
 
   @doc """
@@ -74,7 +75,7 @@ defmodule Pipeline.Providers.GeminiProvider do
     function_prompt = build_function_calling_prompt(prompt, tools)
     instruction_config = build_function_calling_config(options)
 
-    case InstructorLite.instruct(function_prompt, instruction_config) do
+    case InstructorLite.instruct(%{prompt: function_prompt}, instruction_config) do
       {:ok, response} ->
         function_calls = extract_function_calls(response)
         Logger.debug("✅ Function call generation successful: #{length(function_calls)} calls")
@@ -199,45 +200,37 @@ defmodule Pipeline.Providers.GeminiProvider do
     }
   end
 
-  defp extract_content(response) do
-    cond do
-      is_binary(response) -> response
-      is_struct(response, Pipeline.Providers.GeminiProvider.TextResponse) -> response.content
-      is_map(response) and Map.has_key?(response, :content) -> response.content
-      is_map(response) and Map.has_key?(response, "content") -> response["content"]
-      is_map(response) and Map.has_key?(response, :text) -> response.text
-      is_map(response) and Map.has_key?(response, "text") -> response["text"]
-      true -> Jason.encode!(response, pretty: true)
+  defp extract_content(%Pipeline.Providers.GeminiProvider.TextResponse{content: content}),
+    do: content
+
+  defp extract_content(response) when is_binary(response), do: response
+  defp extract_content(response) when is_map(response), do: extract_content_from_map(response)
+  defp extract_content(response), do: Jason.encode!(response, pretty: true)
+
+  defp extract_content_from_map(response) when is_map(response) do
+    response[:content] || response["content"] || response[:text] || response["text"] ||
+      Jason.encode!(response, pretty: true)
+  end
+
+  defp extract_cost(response) when is_map(response), do: extract_cost_from_map(response)
+  defp extract_cost(_response), do: 0.0
+
+  defp extract_cost_from_map(response) when is_map(response) do
+    case response[:usage] || response["usage"] do
+      nil -> 0.0
+      usage -> calculate_cost_from_usage(usage)
     end
   end
 
-  defp extract_cost(response) do
-    cond do
-      is_map(response) and Map.has_key?(response, :usage) ->
-        calculate_cost_from_usage(response.usage)
+  defp extract_function_calls(response) when is_list(response), do: response
 
-      is_map(response) and Map.has_key?(response, "usage") ->
-        calculate_cost_from_usage(response["usage"])
+  defp extract_function_calls(response) when is_map(response),
+    do: extract_function_calls_from_map(response)
 
-      true ->
-        0.0
-    end
-  end
+  defp extract_function_calls(_response), do: []
 
-  defp extract_function_calls(response) do
-    cond do
-      is_list(response) ->
-        response
-
-      is_map(response) and Map.has_key?(response, :function_calls) ->
-        response.function_calls || []
-
-      is_map(response) and Map.has_key?(response, "function_calls") ->
-        response["function_calls"] || []
-
-      true ->
-        []
-    end
+  defp extract_function_calls_from_map(response) when is_map(response) do
+    response[:function_calls] || response["function_calls"] || []
   end
 
   defp calculate_cost_from_usage(usage) do

@@ -41,7 +41,7 @@ defmodule Pipeline.UnitTestCase do
       # Additional setup for unit tests
       setup do
         # Reset mocks before each unit test
-        Pipeline.Test.Helpers.reset_mocks()
+        reset_mocks()
         :ok
       end
     end

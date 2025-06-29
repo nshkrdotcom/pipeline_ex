@@ -206,7 +206,7 @@ defmodule Pipeline.FilePromptTest do
 
       # Should handle large files without issues
       built_prompt = PromptBuilder.build(prompt_parts, context.results)
-      assert String.length(built_prompt) > 10000
+      assert String.length(built_prompt) > 10_000
       assert String.contains?(built_prompt, "Large file analysis:")
     end
 
@@ -324,7 +324,7 @@ defmodule Pipeline.FilePromptTest do
       restricted_file = "/tmp/test_files/restricted.txt"
       File.write!(restricted_file, "restricted content")
 
-      # In a real scenario, we'd change permissions, but for testing we'll verify 
+      # In a real scenario, we'd change permissions, but for testing we'll verify
       # the file can be read when permissions allow it
       prompt_parts = [
         %{"type" => "file", "path" => restricted_file}

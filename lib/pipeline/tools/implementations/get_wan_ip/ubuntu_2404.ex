@@ -10,7 +10,7 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
   require Logger
 
   @impl Pipeline.Tools.Tool
-  def get_definition() do
+  def get_definition do
     %{
       name: "get_wan_ip",
       description: "Get the current WAN (external/public) IP address of the system",
@@ -62,12 +62,12 @@ defmodule Pipeline.Tools.Implementations.GetWanIp.Ubuntu2404 do
   end
 
   @impl Pipeline.Tools.Tool
-  def supported_platforms() do
+  def supported_platforms do
     ["ubuntu-24.04", "ubuntu-22.04", "debian", "linux"]
   end
 
   @impl Pipeline.Tools.Tool
-  def validate_environment() do
+  def validate_environment do
     # Check if curl is available
     case System.cmd("which", ["curl"], stderr_to_stdout: true) do
       {_output, 0} ->

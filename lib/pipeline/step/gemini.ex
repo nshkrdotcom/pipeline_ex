@@ -4,7 +4,7 @@ defmodule Pipeline.Step.Gemini do
   """
 
   require Logger
-  alias Pipeline.{TestMode, PromptBuilder}
+  alias Pipeline.{PromptBuilder, TestMode}
 
   @doc """
   Execute a Gemini step.

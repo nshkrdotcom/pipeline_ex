@@ -3,7 +3,8 @@ defmodule Pipeline.Step.GeminiInstructor do
   Executes Gemini (Brain) steps using InstructorLite for structured output and function calling.
   """
 
-  alias Pipeline.PromptBuilder
+  alias Pipeline.{PromptBuilder}
+  alias Pipeline.Tools.Adapters.InstructorLiteAdapter
   require Logger
 
   def execute(step, context) do
@@ -19,7 +20,7 @@ defmodule Pipeline.Step.GeminiInstructor do
 
     Logger.info("📝 Prompt preview: #{prompt_preview}")
 
-    # Get model from step config or defaults  
+    # Get model from step config or defaults
     model = step["model"] || "gemini-2.5-flash"
 
     start_time = System.monotonic_time(:millisecond)
@@ -51,7 +52,7 @@ defmodule Pipeline.Step.GeminiInstructor do
 
           # Create function call schema using the tool adapter
           tool_schema =
-            Pipeline.Tools.Adapters.InstructorLiteAdapter.create_function_schema(functions)
+            InstructorLiteAdapter.create_function_schema(functions)
 
           case call_instructor_lite_with_tools(prompt, tool_schema, model) do
             {:ok, response} ->
@@ -62,7 +63,7 @@ defmodule Pipeline.Step.GeminiInstructor do
               # Debug log would go here if available
 
               # Execute function calls using the tool system
-              case Pipeline.Tools.Adapters.InstructorLiteAdapter.execute_function_calls(response) do
+              case InstructorLiteAdapter.execute_function_calls(response) do
                 {:ok, enhanced_response} ->
                   enhanced_response
               end

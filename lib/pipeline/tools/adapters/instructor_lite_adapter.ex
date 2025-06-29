@@ -24,7 +24,7 @@ defmodule Pipeline.Tools.Adapters.InstructorLiteAdapter do
         ToolRegistry.get_tool_definitions()
       end
 
-    if length(available_tools) == 0 do
+    if Enum.empty?(available_tools) do
       Logger.warning("⚠️ No tools available for function calling")
       create_basic_response_schema()
     else
@@ -61,9 +61,12 @@ defmodule Pipeline.Tools.Adapters.InstructorLiteAdapter do
   @doc """
   Create an Ecto schema for function calling responses.
   """
-  def create_function_response_schema() do
+  def create_function_response_schema do
     quote do
       defmodule Pipeline.Schemas.FunctionCallResponse do
+        @moduledoc """
+        Schema for function call responses from AI providers.
+        """
         use Ecto.Schema
         use InstructorLite.Instruction
 
@@ -81,7 +84,7 @@ defmodule Pipeline.Tools.Adapters.InstructorLiteAdapter do
 
   # Private functions
 
-  defp create_basic_response_schema() do
+  defp create_basic_response_schema do
     %{
       type: "object",
       properties: %{

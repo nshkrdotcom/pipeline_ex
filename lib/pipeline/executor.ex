@@ -8,7 +8,7 @@ defmodule Pipeline.Executor do
 
   require Logger
   alias Pipeline.CheckpointManager
-  alias Pipeline.Step.{Claude, Gemini}
+  alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
 
   @type workflow :: map()
   @type execution_result :: {:ok, map()} | {:error, String.t()}
@@ -207,7 +207,14 @@ defmodule Pipeline.Executor do
 
         # Save checkpoint if enabled
         if context.checkpoint_enabled do
-          CheckpointManager.save(context.checkpoint_dir, context.workflow_name, updated_context)
+          case CheckpointManager.save(
+                 context.checkpoint_dir,
+                 context.workflow_name,
+                 updated_context
+               ) do
+            :ok -> :ok
+            {:error, reason} -> Logger.warning("Failed to save checkpoint: #{inspect(reason)}")
+          end
         end
 
         # Save step output if specified
@@ -239,7 +246,14 @@ defmodule Pipeline.Executor do
 
         # Save checkpoint even on failure
         if context.checkpoint_enabled do
-          CheckpointManager.save(context.checkpoint_dir, context.workflow_name, updated_context)
+          case CheckpointManager.save(
+                 context.checkpoint_dir,
+                 context.workflow_name,
+                 updated_context
+               ) do
+            :ok -> :ok
+            {:error, reason} -> Logger.warning("Failed to save checkpoint: #{inspect(reason)}")
+          end
         end
 
         error_context = """
@@ -261,10 +275,10 @@ defmodule Pipeline.Executor do
         Gemini.execute(step, context)
 
       "parallel_claude" ->
-        Pipeline.Step.ParallelClaude.execute(step, context)
+        ParallelClaude.execute(step, context)
 
       "gemini_instructor" ->
-        Pipeline.Step.GeminiInstructor.execute(step, context)
+        GeminiInstructor.execute(step, context)
 
       unknown_type ->
         {:error, "Unknown step type: #{unknown_type}"}
@@ -295,21 +309,21 @@ defmodule Pipeline.Executor do
   defp evaluate_condition(condition_expr, context) do
     case String.split(condition_expr, ".") do
       [step_name] ->
-        get_in(context.results, [step_name]) |> is_truthy()
+        get_in(context.results, [step_name]) |> truthy?()
 
       [step_name, field] ->
-        get_in(context.results, [step_name, field]) |> is_truthy()
+        get_in(context.results, [step_name, field]) |> truthy?()
 
       parts when length(parts) > 2 ->
-        get_in(context.results, parts) |> is_truthy()
+        get_in(context.results, parts) |> truthy?()
     end
   end
 
-  defp is_truthy(nil), do: false
-  defp is_truthy(false), do: false
-  defp is_truthy(""), do: false
-  defp is_truthy([]), do: false
-  defp is_truthy(_), do: true
+  defp truthy?(nil), do: false
+  defp truthy?(false), do: false
+  defp truthy?(""), do: false
+  defp truthy?([]), do: false
+  defp truthy?(_), do: true
 
   defp optimize_result_for_memory(result) when is_map(result) do
     # Trim very large text fields to prevent memory issues

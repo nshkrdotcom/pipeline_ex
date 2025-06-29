@@ -41,7 +41,7 @@ defmodule Pipeline.CheckpointManager do
             # Also create a "latest" symlink for easy access
             latest_path = Path.join(checkpoint_dir, "#{workflow_name}_latest.json")
             # Remove existing symlink if it exists
-            File.rm(latest_path)
+            _ = File.rm(latest_path)
             File.write!(latest_path, json)
             :ok
 

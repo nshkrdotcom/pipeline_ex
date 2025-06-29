@@ -4,7 +4,7 @@ defmodule Pipeline.Step.Claude do
   """
 
   require Logger
-  alias Pipeline.{TestMode, PromptBuilder}
+  alias Pipeline.{PromptBuilder, TestMode}
 
   @doc """
   Execute a Claude step.

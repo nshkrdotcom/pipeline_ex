@@ -144,7 +144,8 @@ defmodule Mix.Tasks.Showcase do
       IO.puts("")
       IO.puts("🎯 Step: #{step_name}")
 
-      success = result[:success] || result["success"] || true
+      success = result[:success] || result["success"]
+      success = if is_nil(success), do: true, else: success
       status = if success, do: "✅ Success", else: "❌ Failed"
       IO.puts("   Status: #{status}")
 
@@ -169,14 +170,12 @@ defmodule Mix.Tasks.Showcase do
     end
   end
 
-  defp extract_content(result) do
-    cond do
-      is_map(result) and Map.has_key?(result, :content) -> result.content
-      is_map(result) and Map.has_key?(result, "content") -> result["content"]
-      is_map(result) and Map.has_key?(result, :text) -> result.text
-      is_map(result) and Map.has_key?(result, "text") -> result["text"]
-      is_binary(result) -> result
-      true -> inspect(result, limit: 200)
-    end
+  defp extract_content(result) when is_binary(result), do: result
+  defp extract_content(result) when is_map(result), do: extract_content_from_map(result)
+  defp extract_content(result), do: inspect(result, limit: 200)
+
+  defp extract_content_from_map(result) when is_map(result) do
+    result[:content] || result["content"] || result[:text] || result["text"] ||
+      inspect(result, limit: 200)
   end
 end

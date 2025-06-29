@@ -4,7 +4,7 @@ defmodule Pipeline.WorkflowPerformanceTest do
   alias Pipeline.{Config, Executor, TestMode}
   alias Pipeline.Test.Mocks
 
-  # Performance test configuration  
+  # Performance test configuration
   @moduletag :performance
   # 2 minutes timeout for performance tests
   @moduletag timeout: 120_000

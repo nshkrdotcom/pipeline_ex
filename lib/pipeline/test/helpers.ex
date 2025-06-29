@@ -3,13 +3,15 @@ defmodule Pipeline.Test.Helpers do
   Common test utilities for pipeline testing.
   """
 
+  alias Pipeline.Test.Mocks.{FileMock, LoggerMock}
+
   @doc """
   Execute a function with a temporary directory that gets cleaned up afterwards.
 
   ## Examples
 
       Pipeline.Test.Helpers.with_temp_dir(fn temp_dir ->
-        # Use temp_dir for test operations
+        #Use temp_dir for test operations
         assert File.exists?(temp_dir)
       end)
   """
@@ -239,7 +241,7 @@ defmodule Pipeline.Test.Helpers do
   """
   def capture_logs(fun) do
     # Start capturing logs
-    :logger.add_handler(:test_handler, :logger_std_h, %{config: %{type: :standard_io}})
+    _ = :logger.add_handler(:test_handler, :logger_std_h, %{config: %{type: :standard_io}})
 
     # Create a temporary log buffer
     log_messages = []
@@ -248,42 +250,42 @@ defmodule Pipeline.Test.Helpers do
     result = fun.()
 
     # Remove handler
-    :logger.remove_handler(:test_handler)
+    _ = :logger.remove_handler(:test_handler)
 
     # Return result and captured logs
     {result, log_messages}
   end
 
-  # TODO: Update this to work with Executor pattern instead of Orchestrator
+  # NOTE: This code needs to be updated to work with Executor pattern instead of Orchestrator
   # @doc """
   # Create a test orchestrator with mock dependencies.
-  # 
-  # ## Options
-  # 
-  #   * `:config` - Configuration map
-  #   * `:workspace_dir` - Workspace directory (default: "/tmp/test_workspace")
-  #   * `:output_dir` - Output directory (default: "/tmp/test_output")
+  #
+  ### Options
+  #
+  #* `:config` - Configuration map
+  #* `:workspace_dir` - Workspace directory (default: "/tmp/test_workspace")
+  #* `:output_dir` - Output directory (default: "/tmp/test_output")
   # """
   # def create_test_orchestrator(opts \\ []) do
-  #   config = Keyword.get(opts, :config, create_test_config())
-  #   workspace_dir = Keyword.get(opts, :workspace_dir, "/tmp/test_workspace")
-  #   output_dir = Keyword.get(opts, :output_dir, "/tmp/test_output")
-  #   
-  #   %Pipeline.Orchestrator{
-  #     config: %{workflow: config.workflow},
-  #     results: %{},
-  #     debug_log: "/tmp/test_debug.log",
-  #     output_dir: output_dir,
-  #     workspace_dir: workspace_dir
-  #   }
+  #config = Keyword.get(opts, :config, create_test_config())
+  #workspace_dir = Keyword.get(opts, :workspace_dir, "/tmp/test_workspace")
+  #output_dir = Keyword.get(opts, :output_dir, "/tmp/test_output")
+  #
+  #%Pipeline.Orchestrator{
+  # config: %{workflow: config.workflow},
+  # results: %{},
+  # debug_log: "/tmp/test_debug.log",
+  # output_dir: output_dir,
+  # workspace_dir: workspace_dir
+  #}
   # end
 
   @doc """
   Reset all mock state (useful to run between tests).
   """
   def reset_mocks do
-    Pipeline.Test.Mocks.FileMock.reset()
-    Pipeline.Test.Mocks.LoggerMock.reset()
+    FileMock.reset()
+    LoggerMock.reset()
     :ok
   end
 

@@ -5,7 +5,7 @@ defmodule Pipeline.Test.MocksTest do
 
   use Pipeline.TestCase
 
-  alias Pipeline.Test.Mocks.{GeminiMock, ClaudeSDKMock, FileMock, LoggerMock}
+  alias Pipeline.Test.Mocks.{ClaudeSDKMock, FileMock, GeminiMock, LoggerMock}
 
   describe "GeminiMock" do
     test "returns analysis response for analyze prompts" do
@@ -153,7 +153,7 @@ defmodule Pipeline.Test.MocksTest do
       assert length(LoggerMock.get_all_logs()) == 1
 
       LoggerMock.reset()
-      assert length(LoggerMock.get_all_logs()) == 0
+      assert Enum.empty?(LoggerMock.get_all_logs())
     end
   end
 end

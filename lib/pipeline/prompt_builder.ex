@@ -11,7 +11,7 @@ defmodule Pipeline.PromptBuilder do
   Build a prompt from prompt parts and previous results.
   """
   def build(prompt_parts, results) when is_list(prompt_parts) do
-    ensure_cache_started()
+    _ = ensure_cache_started()
 
     prompt_parts
     |> Enum.map(&build_part(&1, results))
@@ -95,7 +95,8 @@ defmodule Pipeline.PromptBuilder do
           end
         rescue
           e ->
-            raise "Failed to process result from step '#{step_name}': #{Exception.message(e)}"
+            reraise "Failed to process result from step '#{step_name}': #{Exception.message(e)}",
+                    __STACKTRACE__
         end
     end
   end
@@ -149,7 +150,7 @@ defmodule Pipeline.PromptBuilder do
       end
     rescue
       e in File.Error ->
-        raise "File operation failed for #{path}: #{Exception.message(e)}"
+        reraise "File operation failed for #{path}: #{Exception.message(e)}", __STACKTRACE__
     end
   end
 

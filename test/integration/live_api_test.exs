@@ -7,6 +7,8 @@ defmodule Pipeline.Integration.LiveAPITest do
 
   use Pipeline.Test.Case, mode: :mixed
 
+  alias Pipeline.Providers.{ClaudeProvider, GeminiProvider}
+
   @moduletag :integration
   @moduletag :live_api
 
@@ -24,7 +26,7 @@ defmodule Pipeline.Integration.LiveAPITest do
         # Create a simple Claude step
         prompt = "Say 'Hello from live test' and nothing else."
 
-        result = Pipeline.Providers.ClaudeProvider.query(prompt, %{})
+        result = ClaudeProvider.query(prompt, %{})
 
         case result do
           {:ok, response} ->
@@ -55,7 +57,7 @@ defmodule Pipeline.Integration.LiveAPITest do
           # Create a simple Gemini step
           prompt = "Respond with exactly: 'Gemini live test successful'"
 
-          result = Pipeline.Providers.GeminiProvider.query(prompt, %{})
+          result = GeminiProvider.query(prompt, %{})
 
           case result do
             {:ok, response} ->

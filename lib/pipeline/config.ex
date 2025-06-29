@@ -35,7 +35,15 @@ defmodule Pipeline.Config do
   @doc """
   Get application configuration with environment variable overrides.
   """
-  @spec get_app_config() :: config
+  @spec get_app_config() :: %{
+          optional(atom()) => any(),
+          workspace_dir: String.t(),
+          output_dir: String.t(),
+          checkpoint_dir: String.t(),
+          log_level: atom(),
+          test_mode: String.t(),
+          debug_enabled: boolean()
+        }
   def get_app_config do
     base_config = %{
       workspace_dir: System.get_env("PIPELINE_WORKSPACE_DIR") || "./workspace",
@@ -54,7 +62,12 @@ defmodule Pipeline.Config do
   @doc """
   Get provider configuration for external services.
   """
-  @spec get_provider_config(atom()) :: config
+  @spec get_provider_config(:claude | :gemini) :: %{
+          api_key: String.t() | nil,
+          base_url: String.t() | nil,
+          model: String.t(),
+          timeout: integer()
+        }
   def get_provider_config(:claude) do
     %{
       base_url: System.get_env("CLAUDE_BASE_URL"),
