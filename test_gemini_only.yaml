@@ -1,0 +1,88 @@
+# Gemini-only workflow example
+# Two-turn conversation for code analysis and improvement suggestions
+
+workflow:
+  name: "gemini_code_analyzer"
+  checkpoint_enabled: false
+  
+  defaults:
+    gemini_model: "gemini-1.5-flash"
+    gemini_token_budget:
+      max_output_tokens: 2048
+      temperature: 0.7
+    output_dir: "./outputs/gemini_analysis"
+    
+  steps:
+    # Step 1: Initial code analysis
+    - name: "analyze_code"
+      type: "gemini"
+      role: "brain"
+      token_budget:
+        max_output_tokens: 3000
+        temperature: 0.5
+      prompt:
+        - type: "static"
+          content: |
+            Please analyze this Python code snippet and provide:
+            1. A brief summary of what the code does
+            2. Any potential issues or bugs
+            3. Code quality assessment
+            4. Suggested improvements
+            
+            Code to analyze:
+            ```python
+            def calculate_average(numbers):
+                total = 0
+                for num in numbers:
+                    total += num
+                return total / len(numbers)
+            
+            def find_max(numbers):
+                max_num = numbers[0]
+                for i in range(len(numbers)):
+                    if numbers[i] > max_num:
+                        max_num = numbers[i]
+                return max_num
+            
+            def process_data(data):
+                if not data:
+                    return None
+                
+                avg = calculate_average(data)
+                max_val = find_max(data)
+                
+                return {
+                    "average": avg,
+                    "maximum": max_val,
+                    "count": len(data)
+                }
+            ```
+            
+            Please provide a structured analysis with specific examples.
+      output_to_file: "initial_analysis.json"
+      
+    # Step 2: Follow-up with refactoring suggestions
+    - name: "suggest_refactoring"
+      type: "gemini"
+      role: "brain"
+      token_budget:
+        max_output_tokens: 3000
+        temperature: 0.6
+      prompt:
+        - type: "static"
+          content: |
+            Based on your previous analysis, please provide:
+            
+            1. A refactored version of the code that addresses the issues you identified
+            2. Explanation of each change made
+            3. Additional Python best practices that could be applied
+            4. Unit test examples for the refactored code
+            
+            Previous analysis:
+        - type: "previous_response"
+          step: "analyze_code"
+        - type: "static"
+          content: |
+            
+            Please provide the complete refactored code with inline comments explaining the improvements.
+      output_to_file: "refactoring_suggestions.json"

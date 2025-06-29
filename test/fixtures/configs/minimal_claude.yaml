@@ -1,0 +1,21 @@
+workflow:
+  name: "minimal_claude_test"
+  workspace_dir: "./test_workspace"
+  
+  defaults:
+    claude_output_format: "json"
+    output_dir: "./test_output"
+    
+  steps:
+    - name: "simple_task"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 5
+        allowed_tools: ["Write", "Read"]
+        output_format: "json"
+        cwd: "./test_workspace"
+      prompt:
+        - type: "static"
+          content: "Create a simple hello.txt file with 'Hello World' content."
+      output_to_file: "task_result.json"

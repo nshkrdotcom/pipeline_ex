@@ -1,0 +1,221 @@
+# Comprehensive Claude SDK Example
+# Demonstrates all Claude functionality and options
+
+workflow:
+  name: "claude_comprehensive_demo"
+  checkpoint_enabled: true
+  workspace_dir: "./workspace"
+  
+  defaults:
+    output_dir: "./outputs/claude_demo"
+    
+  steps:
+    # 1. Basic Claude interaction with minimal options
+    - name: "basic_interaction"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 1
+      prompt:
+        - type: "static"
+          content: "Write a simple 'Hello World' program in Python and save it to hello.py"
+      output_to_file: "01_basic_result.json"
+
+    # 2. Multi-turn conversation with file operations
+    - name: "multi_turn_development"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 5
+        allowed_tools: ["Write", "Edit", "Read", "Bash"]
+        verbose: true
+        cwd: "./demo_project"
+      prompt:
+        - type: "static"
+          content: |
+            Create a complete Python project structure:
+            1. Create main.py with a Calculator class
+            2. Create tests/test_calculator.py with unit tests
+            3. Create requirements.txt with pytest dependency
+            4. Run the tests to verify everything works
+            5. Create a README.md explaining the project
+      output_to_file: "02_multi_turn_result.json"
+
+    # 3. Code analysis and review with specific tools
+    - name: "code_analysis"
+      type: "claude" 
+      role: "muscle"
+      claude_options:
+        max_turns: 3
+        allowed_tools: ["Read", "Grep", "Glob", "Bash"]
+        system_prompt: "You are a senior code reviewer focused on Python best practices."
+        cwd: "./demo_project"
+      prompt:
+        - type: "static"
+          content: |
+            Analyze the Python project created in the previous step:
+            1. Review all Python files for code quality
+            2. Check for PEP 8 compliance 
+            3. Suggest improvements for maintainability
+            4. Verify test coverage
+            Generate a detailed code review report.
+        - type: "previous_response"
+          step: "multi_turn_development"
+      output_to_file: "03_code_analysis_result.json"
+
+    # 4. Security-focused analysis with restricted tools
+    - name: "security_audit"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 2
+        allowed_tools: ["Read", "Grep", "Bash"]
+        disallowed_tools: ["Write", "Edit"]  # Read-only security audit
+        system_prompt: "You are a security expert conducting a code audit."
+        permission_mode: "default"
+      prompt:
+        - type: "static"
+          content: |
+            Perform a security audit of the Python project:
+            1. Scan for potential security vulnerabilities
+            2. Check for hardcoded secrets or credentials
+            3. Review input validation practices
+            4. Identify potential injection attacks
+            Generate a security report with recommendations.
+      output_to_file: "04_security_audit_result.json"
+
+    # 5. Documentation generation with append system prompt
+    - name: "documentation_generation"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 3
+        allowed_tools: ["Read", "Write", "Edit"]
+        system_prompt: "You are a technical writer specializing in API documentation."
+        append_system_prompt: "Always include code examples and follow Google docstring format."
+      prompt:
+        - type: "static"
+          content: |
+            Generate comprehensive documentation for the Calculator project:
+            1. Create detailed API documentation with docstrings
+            2. Add inline comments to complex functions
+            3. Create usage examples
+            4. Update the README with installation and usage instructions
+      output_to_file: "05_documentation_result.json"
+
+    # 6. Refactoring with planning mode
+    - name: "refactoring_session"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 4
+        allowed_tools: ["Read", "Edit", "Bash"]
+        permission_mode: "plan"  # Claude will plan before executing
+      prompt:
+        - type: "static"
+          content: |
+            Refactor the Calculator project for better design:
+            1. Add type hints throughout the codebase
+            2. Implement proper error handling with custom exceptions
+            3. Add logging for debugging
+            4. Optimize performance where possible
+            5. Ensure all tests still pass after refactoring
+      output_to_file: "06_refactoring_result.json"
+
+    # 7. Testing and validation with bypass permissions
+    - name: "comprehensive_testing"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 3
+        allowed_tools: ["Read", "Write", "Edit", "Bash", "Task"]
+        permission_mode: "bypass_permissions"  # For running external tools
+        verbose: true
+      prompt:
+        - type: "static"
+          content: |
+            Perform comprehensive testing of the Calculator project:
+            1. Run existing unit tests
+            2. Add integration tests
+            3. Add performance benchmarks
+            4. Generate test coverage report
+            5. Run linting tools (pylint, flake8)
+            6. Create a CI/CD configuration file
+      output_to_file: "07_testing_result.json"
+
+    # 8. Final integration with dynamic prompt building
+    - name: "project_summary"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 2
+        allowed_tools: ["Read", "Write"]
+        system_prompt: "You are a project manager creating final deliverables."
+      prompt:
+        - type: "static"
+          content: |
+            Create a final project summary based on all previous work:
+            1. Summarize what was accomplished in each phase
+            2. List all files created and their purposes
+            3. Document any issues encountered and how they were resolved
+            4. Provide recommendations for future development
+            
+            Previous phases completed:
+        - type: "previous_response"
+          step: "basic_interaction"
+          prefix: "Basic Setup: "
+        - type: "previous_response"
+          step: "multi_turn_development"
+          prefix: "Development Phase: "
+        - type: "previous_response"  
+          step: "code_analysis"
+          prefix: "Code Review: "
+        - type: "previous_response"
+          step: "security_audit"
+          prefix: "Security Audit: "
+        - type: "previous_response"
+          step: "documentation_generation"
+          prefix: "Documentation: "
+        - type: "previous_response"
+          step: "refactoring_session"
+          prefix: "Refactoring: "
+        - type: "previous_response"
+          step: "comprehensive_testing"
+          prefix: "Testing: "
+      output_to_file: "08_final_summary.json"
+
+    # 9. Error handling demonstration
+    - name: "error_handling_demo"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 2
+        allowed_tools: ["Bash"]
+      prompt:
+        - type: "static"
+          content: |
+            Demonstrate error handling by:
+            1. Trying to run a command that doesn't exist
+            2. Trying to access a file that doesn't exist
+            3. Showing how to gracefully handle these errors
+            This step intentionally includes operations that may fail to test error handling.
+      output_to_file: "09_error_demo_result.json"
+
+    # 10. Advanced tool usage demonstration
+    - name: "advanced_tools_demo"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 3
+        allowed_tools: ["Read", "Write", "Bash", "Glob", "Grep", "Task", "WebSearch"]
+        verbose: true
+      prompt:
+        - type: "static"
+          content: |
+            Demonstrate advanced tool usage:
+            1. Use Glob to find all Python files in the project
+            2. Use Grep to search for specific patterns in the code
+            3. Use Task to delegate a complex search operation
+            4. Use WebSearch to find Python best practices (if available)
+            5. Combine results to create a comprehensive project analysis
+      output_to_file: "10_advanced_tools_result.json"

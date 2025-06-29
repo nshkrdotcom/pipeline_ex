@@ -1,0 +1,22 @@
+[
+  {
+    "type": "message",
+    "content": "I'll help you create the hello.txt file with 'Hello World' content.",
+    "timestamp": "2024-01-15T10:30:00Z"
+  },
+  {
+    "type": "tool_use",
+    "content": "Using Write tool to create hello.txt",
+    "timestamp": "2024-01-15T10:30:01Z"
+  },
+  {
+    "type": "tool_result",
+    "content": "File hello.txt created successfully",
+    "timestamp": "2024-01-15T10:30:02Z"
+  },
+  {
+    "type": "result",
+    "content": "{\"status\": \"completed\", \"files_created\": [\"hello.txt\"], \"summary\": \"Successfully created hello.txt with Hello World content\"}",
+    "timestamp": "2024-01-15T10:30:03Z"
+  }
+]

@@ -1,0 +1,93 @@
+# Complete Claude SDK Features Showcase
+# This example demonstrates all Claude functionality working properly
+
+workflow:
+  name: "claude_features_showcase"
+  checkpoint_enabled: false
+  workspace_dir: "./workspace"
+  
+  defaults:
+    output_dir: "./outputs/claude_showcase"
+    
+  steps:
+    # 1. Basic Claude interaction
+    - name: "basic_hello"
+      type: "claude"
+      role: "muscle"
+      prompt:
+        - type: "static"
+          content: "Write a simple Python hello world program and explain what it does."
+      output_to_file: "01_basic.json"
+
+    # 2. Claude with max_turns control
+    - name: "controlled_turns"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 2
+      prompt:
+        - type: "static"
+          content: "Create a Python function that calculates factorial. Then optimize it for performance."
+      output_to_file: "02_turns.json"
+
+    # 3. Claude with specific tools
+    - name: "tool_restricted"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        allowed_tools: ["Write", "Read"]
+        max_turns: 3
+      prompt:
+        - type: "static"
+          content: "Create a Python config file called settings.py with database configuration, then read it back to verify."
+      output_to_file: "03_tools.json"
+
+    # 4. Claude with system prompt
+    - name: "system_prompt_demo"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        system_prompt: "You are a senior Python developer who writes clean, well-documented code with type hints."
+        max_turns: 2
+      prompt:
+        - type: "static"
+          content: "Create a class for managing a simple todo list with add, remove, and list methods."
+      output_to_file: "04_system.json"
+
+    # 5. Claude with working directory
+    - name: "working_directory"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        cwd: "./demo_app"
+        allowed_tools: ["Write", "Read", "LS"]
+        max_turns: 2
+      prompt:
+        - type: "static"
+          content: "Create a simple Flask app structure with app.py and requirements.txt, then list the files created."
+      output_to_file: "05_workdir.json"
+
+    # 6. Claude with verbose logging
+    - name: "verbose_demo"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        verbose: true
+        max_turns: 1
+      prompt:
+        - type: "static"
+          content: "Explain the difference between Python lists and tuples with examples."
+      output_to_file: "06_verbose.json"
+
+    # 7. Claude with previous response
+    - name: "build_on_previous"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        max_turns: 2
+      prompt:
+        - type: "static"
+          content: "Based on the Flask app structure created earlier, add error handling and logging:"
+        - type: "previous_response"
+          step: "working_directory"
+      output_to_file: "07_previous.json"

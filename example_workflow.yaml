@@ -1,0 +1,97 @@
+# Example: Create a Python Calculator
+# Gemini Brain decides what to build, Claude Muscle executes
+
+workflow:
+  name: "calculator_builder"
+  checkpoint_enabled: true
+  workspace_dir: "./workspace"
+  
+  defaults:
+    gemini_model: "gemini-2.5-flash-lite-preview-06-17"
+    gemini_token_budget:
+      max_output_tokens: 2048  # Reasonable default token budget for all Gemini steps
+      temperature: 0.7
+      top_p: 0.95
+    claude_output_format: "json"
+    output_dir: "./outputs/calculator"
+    
+  steps:
+    # Step 1: Gemini analyzes requirements and creates plan
+    - name: "analyze_requirements"
+      type: "gemini"
+      role: "brain"
+      model: "gemini-2.5-flash-lite-preview-06-17"
+      token_budget:
+        max_output_tokens: 4096  # Override default for this step - need more tokens for detailed plan
+        temperature: 0.5  # Lower temperature for more focused planning
+      prompt:
+        - type: "static"
+          content: |
+            Create a detailed implementation plan for a Python calculator with these features:
+            - Basic operations: add, subtract, multiply, divide
+            - Advanced operations: power, square root
+            - Memory functions: store, recall, clear
+            - Error handling for division by zero
+            
+            Provide specific file names, class names, and method signatures.
+      output_to_file: "plan.json"
+      
+    # Step 2: Gemini creates specific coding instructions
+    - name: "create_coding_tasks"
+      type: "gemini"
+      role: "brain"
+      token_budget:
+        max_output_tokens: 8192  # Need many more tokens for complete coding instructions
+      prompt:
+        - type: "static"
+          content: |
+            Based on the plan, create specific coding instructions for Claude to implement:
+            1. Main calculator class with all operations
+            2. Test file with comprehensive tests
+            
+            Be very specific about:
+            - Exact file names to create
+            - Complete method signatures
+            - Error handling requirements
+            - Test cases to implement
+        - type: "previous_response"
+          step: "analyze_requirements"
+      output_to_file: "coding_tasks.json"
+      
+    # Step 3: Claude implements the calculator
+    - name: "implement_calculator"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        print: true
+        max_turns: 10
+        allowed_tools: ["Write", "Edit", "Read"]
+        output_format: "json"
+        cwd: "./workspace"
+      prompt:
+        - type: "static"
+          content: |
+            Implement the calculator exactly as specified. Create the files and implement all methods.
+            Focus only on executing the given instructions, do not make design decisions.
+        - type: "previous_response"
+          step: "create_coding_tasks"
+      output_to_file: "implementation_result.json"
+      
+    # Step 4: Gemini reviews the code
+    - name: "review_implementation"
+      type: "gemini"
+      role: "brain"
+      model: "gemini-2.5-flash-lite-preview-06-17"
+      prompt:
+        - type: "static"
+          content: |
+            Review the implemented calculator code. Check for:
+            - Completeness of implementation
+            - Code quality
+            - Missing features
+            - Potential bugs
+            
+            Determine if fixes are needed. Set needs_fixes to true if issues found.
+        - type: "previous_response"
+          step: "implement_calculator"
+      output_to_file: "review_result.json"

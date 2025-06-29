@@ -1,0 +1,28 @@
+# Claude-only workflow example
+# Single interaction to test workspace sandboxing
+
+workflow:
+  name: "claude_file_creator"
+  checkpoint_enabled: false
+  workspace_dir: "./workspace"
+  
+  defaults:
+    claude_output_format: "json"
+    output_dir: "./outputs/claude_test"
+    
+  steps:
+    # Single step: Claude creates a file
+    - name: "create_simple_file"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        print: true
+        max_turns: 3
+        allowed_tools: ["Write", "Read", "Bash"]
+        output_format: "json"
+        cwd: "./test_sandbox"  # Subdirectory within workspace
+      prompt:
+        - type: "static"
+          content: |
+            Create a file named hello.txt containing only the word "sandbox".
+      output_to_file: "claude_result.json"

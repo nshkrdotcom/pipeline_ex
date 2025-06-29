@@ -1,0 +1,88 @@
+workflow:
+  name: "test_function_calling"
+  workspace_dir: "./workspace"
+  
+  defaults:
+    gemini_model: "gemini-2.5-flash"
+    output_dir: "./outputs/function_test"
+    
+  gemini_functions:
+    evaluate_code:
+      description: "Evaluate code quality and security"
+      parameters:
+        type: "object"
+        properties:
+          code:
+            type: "string"
+            description: "The code to evaluate"
+          language:
+            type: "string"
+            description: "Programming language (e.g., 'python', 'javascript')"
+          metrics:
+            type: "array"
+            items:
+              type: "string"
+            description: "Metrics to evaluate (e.g., 'security', 'performance', 'readability')"
+        required: ["code", "language"]
+    
+    generate_tests:
+      description: "Generate unit tests for given code"
+      parameters:
+        type: "object"
+        properties:
+          code:
+            type: "string"
+            description: "The code to generate tests for"
+          test_framework:
+            type: "string"
+            enum: ["jest", "pytest", "rspec", "junit"]
+            description: "Testing framework to use"
+          coverage_target:
+            type: "integer"
+            description: "Target test coverage percentage"
+        required: ["code", "test_framework"]
+        
+  steps:
+    - name: "code_analysis"
+      type: "gemini"
+      role: "brain"
+      functions:
+        - "evaluate_code"
+      token_budget:
+        max_output_tokens: 2048
+        temperature: 0.3
+      prompt:
+        - type: "static"
+          content: |
+            Please evaluate this Python code for quality and security. Use the evaluate_code function to provide a structured analysis.
+            
+            ```python
+            def calculate_fibonacci(n):
+                if n <= 1:
+                    return n
+                return calculate_fibonacci(n-1) + calculate_fibonacci(n-2)
+            
+            def main():
+                num = int(input("Enter a number: "))
+                result = calculate_fibonacci(num)
+                print(f"Fibonacci({num}) = {result}")
+            
+            if __name__ == "__main__":
+                main()
+            ```
+      output_to_file: "code_analysis.json"
+      
+    - name: "test_generation"
+      type: "gemini"
+      role: "brain"
+      functions:
+        - "generate_tests"
+      token_budget:
+        max_output_tokens: 2048
+        temperature: 0.5
+      prompt:
+        - type: "static"
+          content: "Based on the previous code analysis, generate comprehensive unit tests using the generate_tests function."
+        - type: "previous_response"
+          step: "code_analysis"
+      output_to_file: "test_generation.json"

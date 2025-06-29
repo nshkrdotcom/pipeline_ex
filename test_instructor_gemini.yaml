@@ -1,0 +1,21 @@
+workflow:
+  name: "test_instructor_gemini"
+  workspace_dir: "./workspace"
+  
+  defaults:
+    gemini_model: "gemini-2.5-flash"
+    output_dir: "./outputs/instructor_test"
+    
+  steps:
+    - name: "simple_analysis"
+      type: "gemini"
+      role: "brain"
+      prompt:
+        - type: "static"
+          content: |
+            Analyze this simple math problem and provide a structured response:
+            
+            Problem: What is 2 + 2?
+            
+            Please provide your analysis including the calculation steps and final answer.
+      output_to_file: "simple_analysis.json"

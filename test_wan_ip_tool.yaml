@@ -1,0 +1,20 @@
+workflow:
+  name: "WAN IP Tool Test"
+  description: "Test the get_wan_ip tool using function calling with Gemini"
+  defaults:
+    gemini_model: "gemini-2.5-flash"
+    output_dir: "./outputs"
+  steps:
+    - name: "get_my_wan_ip"
+      type: "gemini"
+      prompt: |
+        I need to find out what my current WAN (external/public) IP address is. 
+        Please use the available tools to get this information for me.
+        
+        After getting the IP, please also tell me:
+        - What service was used to retrieve it
+        - The timestamp when it was retrieved
+        - Any other relevant information about the lookup
+      functions:
+        - "get_wan_ip"
+      output_to_file: "wan_ip_result.json"

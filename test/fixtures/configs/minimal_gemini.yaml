@@ -1,0 +1,16 @@
+workflow:
+  name: "minimal_gemini_test"
+  workspace_dir: "./test_workspace"
+  
+  defaults:
+    gemini_model: "gemini-2.5-flash"
+    output_dir: "./test_output"
+    
+  steps:
+    - name: "simple_analysis"
+      type: "gemini"
+      role: "brain"
+      prompt:
+        - type: "static"
+          content: "Analyze this simple request and provide a brief response."
+      output_to_file: "analysis.json"
