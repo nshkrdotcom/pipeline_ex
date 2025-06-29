@@ -89,7 +89,7 @@ workflow:
       role: "muscle"
       claude_options:
         print: false
-        max_turns: 8
+        max_turns: 12
         allowed_tools: ["Write", "Edit", "Read", "Bash", "Search", "Glob", "Grep"]
         disallowed_tools: []
         system_prompt: "You are a senior software engineer."
@@ -103,7 +103,7 @@ workflow:
           content: "Fix all issues identified in the analysis:"
         - type: "previous_response"  # Previous response reference
           step: "comprehensive_analysis"
-          extract: "issues"  # Field extraction
+          extract: "content"  # Extract the full content since it's text analysis
         - type: "static"
           content: "\nImplement the high-priority recommendations first."
 

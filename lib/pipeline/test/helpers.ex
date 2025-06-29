@@ -235,7 +235,7 @@ defmodule Pipeline.Test.Helpers do
         Logger.info("Test message")
         :some_result
       end)
-      
+
       assert result == :some_result
       assert Enum.any?(logs, &String.contains?(&1, "Test message"))
   """

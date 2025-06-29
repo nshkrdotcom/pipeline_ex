@@ -1,0 +1,150 @@
+# Simplified Comprehensive Pipeline Configuration Example
+# This demonstrates ALL available configuration options with simple, fast tasks
+# Covers every feature: both AI providers, all step types, all prompt types, 
+# function calling, parallel execution, conditionals, and all configuration options
+
+workflow:
+  name: "simple_feature_demo"
+  description: "Comprehensive demonstration of all pipeline features with simple tasks"
+  
+  # All workspace/checkpoint options
+  workspace_dir: "./workspace"
+  checkpoint_enabled: true
+  checkpoint_dir: "./checkpoints"
+  
+  # All default options
+  defaults:
+    gemini_model: "gemini-2.5-flash"
+    gemini_token_budget:
+      max_output_tokens: 1024
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 30
+    claude_options:
+      max_turns: 3
+      verbose: true
+      output_format: "json"
+    claude_output_format: "json"
+    output_dir: "./outputs"
+
+  # Function calling definitions (simple but demonstrates all parameter types)
+  gemini_functions:
+    simple_analysis:
+      description: "Simple analysis with structured output"
+      parameters:
+        type: object
+        properties:
+          score:
+            type: integer
+            minimum: 1
+            maximum: 10
+            description: "Quality score"
+          summary:
+            type: string
+            description: "Brief summary"
+          recommendations:
+            type: array
+            items:
+              type: string
+            description: "List of simple recommendations"
+        required: ["score", "summary"]
+
+  steps:
+    # Step 1: Gemini simple analysis - demonstrates all Gemini options (no function calling to keep it simple)
+    - name: "quick_analysis"
+      type: "gemini"
+      role: "brain"
+      model: "gemini-2.5-flash"  # Override default
+      token_budget:  # Override all token settings
+        max_output_tokens: 512
+        temperature: 0.3
+        top_p: 0.8
+        top_k: 20
+      output_to_file: "analysis.json"
+      prompt:
+        - type: "static"  # Static content
+          content: "Briefly analyze this project in 2-3 sentences:"
+        - type: "file"  # File content
+          path: "./README.md"
+
+    # Step 2: Claude with ALL options - every claude_option available (simple task)
+    - name: "quick_summary"
+      type: "claude"
+      role: "muscle"
+      claude_options:
+        print: false
+        max_turns: 2  # Keep it simple
+        allowed_tools: ["Read", "LS"]  # Limited tools for speed
+        disallowed_tools: []
+        system_prompt: "You are a helpful assistant."
+        append_system_prompt: "Be concise."
+        verbose: true
+        output_format: "json"
+        cwd: "./workspace"
+      output_to_file: "summary.json"
+      prompt:
+        - type: "static"
+          content: "Based on this analysis, provide a 2-sentence summary:"
+        - type: "previous_response"  # Previous response reference
+          step: "quick_analysis"
+          extract: "content"  # Field extraction
+
+    # Step 3: Parallel Claude - demonstrates parallel execution with simple tasks
+    - name: "parallel_tasks"
+      type: "parallel_claude"
+      parallel_tasks:
+        - id: "list_files"
+          claude_options:
+            max_turns: 1
+            allowed_tools: ["LS"]
+            output_format: "text"
+          prompt:
+            - type: "static"
+              content: "List the main files in this directory"
+
+        - id: "read_readme"
+          claude_options:
+            max_turns: 1
+            allowed_tools: ["Read"]
+            output_format: "text"
+          prompt:
+            - type: "static"
+              content: "Read and summarize the README.md file in 1 sentence"
+
+    # Step 4: Always-running step (conditional would need structured data)
+    - name: "always_step"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "Provide a brief positive message about the project."
+
+    # Step 5: Final step combining everything - demonstrates all prompt types
+    - name: "final_report"
+      type: "gemini"
+      model: "gemini-2.5-flash-lite-preview-06-17"  # Different model
+      output_to_file: "final_report.json"
+      prompt:
+        - type: "static"
+          content: "Create a final report based on:"
+        - type: "previous_response"
+          step: "quick_analysis"
+        - type: "static"
+          content: "\nSummary:"
+        - type: "previous_response"
+          step: "quick_summary"
+        - type: "static"
+          content: "\nFile listing:"
+        - type: "previous_response"
+          step: "parallel_tasks"
+          extract: "list_files"
+
+    # Step 6: Gemini Instructor step - demonstrates instructor-style prompting
+    - name: "structured_output"
+      type: "gemini_instructor"
+      model: "gemini-2.5-flash"
+      functions: ["simple_analysis"]
+      prompt:
+        - type: "static"
+          content: "Provide a final structured analysis of this pipeline demo"
+        - type: "previous_response"
+          step: "final_report"

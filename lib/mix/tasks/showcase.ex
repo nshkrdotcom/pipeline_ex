@@ -1,16 +1,17 @@
-defmodule Mix.Tasks.Showcase do
+defmodule Mix.Tasks.Pipeline.Showcase do
   @moduledoc """
   Demonstrates the Pipeline with both mock and live modes.
 
   ## Usage
 
-      mix showcase          # Mock mode (safe, no API costs)
-      mix showcase --live   # Live mode (real API calls, costs money)
+      mix pipeline.showcase          # Mock mode (safe, no API costs)
+      mix pipeline.showcase --live   # Live mode (real API calls, costs money)
 
   """
   use Mix.Task
 
   @shortdoc "Showcase Pipeline features in mock or live mode"
+  @preferred_cli_env :dev
 
   def run(args) do
     Mix.Task.run("app.start")
@@ -131,7 +132,7 @@ defmodule Mix.Tasks.Showcase do
     else
       IO.puts("")
       IO.puts("💡 To run in live mode, set up authentication above")
-      IO.puts("💡 Or use mock mode: mix showcase")
+      IO.puts("💡 Or use mock mode: mix pipeline.showcase")
       false
     end
   end
@@ -161,7 +162,7 @@ defmodule Mix.Tasks.Showcase do
 
     if mode_name == "Mock Mode" do
       IO.puts("")
-      IO.puts("💡 Ready to try live mode? Run: mix showcase --live")
+      IO.puts("💡 Ready to try live mode? Run: mix pipeline.showcase --live")
       IO.puts("   (Make sure to set up authentication first)")
     end
   end

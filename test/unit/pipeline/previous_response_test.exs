@@ -141,7 +141,12 @@ defmodule Pipeline.PreviousResponseTest do
       }
 
       prompt_parts = [
-        %{"type" => "previous_response", "step" => "step1", "extract" => "missing_field"}
+        %{
+          "type" => "previous_response",
+          "step" => "step1",
+          "extract" => "missing_field",
+          "strict" => false
+        }
       ]
 
       context = %{results: previous_results}
@@ -180,13 +185,15 @@ defmodule Pipeline.PreviousResponseTest do
                 %{
                   "type" => "previous_response",
                   "step" => "requirements_analysis",
-                  "extract" => "key_features"
+                  "extract" => "key_features",
+                  "strict" => false
                 },
                 %{"type" => "static", "content" => "\nArchitecture:"},
                 %{
                   "type" => "previous_response",
                   "step" => "architecture_design",
-                  "extract" => "components"
+                  "extract" => "components",
+                  "strict" => false
                 },
                 %{"type" => "static", "content" => "\nImplement this system"}
               ]
@@ -465,7 +472,8 @@ defmodule Pipeline.PreviousResponseTest do
         %{
           "type" => "previous_response",
           "step" => "step1",
-          "extract" => "config.level1.missing_level3"
+          "extract" => "config.level1.missing_level3",
+          "strict" => false
         }
       ]
 

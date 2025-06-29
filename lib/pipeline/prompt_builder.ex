@@ -78,7 +78,9 @@ defmodule Pipeline.PromptBuilder do
 
       result ->
         if part["extract"] do
-          extract_field(result, part["extract"])
+          # Default to strict mode
+          strict = Map.get(part, "strict", true)
+          extract_field(result, part["extract"], strict)
         else
           format_result(result)
         end
@@ -95,7 +97,9 @@ defmodule Pipeline.PromptBuilder do
       result ->
         try do
           if part[:extract] do
-            extract_field(result, part[:extract])
+            # Default to strict mode
+            strict = Map.get(part, :strict, true)
+            extract_field(result, part[:extract], strict)
           else
             format_result(result)
           end
@@ -161,14 +165,24 @@ defmodule Pipeline.PromptBuilder do
   defp get_results_from_context(%{results: results}), do: results
   defp get_results_from_context(results) when is_map(results), do: results
 
-  defp extract_field(result, field_path) do
+  defp extract_field(result, field_path, strict) do
     case get_nested_field_with_presence(result, field_path) do
       {:found, value} ->
         format_value(value)
 
       :not_found ->
-        # Return nil for missing fields, which will be formatted as "nil"
-        format_value(nil)
+        if strict do
+          # In strict mode, provide helpful error message
+          available_fields = get_available_fields(result)
+
+          raise ArgumentError,
+                "Field '#{field_path}' not found in previous response. " <>
+                  "Available fields: #{available_fields}. " <>
+                  "Response structure: #{inspect(result, limit: 200)}"
+        else
+          # In non-strict mode, return nil (which formats to "nil")
+          format_value(nil)
+        end
     end
   end
 
@@ -224,4 +238,12 @@ defmodule Pipeline.PromptBuilder do
   defp format_value(nil), do: "nil"
 
   defp format_value(value), do: to_string(value)
+
+  defp get_available_fields(result) when is_map(result) do
+    Map.keys(result) |> Enum.join(", ")
+  end
+
+  defp get_available_fields(_result) do
+    "none (response is not a map/object)"
+  end
 end

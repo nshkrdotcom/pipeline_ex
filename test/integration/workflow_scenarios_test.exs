@@ -578,11 +578,11 @@ defmodule Pipeline.WorkflowScenariosTest do
         host: localhost
         port: 5432
         name: myapp
-        
+
       redis:
         host: localhost
         port: 6379
-        
+
       features:
         - authentication
         - caching
