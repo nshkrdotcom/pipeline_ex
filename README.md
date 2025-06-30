@@ -12,6 +12,7 @@ A flexible Elixir pipeline for chaining AI providers (Claude and Gemini) with su
 - 🎯 **Structured Output**: JSON-based responses with proper error handling
 - 🔧 **InstructorLite Integration**: Structured generation with Gemini
 - 📊 **Result Management**: Organized output storage and display
+- ⚡ **Enhanced Claude Steps**: Smart presets, sessions, extraction, batch processing, robust error handling
 
 ## Quick Start
 
@@ -220,7 +221,8 @@ PIPELINE_DEBUG=true PIPELINE_LOG_LEVEL=debug mix pipeline.run.live examples/comp
 
 The `examples/comprehensive_config_example.yaml` shows:
 
-- ✅ **All 4 step types**: `gemini`, `claude`, `parallel_claude`, `gemini_instructor`
+- ✅ **Basic step types**: `gemini`, `claude`, `parallel_claude`, `gemini_instructor`
+- ✅ **Enhanced Claude steps**: `claude_smart`, `claude_session`, `claude_extract`, `claude_batch`, `claude_robust`
 - ✅ **Function calling**: Gemini with structured function definitions
 - ✅ **All Claude tools**: Write, Edit, Read, Bash, Search, Glob, Grep
 - ✅ **Parallel execution**: Multiple Claude instances running simultaneously
@@ -230,6 +232,105 @@ The `examples/comprehensive_config_example.yaml` shows:
 - ✅ **Token budgets**: Fine-tuned AI response configurations
 - ✅ **Model selection**: Different AI models for different tasks
 - ✅ **Output management**: Structured result saving and organization
+
+## Enhanced Claude Step Types
+
+The pipeline includes five advanced Claude step types that extend the basic `claude` step with specialized capabilities:
+
+### 🎯 Claude Smart (`claude_smart`)
+Intelligent preset-based configuration with environment awareness.
+- **Presets**: `development`, `production`, `analysis`, `chat`, `test`
+- **Auto-optimization**: Preset-specific tool restrictions and performance tuning
+- **Environment detection**: Automatic preset selection based on Mix environment
+
+```yaml
+- name: "smart_analysis" 
+  type: "claude_smart"
+  preset: "analysis"  # Uses analysis-optimized settings
+  prompt: [...]
+```
+
+### 🗣️ Claude Session (`claude_session`)
+Persistent conversation management with session state.
+- **Session persistence**: Continue conversations across multiple steps
+- **Automatic checkpointing**: Save session state for recovery
+- **Turn management**: Configurable conversation length limits
+
+```yaml
+- name: "session_start"
+  type: "claude_session" 
+  session_name: "math_tutor"
+  session_config:
+    persist: true
+    max_turns: 50
+```
+
+### 📄 Claude Extract (`claude_extract`)
+Advanced content extraction and post-processing.
+- **Output formats**: `json`, `markdown`, `structured`, `summary`
+- **Post-processing**: Extract code blocks, recommendations, links, key points
+- **Content filtering**: Apply extraction rules and transformations
+
+```yaml
+- name: "extract_json"
+  type: "claude_extract"
+  preset: "analysis"
+  extraction_config:
+    format: "json"
+    post_processing: ["extract_code_blocks", "extract_recommendations"]
+    include_metadata: true
+```
+
+### ⚡ Claude Batch (`claude_batch`)
+Parallel task execution with load balancing.
+- **Concurrent processing**: Run multiple Claude queries simultaneously
+- **Task management**: Queue and execute independent tasks
+- **Performance scaling**: Configurable parallelism limits
+
+```yaml
+- name: "batch_analysis"
+  type: "claude_batch"
+  batch_config:
+    max_parallel: 3
+    tasks:
+      - id: "task1"
+        prompt: "Analyze JavaScript code..."
+      - id: "task2" 
+        prompt: "Analyze Python code..."
+```
+
+### 🛡️ Claude Robust (`claude_robust`)
+Enterprise-grade error recovery and fault tolerance.
+- **Retry mechanisms**: Configurable backoff strategies
+- **Fallback actions**: Graceful degradation options
+- **Circuit breaker**: Prevent cascade failures
+
+```yaml
+- name: "robust_analysis"
+  type: "claude_robust"
+  retry_config:
+    max_retries: 3
+    backoff_strategy: "exponential"
+    fallback_action: "simplified_prompt"
+```
+
+### Testing Enhanced Step Types
+
+Each enhanced step type has dedicated example files for testing:
+
+```bash
+# Test individual enhanced step types
+mix pipeline.run.live examples/claude_smart_example.yaml
+mix pipeline.run.live examples/claude_session_example.yaml  
+mix pipeline.run.live examples/claude_extract_example.yaml
+mix pipeline.run.live examples/claude_batch_example.yaml
+mix pipeline.run.live examples/claude_robust_example.yaml
+
+# Or run all enhanced examples in mock mode (free)
+mix pipeline.run examples/claude_smart_example.yaml
+mix pipeline.run examples/claude_session_example.yaml
+# ... etc
+```
 
 ### Environment Configuration
 
