@@ -12,7 +12,7 @@ credo_output=$(mix credo --strict 2>&1)
 credo_exit_code=$?
 
 # Print the output but filter out refactoring opportunities for analysis
-echo "$credo_output" | grep -v -A 1000 "Refactoring opportunities" | grep -v -E "^\[F\]"
+echo "$credo_output" | grep -v -A 1000 "Refactoring opportunities" | grep -v -E "^\[F\]" || true
 
 # Check if there were any Software Design or Code Readability issues
 if echo "$credo_output" | grep -q -E "(Software Design|Code Readability)"; then
