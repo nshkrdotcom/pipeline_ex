@@ -75,72 +75,72 @@
   - [x] Diagnostic reporting
   - [x] Live Claude Code SDK placeholder (`lib/pipeline/providers/claude_code.ex`)
 
-### 2.3 New Step Types Implementation
+### 2.3 New Step Types Implementation ✅ COMPLETED
 
-#### 2.3.1 claude_smart Step Type
-- [ ] **Implementation**
-  - [ ] Preset-based configuration
-  - [ ] Environment-aware option selection
-  - [ ] Automatic OptionBuilder integration
-  - [ ] Override capabilities
+#### 2.3.1 claude_smart Step Type ✅ COMPLETED
+- [x] **Implementation**
+  - [x] Preset-based configuration
+  - [x] Environment-aware option selection
+  - [x] Automatic OptionBuilder integration
+  - [x] Override capabilities
 
-- [ ] **Test Coverage**
-  - [ ] Preset application tests
-  - [ ] Environment detection tests
-  - [ ] Option merging tests
-  - [ ] Mock response handling
+- [x] **Test Coverage**
+  - [x] Preset application tests
+  - [x] Environment detection tests
+  - [x] Option merging tests
+  - [x] Mock response handling
 
-#### 2.3.2 claude_session Step Type
-- [ ] **Session Management**
-  - [ ] Session creation and persistence
-  - [ ] Session continuation across restarts
-  - [ ] Checkpoint frequency configuration
-  - [ ] Session description and metadata
+#### 2.3.2 claude_session Step Type ✅ COMPLETED
+- [x] **Session Management**
+  - [x] Session creation and persistence
+  - [x] Session continuation across restarts
+  - [x] Checkpoint frequency configuration
+  - [x] Session description and metadata
 
-- [ ] **Test Coverage**
-  - [ ] Session creation tests
-  - [ ] Session persistence tests
-  - [ ] Checkpoint tests
-  - [ ] Session metadata tests
+- [x] **Test Coverage**
+  - [x] Session creation tests
+  - [x] Session persistence tests
+  - [x] Checkpoint tests
+  - [x] Session metadata tests
 
-#### 2.3.3 claude_extract Step Type
-- [ ] **Content Extraction Implementation**
-  - [ ] ContentExtractor integration
-  - [ ] Multiple format support (text/json/structured/summary/markdown)
-  - [ ] Post-processing pipeline
-  - [ ] Metadata inclusion
+#### 2.3.3 claude_extract Step Type ✅ COMPLETED
+- [x] **Content Extraction Implementation**
+  - [x] ContentExtractor integration
+  - [x] Multiple format support (text/json/structured/summary/markdown)
+  - [x] Post-processing pipeline
+  - [x] Metadata inclusion
 
-- [ ] **Test Coverage**
-  - [ ] Content extraction tests for all formats
-  - [ ] Post-processing tests
-  - [ ] Metadata inclusion tests
-  - [ ] Large content handling tests
+- [x] **Test Coverage**
+  - [x] Content extraction tests for all formats
+  - [x] Post-processing tests
+  - [x] Metadata inclusion tests
+  - [x] Large content handling tests
 
-#### 2.3.4 claude_batch Step Type
-- [ ] **Batch Processing Implementation**
-  - [ ] Parallel task execution
-  - [ ] Task timeout management
-  - [ ] Result consolidation
-  - [ ] Progress tracking
+#### 2.3.4 claude_batch Step Type ✅ COMPLETED
+- [x] **Batch Processing Implementation**
+  - [x] Parallel task execution
+  - [x] Task timeout management
+  - [x] Result consolidation
+  - [x] Progress tracking
 
-- [ ] **Test Coverage**
-  - [ ] Parallel execution tests
-  - [ ] Timeout handling tests
-  - [ ] Result consolidation tests
-  - [ ] Error handling in batch mode
+- [x] **Test Coverage**
+  - [x] Parallel execution tests
+  - [x] Timeout handling tests
+  - [x] Result consolidation tests
+  - [x] Error handling in batch mode
 
-#### 2.3.5 claude_robust Step Type
-- [ ] **Error Recovery Implementation**
-  - [ ] Retry mechanism with configurable strategies
-  - [ ] Retry condition evaluation
-  - [ ] Fallback action execution
-  - [ ] Comprehensive error classification
+#### 2.3.5 claude_robust Step Type ✅ COMPLETED
+- [x] **Error Recovery Implementation**
+  - [x] Retry mechanism with configurable strategies
+  - [x] Retry condition evaluation
+  - [x] Fallback action execution
+  - [x] Comprehensive error classification
 
-- [ ] **Test Coverage**
-  - [ ] Retry mechanism tests
-  - [ ] Backoff strategy tests
-  - [ ] Fallback action tests
-  - [ ] Error classification tests
+- [x] **Test Coverage**
+  - [x] Retry mechanism tests
+  - [x] Backoff strategy tests
+  - [x] Fallback action tests
+  - [x] Error classification tests
 
 ### 2.4 Enhanced Prompt Templates
 
