@@ -1,0 +1,74 @@
+workflow:
+  name: "claude_extract_example"
+  description: "Demonstrates claude_extract step with content extraction and post-processing"
+
+  steps:
+    # Get some content to extract from
+    - name: "generate_content"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: |
+            Write a brief technical article about Python with:
+            - Code examples
+            - Key recommendations
+            - Links to documentation
+            - Bullet points about best practices
+      model: "gemini-1.5-flash"
+      token_budget:
+        max_output_tokens: 500
+
+    # Extract content as JSON with metadata
+    - name: "extract_json"
+      type: "claude_extract"
+      preset: "analysis"
+      extraction_config:
+        format: "json"  # Extract as structured JSON
+        use_content_extractor: true
+        post_processing: ["extract_code_blocks", "extract_recommendations"]
+        include_metadata: true
+      prompt:
+        - type: "static"
+          content: "Extract the technical content into structured JSON format:"
+        - type: "previous_response"
+          step: "generate_content"
+      claude_options:
+        max_turns: 1
+        # timeout_ms inherited from analysis preset (3 minutes)
+
+    # Extract content as markdown with summary
+    - name: "extract_markdown"
+      type: "claude_extract"
+      preset: "chat"
+      extraction_config:
+        format: "markdown"  # Extract as formatted markdown
+        use_content_extractor: true
+        post_processing: ["format_markdown", "generate_summary", "extract_key_points"]
+        max_summary_length: 200
+        include_metadata: true
+      prompt:
+        - type: "previous_response"
+          step: "generate_content"
+          extract_with: "content_extractor"  # Use content extractor on previous response
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+
+    # Extract as structured summary
+    - name: "extract_summary"
+      type: "claude_extract"
+      preset: "production"
+      extraction_config:
+        format: "summary"  # Extract as concise summary
+        max_summary_length: 100
+        post_processing: ["generate_summary"]
+        include_metadata: false
+      prompt:
+        - type: "static"
+          content: "Create a brief summary:"
+        - type: "previous_response"
+          step: "generate_content"
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        timeout_ms: 10000

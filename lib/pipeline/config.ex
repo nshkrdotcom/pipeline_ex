@@ -189,7 +189,7 @@ defmodule Pipeline.Config do
 
       is_nil(step["type"]) ->
         {:error,
-         "Step '#{step["name"]}' missing required 'type' field. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
+         "Step '#{step["name"]}' missing required 'type' field. Supported types: claude, gemini, parallel_claude, gemini_instructor, claude_smart, claude_session, claude_extract, claude_batch, claude_robust"}
 
       true ->
         :ok
@@ -197,11 +197,23 @@ defmodule Pipeline.Config do
   end
 
   defp validate_step_type(step) do
-    if step["type"] in ["claude", "gemini", "parallel_claude", "gemini_instructor"] do
+    supported_types = [
+      "claude",
+      "gemini",
+      "parallel_claude",
+      "gemini_instructor",
+      "claude_smart",
+      "claude_session",
+      "claude_extract",
+      "claude_batch",
+      "claude_robust"
+    ]
+
+    if step["type"] in supported_types do
       :ok
     else
       {:error,
-       "Step '#{step["name"]}' has invalid type '#{step["type"]}'. Supported types: claude, gemini, parallel_claude, gemini_instructor"}
+       "Step '#{step["name"]}' has invalid type '#{step["type"]}'. Supported types: #{Enum.join(supported_types, ", ")}"}
     end
   end
 
@@ -218,6 +230,15 @@ defmodule Pipeline.Config do
     cond do
       step["type"] == "parallel_claude" ->
         :ok
+
+      # claude_batch can use either prompt or tasks
+      step["type"] == "claude_batch" ->
+        if is_nil(step["prompt"]) and is_nil(step["tasks"]) do
+          {:error,
+           "Step '#{step["name"]}' of type 'claude_batch' must have either 'prompt' or 'tasks' field"}
+        else
+          :ok
+        end
 
       is_nil(step["prompt"]) ->
         {:error,
@@ -361,11 +382,31 @@ defmodule Pipeline.Config do
 
   defp apply_type_specific_defaults(step, defaults) do
     case step["type"] do
-      "claude" -> apply_claude_defaults(step, defaults)
-      "gemini" -> apply_gemini_defaults(step, defaults)
-      "parallel_claude" -> apply_parallel_claude_defaults(step, defaults)
-      "gemini_instructor" -> apply_gemini_defaults(step, defaults)
-      _ -> step
+      "claude" ->
+        apply_claude_defaults(step, defaults)
+
+      "gemini" ->
+        apply_gemini_defaults(step, defaults)
+
+      "parallel_claude" ->
+        apply_parallel_claude_defaults(step, defaults)
+
+      "gemini_instructor" ->
+        apply_gemini_defaults(step, defaults)
+
+      # Enhanced step types use claude defaults as base
+      type
+      when type in [
+             "claude_smart",
+             "claude_session",
+             "claude_extract",
+             "claude_batch",
+             "claude_robust"
+           ] ->
+        apply_claude_defaults(step, defaults)
+
+      _ ->
+        step
     end
   end
 

@@ -1,0 +1,36 @@
+workflow:
+  name: "enhanced_features_simple_live"
+  description: "Simple live demo of enhanced pipeline features with Gemini only"
+  
+  # Enhanced workflow-level configuration
+  defaults:
+    claude_preset: "development"  # OptionBuilder preset: development, production, analysis, chat, test
+  
+  environment:
+    mode: "development"  # development, production, test
+    debug_level: "detailed"  # basic, detailed, performance
+
+  steps:
+    # Step 1: Gemini baseline (simple and fast)
+    - name: "gemini_baseline"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer in one word."
+      model: "gemini-1.5-flash"  # Fast model
+      token_budget: 
+        max_input_tokens: 50
+        max_output_tokens: 10
+
+    # Step 2: Another Gemini call to demonstrate chaining
+    - name: "gemini_followup"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "What is 3+3? Answer in one word."
+        - type: "previous_response"
+          step: "gemini_baseline"
+      model: "gemini-1.5-flash"
+      token_budget: 
+        max_input_tokens: 100
+        max_output_tokens: 20

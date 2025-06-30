@@ -1,0 +1,49 @@
+workflow:
+  name: "claude_session_example"
+  description: "Demonstrates claude_session step with persistent sessions"
+
+  steps:
+    # Start a named session
+    - name: "session_start"
+      type: "claude_session"
+      session_config:
+        persist: true
+        session_name: "math_tutor"
+        checkpoint_frequency: 1  # Checkpoint after every interaction
+        description: "Math tutoring session"
+      prompt:
+        - type: "static"
+          content: "Hello! I'm your math tutor. What's 5 + 3? Please remember this conversation."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+
+    # Continue the same session 
+    - name: "session_continue"
+      type: "claude_session"
+      session_config:
+        persist: true
+        session_name: "math_tutor"  # Same session name
+        checkpoint_frequency: 1
+      prompt:
+        - type: "static"
+          content: "What did I ask you before? And now what's 10 - 2?"
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+
+    # Final interaction in the session
+    - name: "session_final"
+      type: "claude_session"
+      session_config:
+        persist: true
+        session_name: "math_tutor"  # Same session name
+        checkpoint_frequency: 1
+        description: "Final math problem"
+      prompt:
+        - type: "static"
+          content: "Based on our conversation, what's the pattern? Give me one more math problem."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        verbose: true

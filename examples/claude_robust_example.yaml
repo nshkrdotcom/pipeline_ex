@@ -1,0 +1,84 @@
+workflow:
+  name: "claude_robust_example"
+  description: "Demonstrates claude_robust step with retry mechanisms and fallback strategies"
+
+  steps:
+    # claude_robust with exponential backoff retry
+    - name: "robust_with_retry"
+      type: "claude_robust"
+      preset: "production"  # Production preset for reliability
+      retry_config:
+        max_retries: 3
+        backoff_strategy: "exponential"  # exponential or linear
+        retry_conditions: ["timeout", "api_error"]
+        fallback_action: "graceful_degradation"
+      prompt:
+        - type: "static"
+          content: "What is the capital of France? Answer in one word."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        timeout_ms: 5000  # Short timeout to potentially trigger retry
+        retry_config:
+          max_retries: 2
+          backoff_strategy: "exponential"
+          retry_on: ["timeout"]
+
+    # claude_robust with cached response fallback
+    - name: "robust_with_cache_fallback"
+      type: "claude_robust"
+      preset: "development"
+      retry_config:
+        max_retries: 2
+        backoff_strategy: "linear"
+        retry_conditions: ["timeout", "api_error"]
+        fallback_action: "cached_response"  # Try cached responses on failure
+      prompt:
+        - type: "static"
+          content: "What is 100 + 200? Answer with just the number."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        timeout_ms: 8000
+        debug_mode: true
+
+    # claude_robust with simplified prompt fallback
+    - name: "robust_with_simplified_fallback"
+      type: "claude_robust"
+      preset: "analysis"
+      retry_config:
+        max_retries: 2
+        backoff_strategy: "exponential"
+        retry_conditions: ["timeout", "api_error", "max_turns"]
+        fallback_action: "simplified_prompt"  # Use simpler prompt on failure
+      prompt:
+        - type: "static"
+          content: |
+            Analyze the following complex scenario with multiple variables and provide
+            a comprehensive evaluation considering various factors and edge cases.
+            What is the best approach to solve 2 + 2?
+        - type: "previous_response"
+          step: "robust_with_retry"
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        timeout_ms: 10000
+
+    # claude_robust with emergency response fallback
+    - name: "robust_with_emergency_fallback"
+      type: "claude_robust"
+      preset: "chat"
+      retry_config:
+        max_retries: 1
+        backoff_strategy: "linear"
+        retry_conditions: ["timeout", "api_error"]
+        fallback_action: "emergency_response"  # Provide emergency response
+      prompt:
+        - type: "static"
+          content: "What is the meaning of life? Be philosophical."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        timeout_ms: 12000
+        cost_tracking: true
+        telemetry_enabled: true

@@ -9,6 +9,7 @@ defmodule Pipeline.Executor do
   require Logger
   alias Pipeline.CheckpointManager
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
+  alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart}
 
   @type workflow :: map()
   @type execution_result :: {:ok, map()} | {:error, String.t()}
@@ -99,7 +100,9 @@ defmodule Pipeline.Executor do
       execution_log: [],
       start_time: DateTime.utc_now(),
       step_index: 0,
-      debug_enabled: Keyword.get(opts, :debug, false)
+      debug_enabled: Keyword.get(opts, :debug, false),
+      # Add full config for enhanced step types
+      config: workflow
     }
   end
 
@@ -305,8 +308,37 @@ defmodule Pipeline.Executor do
       "gemini_instructor" ->
         GeminiInstructor.execute(step, context)
 
+      # Enhanced step types
+      "claude_smart" ->
+        ClaudeSmart.execute(step, context)
+
+      "claude_session" ->
+        ClaudeSession.execute(step, context)
+
+      "claude_extract" ->
+        ClaudeExtract.execute(step, context)
+
+      "claude_batch" ->
+        ClaudeBatch.execute(step, context)
+
+      "claude_robust" ->
+        ClaudeRobust.execute(step, context)
+
       unknown_type ->
-        {:error, "Unknown step type: #{unknown_type}"}
+        supported_types = [
+          "claude",
+          "gemini",
+          "parallel_claude",
+          "gemini_instructor",
+          "claude_smart",
+          "claude_session",
+          "claude_extract",
+          "claude_batch",
+          "claude_robust"
+        ]
+
+        {:error,
+         "Invalid workflow: Step '#{step["name"]}' has invalid type '#{unknown_type}'. Supported types: #{Enum.join(supported_types, ", ")}"}
     end
   end
 

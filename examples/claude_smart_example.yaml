@@ -1,0 +1,49 @@
+workflow:
+  name: "claude_smart_example"
+  description: "Demonstrates claude_smart step with OptionBuilder presets"
+  
+  defaults:
+    claude_preset: "development"  # Default preset for workflow
+
+  steps:
+    # Simple Gemini step to provide context
+    - name: "get_task"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "What is the best programming language for web development? Answer in 2 sentences."
+      model: "gemini-1.5-flash"
+      token_budget:
+        max_output_tokens: 100
+
+    # claude_smart with analysis preset (read-only tools, structured analysis)
+    - name: "smart_analysis"
+      type: "claude_smart"
+      preset: "analysis"  # Uses analysis preset: read-only tools, detailed analysis
+      environment_aware: true  # Automatically detects environment
+      prompt:
+        - type: "static"
+          content: "Analyze the programming language recommendation:"
+        - type: "previous_response"
+          step: "get_task"
+        - type: "static"
+          content: "\nProvide pros, cons, and use cases in structured format."
+      claude_options:
+        max_turns: 2
+        verbose: true
+        debug_mode: true
+
+    # claude_smart with production preset (minimal tools, safe defaults)
+    - name: "smart_production_summary"
+      type: "claude_smart" 
+      preset: "production"  # Uses production preset: restricted, safe
+      environment_aware: true
+      prompt:
+        - type: "static"
+          content: "Summarize the analysis in one sentence:"
+        - type: "previous_response"
+          step: "smart_analysis"
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        timeout_ms: 15000

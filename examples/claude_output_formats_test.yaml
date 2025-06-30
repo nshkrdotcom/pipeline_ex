@@ -1,0 +1,146 @@
+workflow:
+  name: "claude_output_formats_test"
+  description: "Test all Claude output formats to reproduce SDK parsing issues"
+
+  steps:
+    # Test 1: Text format - WILL FAIL in live mode
+    - name: "test_text_format"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer with just the number."
+      claude_options:
+        max_turns: 1
+        output_format: "text"  # This causes Access.get(4.0, "type", nil) error
+        timeout_ms: 10000
+
+    # Test 2: JSON format - SHOULD WORK
+    - name: "test_json_format"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer with just the number."
+      claude_options:
+        max_turns: 1
+        output_format: "json"  # This should work correctly
+        timeout_ms: 10000
+
+    # Test 3: Stream JSON format - MIGHT WORK
+    - name: "test_stream_json_format"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer with just the number."
+      claude_options:
+        max_turns: 1
+        output_format: "stream_json"  # This might work
+        timeout_ms: 10000
+
+    # Test 4: Different content types with text format
+    - name: "test_text_with_json_content"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "Return this JSON: {\"answer\": 42}. But use text format."
+      claude_options:
+        max_turns: 1
+        output_format: "text"  # Will fail even though content is JSON
+        timeout_ms: 10000
+
+    # Test 5: Complex response with text format
+    - name: "test_text_multiline"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "Write a short haiku about coding."
+      claude_options:
+        max_turns: 1
+        output_format: "text"  # Will fail on multiline response
+        timeout_ms: 10000
+
+    # Test 6: Batch processing with different formats
+    - name: "test_batch_mixed_formats"
+      type: "claude_batch"
+      preset: "development"
+      batch_config:
+        max_parallel: 2
+        timeout_per_task: 15000
+        consolidate_results: true
+      tasks:
+        - task_id: "batch_text"
+          prompt:
+            - type: "static"
+              content: "What is 5+5?"
+          claude_options:
+            output_format: "text"  # Will fail
+        - task_id: "batch_json"
+          prompt:
+            - type: "static"
+              content: "What is 5+5?"
+          claude_options:
+            output_format: "json"  # Should work
+
+    # Test 7: Robust step with text format retry
+    - name: "test_robust_text_format"
+      type: "claude_robust"
+      preset: "development"
+      retry_config:
+        max_retries: 2
+        backoff_strategy: "linear"
+        retry_conditions: ["timeout", "api_error", "parsing_error"]
+        fallback_action: "graceful_degradation"
+      prompt:
+        - type: "static"
+          content: "What is 10-3?"
+      claude_options:
+        max_turns: 1
+        output_format: "text"  # Will fail, then retry
+        timeout_ms: 8000
+
+    # Test 8: Session with format switching
+    - name: "test_session_format_switch"
+      type: "claude_session"
+      preset: "development"
+      session_config:
+        session_id: "format_test_session"
+        checkpoint_interval: 1
+        max_session_turns: 3
+      conversation:
+        - turn: 1
+          prompt:
+            - type: "static"
+              content: "What is 7+8?"
+          claude_options:
+            output_format: "text"  # Will fail
+        - turn: 2
+          prompt:
+            - type: "static"
+              content: "What is 7+8?"
+          claude_options:
+            output_format: "json"  # Should work
+        - turn: 3
+          prompt:
+            - type: "static"
+              content: "What is 7+8?"
+          claude_options:
+            output_format: "stream_json"  # Might work
+
+    # Test 9: Extract with different output formats
+    - name: "test_extract_formats"
+      type: "claude_extract"
+      preset: "analysis"
+      extraction_config:
+        output_format: "structured"
+        post_processing: ["trim", "validate"]
+      prompt:
+        - type: "static"
+          content: "Extract the number from this: 'The answer is 42'"
+      claude_options:
+        max_turns: 1
+        output_format: "text"  # Will fail during extraction
+        timeout_ms: 10000

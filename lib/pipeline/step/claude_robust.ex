@@ -236,13 +236,8 @@ defmodule Pipeline.Step.ClaudeRobust do
   end
 
   defp execute_simplified_fallback(step, context, original_error) do
-    # Create a simplified version of the original prompt
-    simplified_prompt = [
-      %{
-        "type" => "static",
-        "content" => "Provide a brief, simple response for: #{step["name"]}"
-      }
-    ]
+    # Create a simplified version of the original prompt as a string
+    simplified_prompt = "Provide a brief, simple response for: #{step["name"]}"
 
     case get_provider(context) do
       {:ok, provider} ->
@@ -374,8 +369,8 @@ defmodule Pipeline.Step.ClaudeRobust do
         Pipeline.Test.Mocks.ClaudeProvider
 
       _ ->
-        # In live mode, would return ClaudeCodeSDK provider
-        Pipeline.Providers.ClaudeCode
+        # In live mode, use enhanced Claude provider
+        Pipeline.Providers.EnhancedClaudeProvider
     end
   end
 

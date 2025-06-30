@@ -312,7 +312,10 @@ defmodule Pipeline.Providers.EnhancedClaudeProvider do
     if get_option(options, "debug_mode", false) do
       debug_info = %{
         "debug_info" => %{
-          "message_types" => Enum.map(messages, &{&1.type, &1.subtype}),
+          "message_types" =>
+            Enum.map(messages, fn msg ->
+              %{"type" => msg.type, "subtype" => msg.subtype}
+            end),
           "total_messages" => length(messages),
           "options_applied" => Map.keys(options)
         }

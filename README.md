@@ -75,10 +75,10 @@ The pipeline supports three execution modes controlled by the `TEST_MODE` enviro
 
 ```bash
 # Mock mode - fast, no API costs
-TEST_MODE=mock elixir run_example.exs
+mix pipeline.run examples/comprehensive_config_example.yaml
 
-# Live mode - real AI responses
-TEST_MODE=live elixir run_example.exs
+# Live mode - real AI responses  
+mix pipeline.run.live examples/comprehensive_config_example.yaml
 
 # Mixed mode - context-dependent
 TEST_MODE=mixed mix test
@@ -210,10 +210,10 @@ claude auth
 
 ```bash
 # Run with real AI providers
-TEST_MODE=live mix pipeline.run examples/comprehensive_config_example.yaml
+mix pipeline.run.live examples/comprehensive_config_example.yaml
 
 # Run with full debug logging
-TEST_MODE=live PIPELINE_DEBUG=true PIPELINE_LOG_LEVEL=debug mix pipeline.run examples/comprehensive_config_example.yaml
+PIPELINE_DEBUG=true PIPELINE_LOG_LEVEL=debug mix pipeline.run.live examples/comprehensive_config_example.yaml
 ```
 
 ### What the Comprehensive Example Demonstrates

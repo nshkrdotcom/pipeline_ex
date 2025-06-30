@@ -1,0 +1,76 @@
+workflow:
+  name: "claude_batch_example"
+  description: "Demonstrates claude_batch step with parallel processing"
+
+  steps:
+    # claude_batch processing multiple math problems in parallel
+    - name: "batch_math_problems"
+      type: "claude_batch"
+      preset: "development"
+      batch_config:
+        max_parallel: 3  # Process 3 tasks simultaneously
+        timeout_per_task: 10000  # 10 seconds per task
+        consolidate_results: true  # Combine all results
+      tasks:
+        - task_id: "addition"
+          prompt:
+            - type: "static"
+              content: "What is 15 + 27? Show your work and answer in one sentence."
+        - task_id: "multiplication"
+          prompt:
+            - type: "static"
+              content: "What is 8 × 9? Show your work and answer in one sentence."
+        - task_id: "division"
+          prompt:
+            - type: "static"
+              content: "What is 144 ÷ 12? Show your work and answer in one sentence."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        verbose: true
+
+    # claude_batch processing different file analysis tasks
+    - name: "batch_analysis_tasks"
+      type: "claude_batch"
+      preset: "analysis"
+      batch_config:
+        max_parallel: 2
+        timeout_per_task: 15000
+        consolidate_results: true
+      tasks:
+        - task_id: "analyze_python"
+          prompt:
+            - type: "static"
+              content: "Analyze Python programming language. List 3 pros and 3 cons in bullet points."
+        - task_id: "analyze_javascript"
+          prompt:
+            - type: "static"
+              content: "Analyze JavaScript programming language. List 3 pros and 3 cons in bullet points."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        debug_mode: true
+
+    # claude_batch with single prompt applied to multiple contexts
+    - name: "batch_single_prompt"
+      type: "claude_batch"
+      preset: "chat"
+      batch_config:
+        max_parallel: 2
+        timeout_per_task: 8000
+        consolidate_results: true
+      prompt:
+        - type: "static"
+          content: "What is the most important concept in this field? Answer in one sentence."
+      tasks:
+        - task_id: "programming"
+          prompt:
+            - type: "static"
+              content: "Field: Computer Programming"
+        - task_id: "mathematics"
+          prompt:
+            - type: "static"
+              content: "Field: Mathematics"
+      claude_options:
+        max_turns: 1
+        output_format: "text"

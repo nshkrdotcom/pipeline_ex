@@ -146,7 +146,7 @@ defmodule Pipeline.ExecutorTest do
       }
 
       assert {:error, reason} = Executor.execute(workflow)
-      assert String.contains?(reason, "Unknown step type")
+      assert String.contains?(reason, "unknown_type")
     end
   end
 

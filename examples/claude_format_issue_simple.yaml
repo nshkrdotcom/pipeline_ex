@@ -1,0 +1,30 @@
+workflow:
+  name: "claude_format_issue_simple"
+  description: "Simple test showing the exact Claude SDK parsing issue"
+
+  steps:
+    # This step will work in mock mode but fail in live mode
+    - name: "problematic_text_format"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer with just the number."
+      claude_options:
+        max_turns: 1
+        output_format: "text"  # ❌ CAUSES: Access.get(4.0, "type", nil) error
+        timeout_ms: 10000
+        verbose: true
+
+    # This step should work in both mock and live mode  
+    - name: "working_json_format"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer with just the number."
+      claude_options:
+        max_turns: 1
+        output_format: "json"  # ✅ WORKS: Returns proper JSON structure
+        timeout_ms: 10000
+        verbose: true

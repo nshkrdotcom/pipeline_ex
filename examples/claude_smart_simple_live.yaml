@@ -1,0 +1,31 @@
+workflow:
+  name: "claude_smart_simple_live"
+  description: "Simple version focusing on Gemini for live demo"
+  
+  defaults:
+    claude_preset: "development"
+
+  steps:
+    # Gemini step 1
+    - name: "get_programming_task"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "What is Python best used for? Answer in one sentence."
+      model: "gemini-1.5-flash"
+      token_budget:
+        max_output_tokens: 50
+
+    # Gemini step 2 with previous response
+    - name: "analyze_answer"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "Based on this information:"
+        - type: "previous_response"
+          step: "get_programming_task"
+        - type: "static"
+          content: "Give me 2 specific examples of Python use cases."
+      model: "gemini-1.5-flash"
+      token_budget:
+        max_output_tokens: 100

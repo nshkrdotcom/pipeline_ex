@@ -1,0 +1,158 @@
+workflow:
+  name: "enhanced_features_showcase"
+  description: "Comprehensive showcase of all new enhanced pipeline features"
+  
+  # Enhanced workflow-level configuration
+  defaults:
+    claude_preset: "development"  # OptionBuilder preset: development, production, analysis, chat, test
+  
+  environment:
+    mode: "development"  # development, production, test
+    debug_level: "detailed"  # basic, detailed, performance
+
+  steps:
+    # Step 1: Gemini baseline (simple and fast)
+    - name: "gemini_baseline"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer in one word."
+      model: "gemini-1.5-flash"  # Fast model
+      token_budget: 
+        max_input_tokens: 50
+        max_output_tokens: 10
+
+    # Step 2: claude_smart - Uses OptionBuilder presets with environment awareness
+    - name: "claude_smart_analysis"
+      type: "claude_smart"
+      preset: "analysis"  # Uses analysis preset with read-only tools
+      environment_aware: true  # Automatically detects environment
+      prompt:
+        - type: "static"
+          content: "What is the capital of France? One word answer."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        verbose: false
+        timeout_ms: 10000  # 10 seconds
+
+    # Step 3: claude_session - Session management with persistence
+    - name: "claude_session_start"
+      type: "claude_session"
+      session_config:
+        persist: true
+        session_name: "showcase_session"
+        checkpoint_frequency: 1
+        description: "Showcase session for enhanced features"
+      prompt:
+        - type: "static"
+          content: "Hi! What is 1+1? Remember this conversation."
+      claude_options:
+        max_turns: 1
+        timeout_ms: 10000
+
+    # Step 4: claude_extract - Content extraction with multiple formats
+    - name: "claude_extract_json"
+      type: "claude_extract"
+      preset: "analysis"
+      extraction_config:
+        format: "json"  # text, json, structured, summary, markdown
+        use_content_extractor: true
+        post_processing: ["extract_key_points"]
+        include_metadata: true
+      prompt:
+        - type: "static"
+          content: "List three colors. Format as JSON array."
+      claude_options:
+        max_turns: 1
+        timeout_ms: 10000
+
+    # Step 5: claude_batch - Parallel processing of multiple tasks
+    - name: "claude_batch_parallel"
+      type: "claude_batch"
+      preset: "development"
+      batch_config:
+        max_parallel: 2
+        timeout_per_task: 8000  # 8 seconds per task
+        consolidate_results: true
+      tasks:
+        - task_id: "math_1"
+          prompt:
+            - type: "static"
+              content: "What is 3+3? One number only."
+        - task_id: "math_2"
+          prompt:
+            - type: "static"
+              content: "What is 4+4? One number only."
+      claude_options:
+        max_turns: 1
+        timeout_ms: 8000
+
+    # Step 6: claude_robust - Error recovery with retry and fallback
+    - name: "claude_robust_with_fallback"
+      type: "claude_robust"
+      preset: "production"  # Production preset for reliability
+      retry_config:
+        max_retries: 2
+        backoff_strategy: "exponential"  # linear or exponential
+        retry_conditions: ["timeout", "api_error"]
+        fallback_action: "graceful_degradation"  # graceful_degradation, cached_response, simplified_prompt, emergency_response
+      prompt:
+        - type: "static"
+          content: "What is the weather like? Say 'sunny' if unsure."
+      claude_options:
+        max_turns: 1
+        timeout_ms: 5000
+        retry_config:
+          max_retries: 2
+          backoff_strategy: "exponential"
+          retry_on: ["timeout"]
+
+    # Step 7: Continue session from Step 3
+    - name: "claude_session_continue"
+      type: "claude_session"
+      session_config:
+        persist: true
+        session_name: "showcase_session"  # Same session name
+        checkpoint_frequency: 1
+      prompt:
+        - type: "static"
+          content: "What did I ask you before? Reminder: be brief."
+      claude_options:
+        max_turns: 1
+        timeout_ms: 10000
+
+    # Step 8: Enhanced extraction with markdown format
+    - name: "claude_extract_markdown"
+      type: "claude_extract"
+      preset: "chat"
+      extraction_config:
+        format: "markdown"
+        post_processing: ["format_markdown", "generate_summary"]
+        max_summary_length: 100
+        include_metadata: true
+      prompt:
+        - type: "previous_response"
+          step: "claude_session_continue"
+          extract_with: "content_extractor"
+      claude_options:
+        max_turns: 1
+        timeout_ms: 10000
+
+    # Step 9: Final smart step with custom options override
+    - name: "claude_smart_final"
+      type: "claude_smart"
+      preset: "chat"  # Simple conversational preset
+      environment_aware: true
+      prompt:
+        - type: "static"
+          content: "Say 'Pipeline complete!' and nothing else."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        allowed_tools: []  # No tools needed for simple response
+        verbose: false
+        timeout_ms: 8000
+        debug_mode: false
+        telemetry_enabled: true
+        cost_tracking: true

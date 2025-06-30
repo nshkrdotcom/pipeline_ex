@@ -1,0 +1,15 @@
+workflow:
+  name: "claude_live_test"
+  description: "Simple Claude test for live mode verification"
+
+  steps:
+    - name: "simple_claude_test"
+      type: "claude_smart"
+      preset: "development"
+      prompt:
+        - type: "static"
+          content: "What is 2+2? Answer with just the number."
+      claude_options:
+        max_turns: 1
+        output_format: "text"
+        timeout_ms: 10000
