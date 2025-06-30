@@ -7,9 +7,11 @@ set -e
 
 echo "🔍 Running Credo (excluding refactoring opportunities)..."
 
-# Capture credo output
+# Capture credo output (disable exit on error temporarily)
+set +e
 credo_output=$(mix credo --strict 2>&1)
 credo_exit_code=$?
+set -e
 
 # Print the output but filter out refactoring opportunities for analysis
 echo "$credo_output" | grep -v -A 1000 "Refactoring opportunities" | grep -v -E "^\[F\]" || true
