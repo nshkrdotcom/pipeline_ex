@@ -3,48 +3,58 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
   Mock implementation of Claude provider for testing.
   """
 
-  def query(prompt, _options \\ %{}) do
+  def query(prompt, options \\ %{}) do
     # Check for pattern-specific responses first
     case find_matching_pattern(prompt) do
       {:ok, response} ->
-        {:ok, response}
+        enhanced_response = enhance_response_with_options(response, options)
+        {:ok, enhanced_response}
 
       :not_found ->
-        handle_fallback_patterns(prompt)
+        handle_fallback_patterns(prompt, options)
     end
   end
 
-  defp handle_fallback_patterns(prompt) do
-    case prompt do
-      "simple test" ->
-        {:ok, %{"text" => "Mock response for simple test", "success" => true, "cost" => 0.001}}
+  defp handle_fallback_patterns(prompt, options) do
+    base_response =
+      case prompt do
+        "simple test" ->
+          %{"text" => "Mock response for simple test", "success" => true, "cost" => 0.001}
 
-      "error test" ->
-        {:error, "Mock error for testing"}
+        "error test" ->
+          {:error, "Mock error for testing"}
 
-      prompt when is_binary(prompt) ->
-        handle_content_based_patterns(prompt)
+        prompt when is_binary(prompt) ->
+          handle_content_based_patterns(prompt)
 
-      _ ->
-        {:ok, %{"text" => "Mock response", "success" => true, "cost" => 0.001}}
+        _ ->
+          %{"text" => "Mock response", "success" => true, "cost" => 0.001}
+      end
+
+    case base_response do
+      {:error, _} = error ->
+        error
+
+      response when is_map(response) ->
+        enhanced_response = enhance_response_with_options(response, options)
+        {:ok, enhanced_response}
     end
   end
 
   defp handle_content_based_patterns(prompt) do
     cond do
       String.contains?(prompt, "Python") ->
-        {:ok, %{"text" => "Mock Python code response", "success" => true, "cost" => 0.002}}
+        %{"text" => "Mock Python code response", "success" => true, "cost" => 0.002}
 
       String.contains?(prompt, "calculator") ->
-        {:ok, %{"text" => "Mock calculator implementation", "success" => true, "cost" => 0.004}}
+        %{"text" => "Mock calculator implementation", "success" => true, "cost" => 0.004}
 
       true ->
-        {:ok,
-         %{
-           "text" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
-           "success" => true,
-           "cost" => 0.001
-         }}
+        %{
+          "text" => "Mock response for: #{String.slice(prompt, 0, 50)}...",
+          "success" => true,
+          "cost" => 0.001
+        }
     end
   end
 
@@ -71,5 +81,85 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
         nil
       end
     end)
+  end
+
+  # Enhanced response function for claude_smart step support
+  defp enhance_response_with_options(response, options) when is_map(response) do
+    # Add preset information if available
+    enhanced_response =
+      if Map.has_key?(options, "preset") do
+        preset = options["preset"]
+
+        # Update cost based on preset
+        preset_cost = calculate_preset_cost(preset)
+
+        # Add claude_smart_metadata
+        metadata = %{
+          "preset_applied" => preset,
+          "environment_aware" => Map.get(options, "environment_aware", false),
+          "optimization_applied" => true
+        }
+
+        # Enhance text with preset-specific content
+        enhanced_text = enhance_text_for_preset(response["text"], preset)
+
+        response
+        |> Map.put("cost", preset_cost)
+        |> Map.put("claude_smart_metadata", metadata)
+        |> Map.put("text", enhanced_text)
+        |> Map.put("enhanced_provider", true)
+      else
+        response
+      end
+
+    # Add session information if available
+    enhanced_response =
+      if Map.has_key?(options, "session_id") do
+        session_info = %{
+          "session_id" => options["session_id"],
+          "session_name" => options["session_name"] || "default",
+          "session_active" => true
+        }
+
+        Map.merge(enhanced_response, session_info)
+      else
+        enhanced_response
+      end
+
+    enhanced_response
+  end
+
+  defp enhance_response_with_options(response, _options), do: response
+
+  defp calculate_preset_cost(preset) do
+    case preset do
+      # Higher cost due to verbose mode
+      "development" -> 0.002
+      # Lower cost due to restrictions
+      "production" -> 0.001
+      # Medium cost for analysis
+      "analysis" -> 0.0015
+      # Lowest cost for simple chat
+      "chat" -> 0.0005
+      # Minimal cost for testing
+      "test" -> 0.0001
+      _ -> 0.001
+    end
+  end
+
+  defp enhance_text_for_preset(text, preset) do
+    base_text = text || "Mock enhanced Claude response"
+
+    preset_suffix =
+      case preset do
+        "development" -> " with development optimizations applied"
+        "production" -> " with production safety constraints"
+        "analysis" -> " with detailed analysis capabilities"
+        "chat" -> " in conversational mode"
+        "test" -> " optimized for testing"
+        _ -> " with default settings"
+      end
+
+    "#{base_text}#{preset_suffix}"
   end
 end

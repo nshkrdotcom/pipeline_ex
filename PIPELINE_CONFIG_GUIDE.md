@@ -851,6 +851,21 @@ workflow:
   workspace_dir: string          # Optional
   checkpoint_dir: string         # Optional
   
+  # NEW: Enhanced Claude authentication and environment configuration
+  claude_auth:                   # Optional
+    auto_check: boolean          # Verify auth before starting
+    provider: enum["anthropic", "aws_bedrock", "google_vertex"]
+    fallback_mock: boolean       # Use mocks if auth fails in dev
+    diagnostics: boolean         # Run AuthChecker diagnostics
+  
+  environment:                   # Optional
+    mode: enum["development", "production", "test"]
+    debug_level: enum["basic", "detailed", "performance"]
+    cost_alerts:
+      enabled: boolean
+      threshold_usd: float
+      notify_on_exceed: boolean
+  
   defaults:                      # Optional
     gemini_model: string
     gemini_token_budget:
@@ -859,6 +874,7 @@ workflow:
       top_p: float
       top_k: integer
     claude_output_format: enum["json", "text", "stream-json"]
+    claude_preset: enum["development", "production", "analysis", "chat"]  # NEW
     output_dir: string
     
   gemini_functions:              # Optional
@@ -868,7 +884,7 @@ workflow:
       
   steps:                         # Required
     - name: string               # Required
-      type: enum["gemini", "claude", "parallel_claude"]  # Required
+      type: enum["gemini", "claude", "parallel_claude", "claude_session", "claude_smart", "claude_extract", "claude_batch", "claude_robust"]  # Enhanced
       role: enum["brain", "muscle"]  # Optional
       condition: string          # Optional
       output_to_file: string     # Optional
@@ -878,8 +894,82 @@ workflow:
       token_budget: object       # Optional
       functions: array[string]   # Optional
       
-      # For type: "claude"
-      claude_options: object     # Optional
+      # For type: "claude" (Enhanced options)
+      claude_options:            # Optional
+        # Core Configuration
+        max_turns: integer
+        output_format: enum["text", "json", "stream_json"]
+        verbose: boolean
+        
+        # Tool Management
+        allowed_tools: array[string]
+        disallowed_tools: array[string]
+        
+        # System Prompts
+        system_prompt: string
+        append_system_prompt: string
+        
+        # Working Environment
+        cwd: string
+        
+        # Permission Management (Future: MCP Support)
+        permission_mode: enum["default", "accept_edits", "bypass_permissions", "plan"]
+        permission_prompt_tool: string
+        
+        # Advanced Features (Future)
+        mcp_config: string
+        
+        # Session Management
+        session_id: string
+        resume_session: boolean
+        
+        # Performance & Reliability
+        retry_config:
+          max_retries: integer
+          backoff_strategy: enum["linear", "exponential"]
+          retry_on: array[string]
+        timeout_ms: integer
+        
+        # Debug & Monitoring
+        debug_mode: boolean
+        telemetry_enabled: boolean
+        cost_tracking: boolean
+      
+      # NEW: For type: "claude_smart" (Using OptionBuilder presets)
+      preset: enum["development", "production", "analysis", "chat"]
+      environment_aware: boolean
+      
+      # NEW: For type: "claude_extract" (Enhanced content processing)
+      extraction_config:
+        use_content_extractor: boolean
+        format: enum["text", "json", "structured", "summary", "markdown"]
+        post_processing: array[string]
+        max_summary_length: integer
+        include_metadata: boolean
+      
+      # NEW: For type: "claude_session" (Session management)
+      session_config:
+        persist: boolean
+        session_name: string
+        continue_on_restart: boolean
+        checkpoint_frequency: integer
+        description: string
+      
+      # NEW: For type: "claude_batch" (Batch processing)
+      batch_config:
+        max_parallel: integer
+        timeout_per_task: integer
+        consolidate_results: boolean
+      tasks: array
+        - file: string
+          prompt: string
+      
+      # NEW: For type: "claude_robust" (Error recovery)
+      retry_config:
+        max_retries: integer
+        backoff_strategy: enum["linear", "exponential"]
+        retry_conditions: array[string]
+        fallback_action: string
       
       # For type: "parallel_claude"
       parallel_tasks: array      # Required
@@ -889,7 +979,7 @@ workflow:
           output_to_file: string
           
       prompt: array              # Required (except parallel_claude)
-        - type: enum["static", "file", "previous_response"]
+        - type: enum["static", "file", "previous_response", "session_context", "claude_continue"]  # Enhanced
           # For type: "static"
           content: string
           # For type: "file"
@@ -897,6 +987,73 @@ workflow:
           # For type: "previous_response"
           step: string
           extract: string        # Optional
+          extract_with: enum["content_extractor"]  # NEW: Use ContentExtractor
+          summary: boolean       # NEW: Summarize content
+          max_length: integer    # NEW: Limit extracted content length
+          # NEW: For type: "session_context"
+          session_id: string
+          include_last_n: integer
+          # NEW: For type: "claude_continue"
+          new_prompt: string
 ```
+
+### Enhanced Claude Options Reference
+
+The enhanced `claude_options` section now supports the full feature set of the Claude Code SDK:
+
+#### Basic Configuration
+- `max_turns`: Maximum conversation turns (integer)
+- `output_format`: Response format - "text", "json", or "stream_json"
+- `verbose`: Enable detailed logging (boolean)
+
+#### Tool Management  
+- `allowed_tools`: List of permitted tool names (array of strings)
+- `disallowed_tools`: List of explicitly forbidden tools (array of strings)
+
+#### System Prompts
+- `system_prompt`: Custom system prompt override (string)
+- `append_system_prompt`: Additional system prompt to append (string)
+
+#### Working Environment
+- `cwd`: Working directory for Claude operations (string)
+
+#### Session Management
+- `session_id`: Explicit session identifier for continuation (string)
+- `resume_session`: Automatically resume existing session if available (boolean)
+
+#### Performance & Reliability
+- `retry_config`: Retry mechanism configuration (object)
+  - `max_retries`: Maximum number of retry attempts (integer)
+  - `backoff_strategy`: "linear" or "exponential" backoff (string)
+  - `retry_on`: List of conditions that trigger retries (array)
+- `timeout_ms`: Request timeout in milliseconds (integer)
+
+#### Monitoring & Debug
+- `debug_mode`: Enable debug output and diagnostics (boolean)
+- `telemetry_enabled`: Enable performance telemetry (boolean)
+- `cost_tracking`: Track and report API costs (boolean)
+
+### Smart Configuration Presets
+
+The new `claude_smart` step type supports OptionBuilder presets:
+
+- **`development`**: Permissive settings, verbose logging, full tool access
+- **`production`**: Restricted settings, minimal tools, safe defaults  
+- **`analysis`**: Read-only tools, optimized for code analysis
+- **`chat`**: Simple conversation settings, basic tools
+
+### Future-Ready Features
+
+The schema includes placeholders for planned features:
+
+#### MCP Integration
+- `mcp_config`: Path to MCP server configuration file
+- `permission_prompt_tool`: Tool for handling permission prompts
+- `permission_mode`: Permission handling strategy
+
+#### Advanced Content Processing
+- Content extraction with multiple format options
+- Post-processing pipeline support
+- Metadata inclusion and summarization
 
 This guide provides comprehensive documentation for creating and managing pipeline configuration files. Use it as a reference when building your own AI-orchestrated workflows.
