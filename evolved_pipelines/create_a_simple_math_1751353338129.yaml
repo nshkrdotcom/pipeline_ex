@@ -1,0 +1,43 @@
+name: simple_math_pipeline
+description: Performs basic mathematical operations
+version: "1.0.0"
+
+steps:
+  - name: get_numbers
+    type: input
+    prompt: "Enter two numbers separated by a space:"
+    output_key: numbers
+
+  - name: parse_numbers
+    type: transform
+    input: "{{ numbers }}"
+    transform: |
+      numbers = input.strip().split()
+      return {
+        "num1": float(numbers[0]),
+        "num2": float(numbers[1])
+      }
+    output_key: parsed_numbers
+
+  - name: calculate
+    type: transform
+    input: "{{ parsed_numbers }}"
+    transform: |
+      num1 = input["num1"]
+      num2 = input["num2"]
+      return {
+        "addition": num1 + num2,
+        "subtraction": num1 - num2,
+        "multiplication": num1 * num2,
+        "division": num1 / num2 if num2 != 0 else "Cannot divide by zero"
+      }
+    output_key: results
+
+  - name: format_output
+    type: output
+    input: "{{ results }}"
+    format: |
+      Addition: {{ results.addition }}
+      Subtraction: {{ results.subtraction }}
+      Multiplication: {{ results.multiplication }}
+      Division: {{ results.division }}

@@ -86,7 +86,10 @@ defmodule Pipeline.Providers.ClaudeProvider do
   defp build_sdk_options(options) do
     ClaudeCodeSDK.Options.new(
       max_turns: options[:max_turns] || 1,
-      verbose: options[:verbose] || true
+      verbose: options[:verbose] || true,
+      allowed_tools: options[:allowed_tools],
+      disallowed_tools: options[:disallowed_tools],
+      system_prompt: options[:system_prompt]
     )
   end
 

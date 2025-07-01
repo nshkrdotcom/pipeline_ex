@@ -7,8 +7,10 @@ workflow:
   - name: create_pipeline
     type: claude
     claude_options:
-      max_turns: 2
-      system_prompt: "Generate YAML pipeline configurations only. No tools, no todos, no analysis - just create the YAML and respond with it directly."
+      max_turns: 1
+      system_prompt: "You are a YAML generator. Output only valid YAML pipeline configuration. No tools. No analysis. No conversation. Just YAML."
+      allowed_tools: []
+      disallowed_tools: ["Task", "Bash", "Glob", "Grep", "LS", "Read", "Edit", "MultiEdit", "Write", "NotebookRead", "NotebookEdit", "WebFetch", "TodoRead", "TodoWrite", "WebSearch"]
     prompt:
       - type: "static"
         content: |

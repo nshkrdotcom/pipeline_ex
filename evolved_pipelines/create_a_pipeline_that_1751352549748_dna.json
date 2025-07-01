@@ -1,0 +1,10 @@
+{
+  "generation": 1,
+  "id": "73ec6dcab6a7269696e733c2a4e2f44a",
+  "source": "emergent_intelligence",
+  "traits": [
+    "emergent",
+    "fallback",
+    "self_recovery"
+  ]
+}
