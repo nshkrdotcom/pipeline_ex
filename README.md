@@ -4,6 +4,23 @@
 
 A flexible Elixir pipeline for chaining AI providers (Claude and Gemini) with support for both live API calls and mocked responses for testing.
 
+## 🧬 Genesis Pipeline: Self-Improving AI System
+
+**NEW**: Our flagship feature - a pipeline that generates pipelines! The Genesis Pipeline is an AI system that creates other AI pipelines, enabling true self-improvement and evolution.
+
+### Quick Start with Genesis
+
+```bash
+# Generate a new AI pipeline with one command
+mix pipeline.generate.live "Create a sentiment analysis pipeline"
+
+# The system will create a complete, executable pipeline in evolved_pipelines/
+# Run your generated pipeline immediately:
+mix pipeline.run evolved_pipelines/sentiment_analyzer_*.yaml
+```
+
+**What just happened?** The Genesis Pipeline used Claude to analyze your request, design the optimal pipeline structure, and generate a complete YAML configuration that's immediately ready to execute.
+
 ## Features
 
 - 🤖 **Multi-AI Integration**: Chain Claude and Gemini APIs together
