@@ -766,21 +766,6 @@ defmodule Mix.Tasks.Pipeline.Generate do
     end
   end
 
-  defp create_simple_package(yaml_content) do
-    %{
-      "pipeline_yaml" => yaml_content,
-      "documentation" => %{
-        "pipeline_name" => "generated_pipeline",
-        "description" => "AI-generated pipeline",
-        "purpose" => "general purpose"
-      },
-      "dna" => %{
-        "id" => generate_id(),
-        "generation" => 1,
-        "traits" => ["ai_generated", "live_mode"]
-      }
-    }
-  end
   
   defp create_emergent_fallback(request) do
     # When Claude misbehaves, use emergent intelligence to interpret ambiguous requests
