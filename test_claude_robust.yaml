@@ -1,0 +1,11 @@
+workflow:
+  name: test_claude_robust
+  description: Test Claude Robust step
+  version: "1.0.0"
+
+  steps:
+  - name: test_step
+    type: claude_robust
+    prompt:
+      - type: "static"
+        content: "Generate a simple YAML workflow that says hello world."

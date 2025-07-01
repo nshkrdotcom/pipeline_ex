@@ -1,0 +1,38 @@
+name: create_a_simple
+description: "Mock-generated pipeline for: Create a simple text summarizer"
+version: "1.0.0"
+
+metadata:
+  generated_by: genesis_pipeline_mock
+  request: "Create a simple text summarizer"
+  pipeline_type: generation
+  complexity: moderate
+
+steps:
+  - name: understand_requirements
+    type: claude_smart
+    prompt: |
+      Understand the generation requirements:
+      {{requirements}}
+      
+      For request: Create a simple text summarizer
+      
+  - name: generate_content
+    type: claude_robust
+    prompt: |
+      Generate content based on requirements:
+      {{steps.understand_requirements.result}}
+      
+      Ensure the generated content is:
+      1. Relevant and accurate
+      2. Well-structured
+      3. Complete and comprehensive
+      
+  - name: review_and_refine
+    type: claude_smart
+    prompt: |
+      Review and refine the generated content:
+      {{steps.generate_content.result}}
+      
+      Make improvements for quality and clarity.
+

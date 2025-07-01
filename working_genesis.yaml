@@ -1,0 +1,21 @@
+workflow:
+  name: working_genesis
+  description: Working pipeline generator (no templates)
+  version: "1.0.0"
+
+  steps:
+  - name: create_pipeline
+    type: claude
+    prompt:
+      - type: "static"
+        content: |
+          Create a simple YAML pipeline configuration for a text processing task.
+          
+          The pipeline should:
+          1. Have a descriptive name like "text_processor"
+          2. Include one step that uses claude or gemini
+          3. Have a prompt that processes or analyzes text input
+          4. Be properly formatted YAML
+          5. Be ready to execute with 'mix pipeline.run'
+          
+          Return only the complete YAML configuration, nothing else.

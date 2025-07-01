@@ -1,0 +1,32 @@
+# Simple test case for Genesis Pipeline
+# This demonstrates generating a basic pipeline
+
+input:
+  pipeline_request: "Create a simple pipeline that summarizes text documents"
+
+# The Genesis Pipeline should generate something like:
+expected_output:
+  name: text_summarizer
+  description: Generated pipeline for text summarization
+  version: "1.0.0"
+  
+  steps:
+    - name: read_document
+      type: claude_smart
+      prompt: |
+        Read and understand the following document:
+        {{document}}
+        
+        Identify the main topics and key points.
+    
+    - name: generate_summary
+      type: claude_robust
+      prompt: |
+        Based on your analysis:
+        {{steps.read_document.result}}
+        
+        Generate a concise summary that:
+        1. Captures the main ideas
+        2. Preserves important details
+        3. Maintains logical flow
+        4. Is approximately 20% of original length

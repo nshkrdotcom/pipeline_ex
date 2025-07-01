@@ -1,0 +1,11 @@
+workflow:
+  name: test_claude
+  description: Simple Claude test
+  version: "1.0.0"
+
+  steps:
+  - name: test_step
+    type: claude_smart
+    prompt:
+      - type: "static"
+        content: "Say hello and return the text: Hello from Claude!"

@@ -1,0 +1,176 @@
+workflow:
+  name: genesis_pipeline
+  description: The primordial pipeline that births all other pipelines
+  version: "1.0.0"
+  metadata:
+    author: META-PIPELINE System
+    type: pipeline_generator
+    complexity: high
+
+  steps:
+  - name: analyze_requirements
+    type: claude_smart
+    prompt:
+      - type: "static"
+        content: |
+          Analyze the following pipeline request and determine the optimal pipeline structure:
+          
+          Request: {{pipeline_request}}
+          
+          Consider and provide:
+          1. Core functionality needed
+            - What is the main purpose of this pipeline?
+            - What are the inputs and outputs?
+            - What transformations are required?
+          
+          2. Optimal step sequence
+            - What steps are needed?
+            - Should any steps run in parallel?
+            - What are the dependencies between steps?
+          
+          3. Provider selection strategy
+            - Which AI providers are best suited for each step?
+            - Consider: Claude for complex reasoning, Gemini for structured data
+            - Balance cost vs performance
+          
+          4. Performance requirements
+            - Expected execution time
+            - Token usage considerations
+            - Error handling needs
+          
+          5. Special considerations
+            - Does this need session management?
+            - Should it use batch processing?
+            - Any specific output format requirements?
+          
+          Provide a detailed analysis that will guide pipeline generation.
+    
+  - name: generate_pipeline_dna
+    type: claude_extract
+    prompt:
+      - type: "static"
+        content: |
+          Based on the requirements analysis, create the genetic blueprint for this pipeline.
+          
+          Analysis: {{steps.analyze_requirements.result}}
+          
+          Generate a comprehensive pipeline DNA structure that includes all necessary genetic information for creating a functional pipeline.
+    schema:
+      pipeline_genome:
+        identity:
+          name: string
+          description: string
+          version: string
+          purpose: string
+        
+        traits:
+          performance_profile: string  # "speed_optimized", "accuracy_optimized", "balanced"
+          error_handling_strategy: string  # "fail_fast", "retry_robust", "graceful_degradation"
+          optimization_preferences: array  # ["token_efficiency", "parallel_execution", "caching"]
+          complexity_level: string  # "simple", "moderate", "complex"
+        
+        chromosomes:
+          step_sequences:
+            - step_name: string
+              step_type: string  # claude, gemini, claude_smart, etc.
+              provider: string
+              purpose: string
+              dependencies: array
+              
+          provider_mappings:
+            primary_provider: string
+            fallback_provider: string
+            provider_rules: array
+            
+          prompt_patterns:
+            - pattern_type: string  # "analysis", "extraction", "generation", "validation"
+              template: string
+              variables: array
+              
+        metadata:
+          estimated_tokens: integer
+          estimated_duration_ms: integer
+          resource_requirements: object
+          
+  - name: synthesize_pipeline_yaml
+    type: claude_smart
+    prompt:
+      - type: "static"
+        content: |
+          Transform the pipeline DNA into a complete, functional pipeline YAML configuration.
+          
+          Pipeline DNA: {{steps.generate_pipeline_dna.result}}
+          
+          Create a properly formatted YAML pipeline that:
+          1. Follows the pipeline_ex framework structure
+          2. Includes all necessary steps with appropriate types
+          3. Has well-crafted prompts for each step
+          4. Includes proper error handling
+          5. Is optimized based on the DNA traits
+          6. Includes helpful comments and documentation
+          
+          The output should be a complete, ready-to-execute pipeline YAML.
+      
+  - name: validate_pipeline
+    type: claude_robust
+    prompt:
+      - type: "static"
+        content: |
+          Validate the generated pipeline for correctness and viability.
+          
+          Generated Pipeline:
+          ```yaml
+          {{steps.synthesize_pipeline_yaml.result}}
+          ```
+          
+          Perform comprehensive validation:
+          1. Syntax validation - Is the YAML properly formatted?
+          2. Step type validation - Are all step types valid?
+          3. Provider validation - Are providers correctly specified?
+          4. Dependency validation - Are step dependencies logical?
+          5. Prompt validation - Are prompts complete and well-formed?
+          6. Resource validation - Are resource requirements reasonable?
+          
+          If issues are found, provide specific fixes. Otherwise, confirm the pipeline is ready for use.
+          
+          Return the final validated pipeline YAML.
+      
+  - name: generate_documentation
+    type: claude_extract
+    prompt:
+      - type: "static"
+        content: |
+          Generate comprehensive documentation for the newly created pipeline.
+          
+          Pipeline Configuration:
+          ```yaml
+          {{steps.validate_pipeline.result}}
+          ```
+          
+          Create documentation that includes usage instructions and examples.
+    schema:
+      documentation:
+        pipeline_name: string
+        description: string
+        purpose: string
+        
+        usage:
+          basic_usage: string
+          example_command: string
+          required_inputs: array
+          expected_outputs: array
+          
+        configuration:
+          customizable_parameters: array
+          environment_variables: array
+          provider_requirements: array
+          
+        performance:
+          estimated_execution_time: string
+          token_usage_estimate: string
+          cost_estimate: string
+          
+        examples:
+          - scenario: string
+            input: string
+            expected_output: string

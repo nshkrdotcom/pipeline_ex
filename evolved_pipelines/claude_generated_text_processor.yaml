@@ -1,0 +1,18 @@
+workflow:
+  name: text_processor
+  description: Processes and analyzes text input using AI
+  version: "1.0.0"
+
+  steps:
+  - name: analyze_text
+    type: claude
+    prompt:
+      - type: "static"
+        content: |
+          Please analyze the following text and provide:
+          1. A brief summary
+          2. Key themes or topics  
+          3. Sentiment analysis
+          4. Word count
+          
+          Text to analyze: "Sample text input"

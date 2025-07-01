@@ -1,0 +1,253 @@
+# Example: Using Genesis Pipeline to generate a data analysis pipeline
+
+# Input configuration for the Genesis Pipeline
+input:
+  pipeline_request: |
+    Create a pipeline that:
+    1. Reads customer feedback data from multiple sources
+    2. Performs sentiment analysis on the feedback
+    3. Extracts key themes and patterns
+    4. Generates a summary report with actionable insights
+    5. Creates visualizations of the findings
+    
+    The pipeline should be optimized for accuracy over speed, handle errors gracefully,
+    and provide detailed logging for debugging purposes.
+
+# Expected output structure from Genesis Pipeline
+expected_output:
+  pipeline_genome:
+    identity:
+      name: customer_feedback_analyzer
+      description: Comprehensive customer feedback analysis pipeline
+      version: "1.0.0"
+      purpose: Analyze customer feedback for insights and patterns
+    
+    traits:
+      performance_profile: accuracy_optimized
+      error_handling_strategy: graceful_degradation
+      optimization_preferences:
+        - quality_over_speed
+        - comprehensive_analysis
+        - detailed_logging
+      complexity_level: complex
+    
+    chromosomes:
+      step_sequences:
+        - step_name: collect_feedback
+          step_type: parallel_claude
+          provider: claude
+          purpose: Gather feedback from multiple sources
+          dependencies: []
+          
+        - step_name: sentiment_analysis
+          step_type: claude_batch
+          provider: claude
+          purpose: Analyze sentiment of each feedback item
+          dependencies: ["collect_feedback"]
+          
+        - step_name: theme_extraction
+          step_type: claude_smart
+          provider: claude
+          purpose: Extract key themes and patterns
+          dependencies: ["sentiment_analysis"]
+          
+        - step_name: insight_generation
+          step_type: claude_robust
+          provider: claude
+          purpose: Generate actionable insights
+          dependencies: ["theme_extraction"]
+          
+        - step_name: report_creation
+          step_type: claude_extract
+          provider: claude
+          purpose: Create structured summary report
+          dependencies: ["insight_generation"]
+          
+        - step_name: visualization_prep
+          step_type: gemini_instructor
+          provider: gemini
+          purpose: Prepare data for visualization
+          dependencies: ["report_creation"]
+      
+      provider_mappings:
+        primary_provider: claude
+        fallback_provider: gemini
+        provider_rules:
+          - use_claude_for: ["analysis", "extraction", "generation"]
+          - use_gemini_for: ["structured_data", "visualization"]
+      
+      prompt_patterns:
+        - pattern_type: analysis
+          template: |
+            Analyze the following {{data_type}}:
+            {{input_data}}
+            
+            Focus on:
+            {{analysis_focus}}
+            
+            Provide detailed insights with supporting evidence.
+          variables: ["data_type", "input_data", "analysis_focus"]
+          
+        - pattern_type: extraction
+          template: |
+            Extract {{target_information}} from:
+            {{source_data}}
+            
+            Organize findings by:
+            {{organization_method}}
+          variables: ["target_information", "source_data", "organization_method"]
+
+# Example of generated pipeline YAML
+generated_pipeline:
+  name: customer_feedback_analyzer
+  description: "Generated pipeline with traits: quality_over_speed, comprehensive_analysis, detailed_logging. Generation: 0"
+  version: "0.0.0"
+  
+  metadata:
+    dna_id: "550e8400-e29b-41d4-a716-446655440000"
+    generation: 0
+    lineage: []
+    performance_profile: accuracy_optimized
+    complexity: complex
+    
+  steps:
+    - name: collect_feedback
+      type: parallel_claude
+      prompt: |
+        Gather customer feedback from multiple sources.
+        
+        Process the input and provide a detailed response.
+      config:
+        tasks:
+          - source_email: "Extract feedback from email communications"
+          - source_surveys: "Process survey responses"
+          - source_reviews: "Analyze product reviews"
+          - source_support: "Gather support ticket feedback"
+    
+    - name: sentiment_analysis
+      type: claude_batch
+      prompt: |
+        Analyze the sentiment of each feedback item:
+        {{steps.collect_feedback.results}}
+        
+        For each piece of feedback:
+        1. Determine overall sentiment (positive/negative/neutral)
+        2. Identify emotional intensity (1-10)
+        3. Extract specific sentiment drivers
+        4. Note any mixed or complex sentiments
+        
+        Provide detailed analysis with confidence scores.
+      config:
+        model: claude-3-opus-20240229
+        max_tokens: 4096
+        temperature: 0.3
+      retry:
+        max_attempts: 3
+        backoff: exponential
+    
+    - name: theme_extraction
+      type: claude_smart
+      prompt: |
+        Extract key themes and patterns from the sentiment analysis:
+        {{steps.sentiment_analysis.result}}
+        
+        Identify:
+        1. Recurring themes across feedback
+        2. Common pain points
+        3. Frequently praised aspects
+        4. Emerging trends
+        5. Outlier opinions worth noting
+        
+        Group themes by:
+        - Frequency of occurrence
+        - Impact on customer satisfaction
+        - Business priority
+      config:
+        model: claude-3-opus-20240229
+        max_tokens: 4096
+        temperature: 0.4
+      on_error:
+        action: continue
+        default_value: 
+          error: "Theme extraction failed gracefully"
+          themes: []
+    
+    - name: insight_generation
+      type: claude_robust
+      prompt: |
+        Generate actionable insights based on themes and patterns:
+        {{steps.theme_extraction.result}}
+        
+        For each major theme:
+        1. Provide root cause analysis
+        2. Suggest specific actions
+        3. Estimate impact of addressing the issue
+        4. Recommend priority level
+        5. Identify quick wins vs long-term improvements
+        
+        Format insights for executive presentation.
+      config:
+        model: claude-3-opus-20240229
+        max_tokens: 4096
+        temperature: 0.5
+      cache:
+        enabled: true
+        ttl_seconds: 3600
+    
+    - name: report_creation
+      type: claude_extract
+      prompt: |
+        Create a comprehensive summary report:
+        {{steps.insight_generation.result}}
+        
+        Structure the report with all findings and recommendations.
+      schema:
+        report:
+          executive_summary: string
+          key_findings:
+            - finding: string
+              evidence: string
+              impact: string
+              recommendation: string
+          sentiment_overview:
+            positive_percentage: number
+            negative_percentage: number
+            neutral_percentage: number
+            average_intensity: number
+          themes:
+            - theme_name: string
+              frequency: number
+              sentiment: string
+              examples: array
+          action_items:
+            - priority: string
+              action: string
+              expected_outcome: string
+              timeline: string
+          methodology: string
+          data_sources: array
+    
+    - name: visualization_prep
+      type: gemini_instructor
+      prompt: Prepare data for visualization dashboards
+      functions:
+        - name: format_sentiment_data
+          description: Format sentiment data for charts
+          parameters:
+            data: object
+            chart_type: string
+        - name: prepare_theme_visualization
+          description: Structure theme data for visual representation
+          parameters:
+            themes: array
+            visualization_type: string
+        - name: create_trend_data
+          description: Generate time-series data for trends
+          parameters:
+            historical_data: array
+            time_period: string
+      config:
+        model: gemini-1.5-pro
+        generation_config:
+          temperature: 0.2
+          max_output_tokens: 2048

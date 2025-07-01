@@ -1,0 +1,42 @@
+name: create_a_pipeline
+description: "Mock-generated pipeline for: Create a pipeline that analyzes customer feedback sentiment"
+version: "1.0.0"
+
+metadata:
+  generated_by: genesis_pipeline_mock
+  request: "Create a pipeline that analyzes customer feedback sentiment"
+  pipeline_type: analysis
+  complexity: moderate
+
+steps:
+  - name: data_collection
+    type: claude_smart
+    prompt: |
+      Collect and organize data for analysis:
+      {{input_data}}
+      
+      Focus on gathering relevant information for: Create a pipeline that analyzes customer feedback sentiment
+      
+  - name: perform_analysis
+    type: claude_robust
+    prompt: |
+      Analyze the collected data:
+      {{steps.data_collection.result}}
+      
+      Provide comprehensive analysis including:
+      1. Key findings
+      2. Patterns and trends
+      3. Insights and implications
+      
+  - name: generate_report
+    type: claude_extract
+    prompt: |
+      Generate analysis report:
+      {{steps.perform_analysis.result}}
+    schema:
+      report:
+        summary: string
+        findings: array
+        recommendations: array
+        confidence_score: number
+

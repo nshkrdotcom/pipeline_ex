@@ -1,0 +1,25 @@
+workflow:
+  name: simple_genesis
+  description: Simple pipeline generator
+  version: "1.0.0"
+
+  input:
+    pipeline_request: "default request"
+    performance_profile: "balanced"
+    target_complexity: "moderate"
+
+  steps:
+  - name: create_pipeline
+    type: claude
+    prompt:
+      - type: "static"
+        content: |
+          Create a simple YAML pipeline configuration for the following request: {{pipeline_request}}
+          
+          The pipeline should have:
+          1. A descriptive name based on the request
+          2. At least one step that uses claude or gemini
+          3. A simple prompt for that step
+          4. Proper YAML structure
+          
+          Return only the YAML configuration, no other text.
