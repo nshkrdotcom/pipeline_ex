@@ -30,3 +30,4 @@ pipeline-*.tar
 /checkpoints/
 
 /cleanup.sh
+/evolved_pipelines/

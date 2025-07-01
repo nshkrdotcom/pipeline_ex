@@ -1,9 +1,0 @@
-{
-  "generation": 1,
-  "id": "92db423c49924d4eecbcbad11d6bc04a",
-  "source": "simple_genesis",
-  "traits": [
-    "simple_generated",
-    "live_mode"
-  ]
-}
