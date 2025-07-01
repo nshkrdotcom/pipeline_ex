@@ -70,7 +70,7 @@ defmodule Pipeline.Meta.Generator do
   defp generate_prompt(step_spec, dna) do
     # Find matching prompt pattern
     pattern = find_prompt_pattern(step_spec["purpose"], dna.structural_chromosome.prompt_patterns)
-    
+
     if pattern do
       apply_prompt_pattern(pattern, step_spec)
     else
@@ -93,7 +93,7 @@ defmodule Pipeline.Meta.Generator do
   defp generate_default_prompt(step_spec) do
     """
     #{step_spec["purpose"]}
-    
+
     Process the input and provide a detailed response.
     """
   end
@@ -137,10 +137,10 @@ defmodule Pipeline.Meta.Generator do
 
   defp calculate_max_tokens(dna) do
     base_tokens = 2048
-    
+
     # Adjust based on token conservation
     conservation_factor = dna.optimization_chromosome.token_conservation
-    
+
     round(base_tokens * (2.0 - conservation_factor))
   end
 
@@ -148,7 +148,7 @@ defmodule Pipeline.Meta.Generator do
     # Higher innovation index = higher temperature
     base_temp = 0.7
     innovation_adjustment = dna.innovation_index * 0.3
-    
+
     min(base_temp + innovation_adjustment, 1.0)
   end
 
@@ -156,10 +156,10 @@ defmodule Pipeline.Meta.Generator do
     case behavioral_chromosome.error_handling_strategy do
       "retry_robust" ->
         Enum.map(steps, &add_retry_config/1)
-      
+
       "graceful_degradation" ->
         Enum.map(steps, &add_fallback_config/1)
-        
+
       _ ->
         steps
     end
@@ -210,7 +210,7 @@ defmodule Pipeline.Meta.Generator do
 
   defp calculate_complexity(dna) do
     step_count = length(dna.structural_chromosome.step_sequences)
-    
+
     cond do
       step_count <= 3 -> "simple"
       step_count <= 7 -> "moderate"
@@ -225,13 +225,13 @@ defmodule Pipeline.Meta.Generator do
     name: #{pipeline_map["name"]}
     description: #{pipeline_map["description"]}
     version: #{pipeline_map["version"]}
-    
+
     metadata:
       dna_id: #{pipeline_map["metadata"]["dna_id"]}
       generation: #{pipeline_map["metadata"]["generation"]}
       performance_profile: #{pipeline_map["metadata"]["performance_profile"]}
       complexity: #{pipeline_map["metadata"]["complexity"]}
-    
+
     steps:
     #{format_steps(pipeline_map["steps"])}
     """
@@ -256,7 +256,7 @@ defmodule Pipeline.Meta.Generator do
   defp simulate_genesis_pipeline(request) do
     # Analyze the request to determine pipeline type
     pipeline_type = infer_pipeline_type(request)
-    
+
     %{
       "pipeline_yaml" => generate_mock_pipeline(request, pipeline_type),
       "documentation" => generate_mock_documentation(request, pipeline_type),
@@ -268,10 +268,10 @@ defmodule Pipeline.Meta.Generator do
       }
     }
   end
-  
+
   defp infer_pipeline_type(request) do
     request_lower = String.downcase(request)
-    
+
     cond do
       String.contains?(request_lower, ["analyze", "analysis", "examine"]) -> :analysis
       String.contains?(request_lower, ["generate", "create", "build"]) -> :generation
@@ -281,33 +281,34 @@ defmodule Pipeline.Meta.Generator do
       true -> :general
     end
   end
-  
+
   defp generate_mock_pipeline(request, pipeline_type) do
-    steps = case pipeline_type do
-      :analysis -> mock_analysis_steps(request)
-      :generation -> mock_generation_steps(request)
-      :processing -> mock_processing_steps(request)
-      :extraction -> mock_extraction_steps(request)
-      :summarization -> mock_summarization_steps(request)
-      :general -> mock_general_steps(request)
-    end
-    
+    steps =
+      case pipeline_type do
+        :analysis -> mock_analysis_steps(request)
+        :generation -> mock_generation_steps(request)
+        :processing -> mock_processing_steps(request)
+        :extraction -> mock_extraction_steps(request)
+        :summarization -> mock_summarization_steps(request)
+        :general -> mock_general_steps(request)
+      end
+
     """
     name: #{generate_pipeline_name(request)}
     description: "Mock-generated pipeline for: #{request}"
     version: "1.0.0"
-    
+
     metadata:
       generated_by: genesis_pipeline_mock
       request: "#{request}"
       pipeline_type: #{pipeline_type}
       complexity: moderate
-    
+
     steps:
     #{steps}
     """
   end
-  
+
   defp mock_analysis_steps(request) do
     """
       - name: data_collection
@@ -342,7 +343,7 @@ defmodule Pipeline.Meta.Generator do
             confidence_score: number
     """
   end
-  
+
   defp mock_generation_steps(request) do
     """
       - name: understand_requirements
@@ -373,7 +374,7 @@ defmodule Pipeline.Meta.Generator do
           Make improvements for quality and clarity.
     """
   end
-  
+
   defp mock_processing_steps(request) do
     """
       - name: input_validation
@@ -403,7 +404,7 @@ defmodule Pipeline.Meta.Generator do
             summary: string
     """
   end
-  
+
   defp mock_extraction_steps(request) do
     """
       - name: source_analysis
@@ -434,7 +435,7 @@ defmodule Pipeline.Meta.Generator do
           Ensure accuracy and completeness.
     """
   end
-  
+
   defp mock_summarization_steps(request) do
     """
       - name: content_analysis
@@ -465,7 +466,7 @@ defmodule Pipeline.Meta.Generator do
           Ensure clarity and conciseness.
     """
   end
-  
+
   defp mock_general_steps(request) do
     """
       - name: understand_task
@@ -493,7 +494,7 @@ defmodule Pipeline.Meta.Generator do
           Ensure quality and completeness.
     """
   end
-  
+
   defp generate_pipeline_name(request) do
     request
     |> String.downcase()
@@ -503,7 +504,7 @@ defmodule Pipeline.Meta.Generator do
     |> Enum.join("_")
     |> then(fn name -> if name == "", do: "generated_pipeline", else: name end)
   end
-  
+
   defp generate_mock_documentation(request, pipeline_type) do
     %{
       "pipeline_name" => generate_pipeline_name(request),
@@ -511,7 +512,8 @@ defmodule Pipeline.Meta.Generator do
       "purpose" => "#{pipeline_type} pipeline",
       "usage" => %{
         "basic_usage" => "mix pipeline.run #{generate_pipeline_name(request)}.yaml",
-        "example_command" => "mix pipeline.run #{generate_pipeline_name(request)}.yaml --input data.json",
+        "example_command" =>
+          "mix pipeline.run #{generate_pipeline_name(request)}.yaml --input data.json",
         "required_inputs" => ["input data relevant to: #{request}"],
         "expected_outputs" => ["processed results", "analysis report", "generated content"]
       },
@@ -522,29 +524,32 @@ defmodule Pipeline.Meta.Generator do
       }
     }
   end
-  
+
   defp infer_traits(request) do
     traits = ["mock_generated"]
     request_lower = String.downcase(request)
-    
-    traits = if String.contains?(request_lower, ["fast", "quick", "speed"]) do
-      ["speed_optimized" | traits]
-    else
-      traits
-    end
-    
-    traits = if String.contains?(request_lower, ["accurate", "precise", "detailed"]) do
-      ["accuracy_optimized" | traits]
-    else
-      traits
-    end
-    
-    traits = if String.contains?(request_lower, ["complex", "comprehensive", "advanced"]) do
-      ["complex_processing" | traits]
-    else
-      traits
-    end
-    
+
+    traits =
+      if String.contains?(request_lower, ["fast", "quick", "speed"]) do
+        ["speed_optimized" | traits]
+      else
+        traits
+      end
+
+    traits =
+      if String.contains?(request_lower, ["accurate", "precise", "detailed"]) do
+        ["accuracy_optimized" | traits]
+      else
+        traits
+      end
+
+    traits =
+      if String.contains?(request_lower, ["complex", "comprehensive", "advanced"]) do
+        ["complex_processing" | traits]
+      else
+        traits
+      end
+
     traits
   end
 end

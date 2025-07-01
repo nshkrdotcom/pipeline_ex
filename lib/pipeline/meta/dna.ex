@@ -18,19 +18,19 @@ defmodule Pipeline.Meta.DNA do
           lineage: list(String.t()),
           generation: non_neg_integer(),
           birth_timestamp: DateTime.t(),
-          
+
           # Core chromosomes
           structural_chromosome: StructuralChromosome.t(),
           behavioral_chromosome: BehavioralChromosome.t(),
           optimization_chromosome: OptimizationChromosome.t(),
           adaptation_chromosome: AdaptationChromosome.t(),
-          
+
           # Genetic markers
           dominant_traits: list(atom()),
           recessive_traits: list(atom()),
           mutations: list(map()),
           epigenetic_markers: map(),
-          
+
           # Fitness metrics
           fitness_score: float(),
           survival_rate: float(),
@@ -132,7 +132,7 @@ defmodule Pipeline.Meta.DNA do
 
   defp calculate_complexity(%__MODULE__{} = dna) do
     step_count = length(dna.structural_chromosome.step_sequences)
-    
+
     cond do
       step_count <= 3 -> "simple"
       step_count <= 7 -> "moderate"
