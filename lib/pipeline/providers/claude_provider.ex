@@ -176,13 +176,19 @@ defmodule Pipeline.Providers.ClaudeProvider do
   end
 
   defp validate_result_message(nil, messages) do
-    Logger.error("❌ Claude SDK conversation incomplete - no result message found")
-
-    Logger.debug(
-      "Available message types: #{inspect(Enum.map(messages, &{&1.type, &1.subtype}))}"
-    )
-
-    throw({:error, "Claude SDK conversation incomplete"})
+    # No explicit result message found, but check if we have successful assistant messages with content
+    assistant_messages = Enum.filter(messages, fn msg -> msg.type == :assistant end)
+    
+    if length(assistant_messages) > 0 and has_meaningful_content?(assistant_messages) do
+      Logger.debug("✅ Claude SDK conversation completed with assistant messages (no explicit result)")
+      :ok
+    else
+      Logger.error("❌ Claude SDK conversation incomplete - no result message found")
+      Logger.debug(
+        "Available message types: #{inspect(Enum.map(messages, &{&1.type, &1.subtype}))}"
+      )
+      throw({:error, "Claude SDK conversation incomplete"})
+    end
   end
 
   defp validate_result_message(%{subtype: :success}, _messages) do
@@ -250,6 +256,14 @@ defmodule Pipeline.Providers.ClaudeProvider do
 
     texts = Enum.map(text_items, fn item -> item["text"] end)
     Enum.join(texts, " ")
+  end
+
+  defp has_meaningful_content?(assistant_messages) do
+    # Check if any assistant message has substantial content
+    Enum.any?(assistant_messages, fn msg ->
+      content = extract_message_content(msg)
+      String.length(String.trim(content)) > 10  # At least 10 meaningful characters
+    end)
   end
 
   defp calculate_cost(messages) do

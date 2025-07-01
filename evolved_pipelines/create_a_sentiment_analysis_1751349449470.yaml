@@ -1,0 +1,7 @@
+workflow:
+  name: generated_pipeline
+  description: AI-generated pipeline
+  version: "1.0.0"
+  
+  steps:
+  \nworkflow:\n  name: \

@@ -1,0 +1,9 @@
+workflow:
+  name: generated_pipeline
+  description: AI-generated pipeline
+  version: "1.0.0"
+  
+  steps:
+  name: simple_greeting_pipeline
+  description: A basic pipeline that generates personalized greetings
+  version: \

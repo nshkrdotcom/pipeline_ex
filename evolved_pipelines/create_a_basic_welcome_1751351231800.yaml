@@ -1,0 +1,52 @@
+name: basic_welcome_message
+description: "Creates a personalized welcome message for users"
+version: "1.0.0"
+category: "content_generation"
+
+inputs:
+  - name: user_name
+    type: string
+    description: "Name of the user to welcome"
+    required: true
+  - name: context
+    type: string
+    description: "Additional context for the welcome message"
+    required: false
+    default: "our platform"
+
+outputs:
+  - name: welcome_message
+    type: string
+    description: "Generated welcome message"
+
+steps:
+  - name: generate_welcome
+    type: llm_call
+    provider: claude
+    model: claude-3-sonnet-20240229
+    prompt: |
+      Create a warm and friendly welcome message for a user.
+      
+      User name: {{user_name}}
+      Context: {{context}}
+      
+      Requirements:
+      - Be welcoming and personable
+      - Keep it concise (1-2 sentences)
+      - Include the user's name
+      - Make it feel genuine, not robotic
+      
+      Generate only the welcome message, no additional text.
+    output_mapping:
+      welcome_message: "{{response}}"
+
+  - name: validate_output
+    type: validation
+    rules:
+      - field: welcome_message
+        type: not_empty
+        message: "Welcome message cannot be empty"
+      - field: welcome_message
+        type: contains
+        value: "{{user_name}}"
+        message: "Welcome message must include the user's name"

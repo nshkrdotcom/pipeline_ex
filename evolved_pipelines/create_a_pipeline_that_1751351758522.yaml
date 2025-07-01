@@ -1,0 +1,228 @@
+workflow:
+  name: advanced_genesis_pipeline_generator
+  description: Intelligent pipeline generator with validation, optimization, and self-improvement
+  version: "2.0.0"
+  
+  parameters:
+    pipeline_request:
+      type: string
+      required: true
+    complexity_level:
+      type: string
+      default: "standard"
+      enum: ["simple", "standard", "advanced", "enterprise"]
+    domain:
+      type: string
+      default: "general"
+      enum: ["data_processing", "code_generation", "analysis", "content", "devops", "general"]
+    validation_enabled:
+      type: boolean
+      default: true
+
+  steps:
+  - name: analyze_requirements
+    type: claude
+    claude_options:
+      max_turns: 3
+      temperature: 0.3
+    prompt:
+      - type: "static"
+        content: |
+          Analyze this pipeline request and extract key requirements:
+          
+          Request: {{pipeline_request}}
+          Complexity: {{complexity_level}}
+          Domain: {{domain}}
+          
+          Identify:
+          1. Core functionality needed
+          2. Required step types (claude, gemini, file_operations, etc.)
+          3. Input/output requirements
+          4. Error handling needs
+          5. Performance considerations
+          6. Reusable components that could be leveraged
+          
+          Respond with structured analysis in JSON format:
+          {
+            "core_functionality": [],
+            "required_steps": [],
+            "inputs": [],
+            "outputs": [],
+            "error_handling": [],
+            "performance_needs": [],
+            "reusable_components": []
+          }
+
+  - name: generate_optimized_pipeline
+    type: claude
+    claude_options:
+      max_turns: 4
+      temperature: 0.2
+    prompt:
+      - type: "static"
+        content: |
+          Based on the requirements analysis, generate an optimized YAML pipeline:
+          
+          Requirements: {{analyze_requirements.content}}
+          Original Request: {{pipeline_request}}
+          Complexity Level: {{complexity_level}}
+          Domain: {{domain}}
+          
+          Create a production-ready pipeline that includes:
+          - Proper error handling and validation
+          - Optimized step sequencing
+          - Reusable components where applicable
+          - Appropriate provider selection
+          - Clear parameter definitions
+          - Comprehensive logging
+          - Performance optimizations
+          
+          Follow these patterns:
+          - Use descriptive, consistent naming
+          - Include validation steps for critical inputs
+          - Add conditional logic where appropriate
+          - Implement proper dependency management
+          - Include monitoring and metrics collection
+          
+          Respond with YAML pipeline configuration only:
+
+  - name: validate_pipeline
+    type: claude
+    condition: "{{validation_enabled}}"
+    claude_options:
+      max_turns: 2
+      temperature: 0.1
+    prompt:
+      - type: "static"
+        content: |
+          Validate this generated pipeline for:
+          
+          Pipeline YAML:
+          {{generate_optimized_pipeline.content}}
+          
+          Check for:
+          1. YAML syntax correctness
+          2. Required field completeness
+          3. Step dependency logic
+          4. Parameter validation
+          5. Error handling coverage
+          6. Performance bottlenecks
+          7. Security considerations
+          8. Best practice adherence
+          
+          If issues found, provide corrected version. If valid, respond with "VALIDATED" followed by the original pipeline.
+
+  - name: enhance_with_patterns
+    type: claude
+    claude_options:
+      max_turns: 3
+      temperature: 0.4
+    prompt:
+      - type: "static"
+        content: |
+          Enhance the validated pipeline with advanced patterns:
+          
+          Base Pipeline:
+          {{validate_pipeline.content}}
+          
+          Apply enhancements:
+          - Add retry logic with exponential backoff
+          - Implement circuit breaker patterns
+          - Add comprehensive error categorization
+          - Include performance metrics collection
+          - Add caching strategies where applicable
+          - Implement proper logging levels
+          - Add health checks and monitoring
+          - Include cost optimization hints
+          
+          Maintain the core functionality while adding enterprise-grade reliability.
+          
+          Respond with the enhanced YAML pipeline:
+
+  - name: generate_documentation
+    type: claude
+    claude_options:
+      max_turns: 2
+      temperature: 0.3
+    prompt:
+      - type: "static"
+        content: |
+          Generate comprehensive documentation for this pipeline:
+          
+          Pipeline:
+          {{enhance_with_patterns.content}}
+          Original Request: {{pipeline_request}}
+          
+          Create documentation including:
+          - Purpose and use cases
+          - Parameter descriptions
+          - Step-by-step execution flow
+          - Error handling scenarios
+          - Performance characteristics
+          - Usage examples
+          - Troubleshooting guide
+          
+          Format as markdown with clear sections.
+
+  - name: save_pipeline
+    type: file_write
+    file_path: "./evolved_pipelines/{{workflow.name}}_{{timestamp}}.yaml"
+    content: "{{enhance_with_patterns.content}}"
+
+  - name: save_documentation
+    type: file_write
+    file_path: "./evolved_pipelines/{{workflow.name}}_{{timestamp}}_README.md"
+    content: "{{generate_documentation.content}}"
+
+  - name: save_metadata
+    type: file_write
+    file_path: "./evolved_pipelines/{{workflow.name}}_{{timestamp}}_dna.json"
+    content: |
+      {
+        "original_request": "{{pipeline_request}}",
+        "complexity_level": "{{complexity_level}}",
+        "domain": "{{domain}}",
+        "generated_at": "{{timestamp}}",
+        "generator_version": "2.0.0",
+        "requirements_analysis": {{analyze_requirements.content}},
+        "validation_status": "{{validation_enabled}}",
+        "enhancements_applied": [
+          "retry_logic",
+          "circuit_breaker",
+          "error_categorization", 
+          "performance_metrics",
+          "caching_strategies",
+          "comprehensive_logging",
+          "health_checks",
+          "cost_optimization"
+        ]
+      }
+
+  error_handling:
+    - step: "analyze_requirements"
+      on_error: "log_and_continue"
+      fallback_action: "use_simple_analysis"
+    - step: "validate_pipeline"
+      on_error: "log_and_continue"
+      fallback_action: "skip_validation"
+    - step: "enhance_with_patterns"
+      on_error: "use_basic_pipeline"
+      fallback_action: "return_validated_version"
+
+  monitoring:
+    metrics:
+      - execution_time
+      - token_usage
+      - error_rates
+      - pipeline_complexity_score
+    alerts:
+      - condition: "execution_time > 300s"
+        action: "log_performance_warning"
+      - condition: "error_rate > 0.1"
+        action: "escalate_to_admin"
+
+  outputs:
+    generated_pipeline: "{{enhance_with_patterns.content}}"
+    documentation: "{{generate_documentation.content}}"
+    metadata: "{{save_metadata.content}}"
+    pipeline_file_path: "./evolved_pipelines/{{workflow.name}}_{{timestamp}}.yaml"
