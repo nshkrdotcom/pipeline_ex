@@ -17,6 +17,9 @@ defmodule Pipeline.Step.Loop do
   @default_max_iterations 100
   @default_max_parallel 5
   @memory_check_interval 50
+  @large_dataset_threshold 500
+  @memory_threshold 400_000_000  # 400MB
+  @gc_interval 100
 
   @doc """
   Execute a loop step (for_loop or while_loop).
@@ -41,12 +44,8 @@ defmodule Pipeline.Step.Loop do
     with {:ok, iterator_name} <- get_iterator_name(step),
          {:ok, sub_steps} <- get_sub_steps(step),
          {:ok, data} <- get_loop_data(step, context) do
-      # Check if parallel execution is requested
-      if step["parallel"] do
-        execute_parallel_for_loop(data, iterator_name, sub_steps, step, context)
-      else
-        execute_for_loop_iterations(data, iterator_name, sub_steps, step, context)
-      end
+      # Use optimized execution based on data size and configuration
+      optimize_loop_execution(data, iterator_name, sub_steps, step, context)
     else
       error -> error
     end
@@ -623,17 +622,180 @@ defmodule Pipeline.Step.Loop do
 
   # Memory Management
   defp check_memory_usage(current_index, total_items) do
-    case :erlang.memory(:total) do
-      # 500MB threshold
-      memory when memory > 500_000_000 ->
+    memory = :erlang.memory(:total)
+    memory_mb = div(memory, 1_000_000)
+    threshold_mb = div(@memory_threshold, 1_000_000)
+    
+    cond do
+      memory > @memory_threshold ->
         Logger.warning(
-          "⚠️  High memory usage detected at iteration #{current_index}/#{total_items}: #{div(memory, 1_000_000)}MB"
+          "🚨 High memory usage detected at iteration #{current_index}/#{total_items}: #{memory_mb}MB > #{threshold_mb}MB"
         )
-
+        
+        # Force garbage collection
         :erlang.garbage_collect()
-
-      _ ->
+        
+        # Optional: pause for memory to be freed
+        Process.sleep(10)
+        
+        # Check memory again after GC
+        new_memory = :erlang.memory(:total)
+        new_memory_mb = div(new_memory, 1_000_000)
+        
+        if new_memory > @memory_threshold * 0.9 do
+          Logger.error("❌ Memory usage still high after GC: #{new_memory_mb}MB")
+          {:error, "Memory threshold exceeded: #{new_memory_mb}MB"}
+        else
+          Logger.info("✅ Memory freed by GC: #{memory_mb}MB -> #{new_memory_mb}MB")
+          :ok
+        end
+        
+      memory > @memory_threshold * 0.7 ->
+        Logger.info("⚠️  Memory usage approaching threshold at iteration #{current_index}/#{total_items}: #{memory_mb}MB")
         :ok
+        
+      rem(current_index, @gc_interval) == 0 ->
+        # Periodic GC for long-running loops
+        :erlang.garbage_collect()
+        Logger.debug("🧹 Periodic garbage collection at iteration #{current_index}")
+        :ok
+        
+      true ->
+        :ok
+    end
+  end
+
+  defp should_use_streaming_mode?(data_size) do
+    data_size > @large_dataset_threshold
+  end
+
+  defp optimize_loop_execution(data, iterator_name, sub_steps, step, context) do
+    data_size = length(data)
+    
+    cond do
+      should_use_streaming_mode?(data_size) ->
+        Logger.info("📊 Using streaming mode for large dataset: #{data_size} items")
+        execute_streaming_for_loop(data, iterator_name, sub_steps, step, context)
+        
+      step["parallel"] && data_size > 10 ->
+        Logger.info("🚀 Using parallel execution for #{data_size} items")
+        execute_parallel_for_loop(data, iterator_name, sub_steps, step, context)
+        
+      true ->
+        execute_for_loop_iterations(data, iterator_name, sub_steps, step, context)
+    end
+  end
+
+  # Streaming execution for very large datasets
+  defp execute_streaming_for_loop(data, iterator_name, sub_steps, step, context) do
+    batch_size = get_batch_size(step, length(data))
+    
+    Logger.info("📊 Processing #{length(data)} items in batches of #{batch_size}")
+    
+    initial_results = %{
+      "iterations" => [],
+      "success" => true,
+      "total_items" => length(data),
+      "completed_items" => 0,
+      "batches_processed" => 0
+    }
+    
+    data
+    |> Enum.chunk_every(batch_size)
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, initial_results, context}, fn {batch, batch_index}, 
+                                                              {:ok, acc_results, acc_context} ->
+      Logger.info("📊 Processing batch #{batch_index + 1}/#{div(length(data), batch_size) + 1}")
+      
+      case process_streaming_batch(batch, iterator_name, sub_steps, step, acc_context, batch_index * batch_size) do
+        {:ok, batch_results, updated_context} ->
+          # Merge batch results
+          merged_results = merge_batch_results(acc_results, batch_results)
+          
+          # Memory check after each batch
+          case check_memory_usage(batch_index * batch_size, length(data)) do
+            :ok ->
+              {:cont, {:ok, merged_results, updated_context}}
+            {:error, reason} ->
+              {:halt, {:error, reason}}
+          end
+          
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, final_results, _final_context} -> {:ok, final_results}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp process_streaming_batch(batch, iterator_name, sub_steps, step, context, start_index) do
+    batch_results = 
+      batch
+      |> Enum.with_index()
+      |> Enum.map(fn {item, rel_index} ->
+        abs_index = start_index + rel_index
+        
+        # Create loop context
+        loop_context = create_nested_loop_context(iterator_name, item, abs_index, length(batch), context)
+        updated_context = add_loop_context(context, loop_context)
+        
+        case execute_sub_steps(sub_steps, updated_context) do
+          {:ok, iteration_context} ->
+            %{
+              "index" => abs_index,
+              "item" => item,
+              "success" => true,
+              "results" => extract_sub_step_results(sub_steps, iteration_context)
+            }
+            
+          {:error, reason} ->
+            Logger.error("❌ Batch iteration #{abs_index + 1} failed: #{reason}")
+            %{
+              "index" => abs_index,
+              "item" => item,
+              "success" => false,
+              "error" => reason
+            }
+        end
+      end)
+    
+    completed_count = Enum.count(batch_results, & &1["success"])
+    all_successful = Enum.all?(batch_results, & &1["success"])
+    
+    batch_summary = %{
+      "iterations" => batch_results,
+      "success" => all_successful,
+      "completed_items" => completed_count,
+      "batches_processed" => 1
+    }
+    
+    {:ok, batch_summary, context}
+  end
+
+  defp merge_batch_results(acc_results, batch_results) do
+    %{
+      acc_results |
+      "iterations" => acc_results["iterations"] ++ batch_results["iterations"],
+      "completed_items" => acc_results["completed_items"] + batch_results["completed_items"],
+      "batches_processed" => acc_results["batches_processed"] + batch_results["batches_processed"],
+      "success" => acc_results["success"] && batch_results["success"]
+    }
+  end
+
+  defp get_batch_size(step, total_items) do
+    configured_size = step["batch_size"] || nil
+    
+    cond do
+      is_integer(configured_size) && configured_size > 0 ->
+        min(configured_size, total_items)
+      total_items > 10000 ->
+        100  # Large datasets
+      total_items > 1000 ->
+        50   # Medium datasets
+      true ->
+        25   # Small datasets
     end
   end
 end

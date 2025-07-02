@@ -7,9 +7,15 @@ defmodule Pipeline.Utils.FileUtils do
   - File validation (existence, size, permissions)
   - Format conversion (CSV, JSON, YAML, XML)
   - Path resolution and workspace management
+  - Streaming operations for large files (>100MB)
+  - Memory-efficient file processing
   """
 
   require Logger
+
+  @large_file_threshold 100_000_000  # 100MB
+  @stream_chunk_size 1024 * 1024     # 1MB chunks
+  @max_memory_file_size 50_000_000   # 50MB for in-memory operations
 
   @doc """
   Resolve a path relative to the workspace directory.
@@ -355,4 +361,166 @@ defmodule Pipeline.Utils.FileUtils do
   defp json_to_xml(_json_content) do
     {:error, "JSON to XML conversion not yet implemented"}
   end
+
+  # Streaming Operations
+
+  @doc """
+  Copy a large file using streaming to avoid memory issues.
+  """
+  @spec stream_copy_file(String.t(), String.t()) :: :ok | {:error, String.t()}
+  def stream_copy_file(source, destination) do
+    with :ok <- ensure_source_exists(source),
+         :ok <- ensure_destination_dir(destination),
+         {:ok, size} <- get_file_size(source) do
+      
+      if size > @large_file_threshold do
+        Logger.info("📁 Streaming large file copy: #{format_bytes(size)}")
+        stream_copy_large_file(source, destination)
+      else
+        copy_file(source, destination)
+      end
+    else
+      error -> error
+    end
+  end
+
+  @doc """
+  Read a file in chunks using streaming.
+  Returns a stream that yields binary chunks.
+  """
+  @spec stream_read_file(String.t()) :: Stream.t() | {:error, String.t()}
+  def stream_read_file(path) do
+    case File.exists?(path) do
+      true ->
+        File.stream!(path, [:read, :binary], @stream_chunk_size)
+      false ->
+        {:error, "File does not exist: #{path}"}
+    end
+  end
+
+  @doc """
+  Write data to a file using streaming.
+  """
+  @spec stream_write_file(String.t(), Stream.t()) :: :ok | {:error, String.t()}
+  def stream_write_file(path, data_stream) do
+    try do
+      ensure_destination_dir(path)
+      
+      File.open!(path, [:write, :binary], fn file ->
+        data_stream
+        |> Stream.each(&IO.binwrite(file, &1))
+        |> Stream.run()
+      end)
+      
+      Logger.debug("Streamed write completed: #{path}")
+      :ok
+    rescue
+      error ->
+        {:error, "Stream write failed: #{Exception.message(error)}"}
+    end
+  end
+
+  @doc """
+  Process a large file line by line with a given function.
+  Memory-efficient for large text files.
+  """
+  @spec stream_process_lines(String.t(), (String.t() -> String.t())) :: {:ok, String.t()} | {:error, String.t()}
+  def stream_process_lines(source_path, processor_fn) do
+    temp_path = "#{source_path}.tmp"
+    
+    try do
+      source_path
+      |> File.stream!()
+      |> Stream.map(processor_fn)
+      |> Stream.into(File.stream!(temp_path))
+      |> Stream.run()
+      
+      # Replace original with processed file
+      case File.rename(temp_path, source_path) do
+        :ok -> {:ok, source_path}
+        {:error, reason} -> 
+          File.rm(temp_path)
+          {:error, "Failed to replace file: #{:file.format_error(reason)}"}
+      end
+    rescue
+      error ->
+        File.rm(temp_path)
+        {:error, "Stream processing failed: #{Exception.message(error)}"}
+    end
+  end
+
+  @doc """
+  Get file size efficiently.
+  """
+  @spec get_file_size(String.t()) :: {:ok, non_neg_integer()} | {:error, String.t()}
+  def get_file_size(path) do
+    case File.stat(path) do
+      {:ok, %{size: size}} -> {:ok, size}
+      {:error, reason} -> {:error, "Cannot get file size: #{:file.format_error(reason)}"}
+    end
+  end
+
+  @doc """
+  Check if a file should be processed using streaming based on size.
+  """
+  @spec should_use_streaming?(String.t()) :: boolean()
+  def should_use_streaming?(path) do
+    case get_file_size(path) do
+      {:ok, size} -> size > @large_file_threshold
+      {:error, _} -> false
+    end
+  end
+
+  @doc """
+  Process a file with automatic streaming decision.
+  """
+  @spec smart_process_file(String.t(), (String.t() -> any())) :: {:ok, any()} | {:error, String.t()}
+  def smart_process_file(path, processor_fn) do
+    case should_use_streaming?(path) do
+      true ->
+        Logger.info("📁 Using streaming for large file: #{path}")
+        stream_process_large_file(path, processor_fn)
+      false ->
+        case File.read(path) do
+          {:ok, content} -> {:ok, processor_fn.(content)}
+          {:error, reason} -> {:error, "Failed to read file: #{:file.format_error(reason)}"}
+        end
+    end
+  end
+
+  # Private streaming functions
+
+  defp stream_copy_large_file(source, destination) do
+    try do
+      source
+      |> File.stream!([:read, :binary], @stream_chunk_size)
+      |> Stream.into(File.stream!(destination, [:write, :binary]))
+      |> Stream.run()
+      
+      Logger.debug("Streamed copy completed: #{source} -> #{destination}")
+      :ok
+    rescue
+      error ->
+        {:error, "Stream copy failed: #{Exception.message(error)}"}
+    end
+  end
+
+  defp stream_process_large_file(path, processor_fn) do
+    try do
+      content = 
+        path
+        |> File.stream!([:read, :binary], @stream_chunk_size)
+        |> Enum.reduce("", fn chunk, acc -> acc <> chunk end)
+      
+      {:ok, processor_fn.(content)}
+    rescue
+      error ->
+        {:error, "Stream processing failed: #{Exception.message(error)}"}
+    end
+  end
+
+  defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
+  defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+  defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 1)} GB"
 end

@@ -12,6 +12,8 @@ defmodule Pipeline.Executor do
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
   alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart, Loop}
   alias Pipeline.Step.{DataTransform, FileOps, SetVariable}
+  alias Pipeline.Streaming.ResultStream
+  alias Pipeline.Monitoring.Performance
   alias Pipeline.State.VariableEngine
 
   @type workflow :: map()
@@ -25,10 +27,22 @@ defmodule Pipeline.Executor do
   """
   @spec execute(workflow, keyword()) :: execution_result
   def execute(workflow, opts \\ []) do
-    Logger.info("🚀 Starting pipeline execution: #{workflow["workflow"]["name"]}")
+    pipeline_name = workflow["workflow"]["name"]
+    Logger.info("🚀 Starting pipeline execution: #{pipeline_name}")
 
     # Initialize execution context
     context = initialize_context(workflow, opts)
+
+    # Start performance monitoring if enabled
+    monitoring_enabled = Keyword.get(opts, :enable_monitoring, true)
+    if monitoring_enabled do
+      case Performance.start_monitoring(pipeline_name, opts) do
+        {:ok, _pid} -> 
+          Logger.debug("📊 Performance monitoring started for: #{pipeline_name}")
+        {:error, reason} -> 
+          Logger.warn("⚠️  Failed to start performance monitoring: #{reason}")
+      end
+    end
 
     # Load checkpoint if enabled and exists
     context = maybe_load_checkpoint(context)
@@ -38,11 +52,28 @@ defmodule Pipeline.Executor do
       case execute_steps(workflow["workflow"]["steps"], context) do
         {:ok, final_context} ->
           log_pipeline_completion(final_context)
+          
+          # Stop performance monitoring and log metrics
+          if monitoring_enabled do
+            case Performance.stop_monitoring(pipeline_name) do
+              {:ok, final_metrics} ->
+                log_performance_summary(final_metrics)
+              {:error, _} ->
+                Logger.debug("Performance monitoring already stopped")
+            end
+          end
+          
           {:ok, final_context.results}
 
         {:error, reason} = error ->
           Logger.error("❌ Pipeline execution failed: #{reason}")
           cleanup_context(context)
+          
+          # Stop monitoring on error
+          if monitoring_enabled do
+            Performance.stop_monitoring(pipeline_name)
+          end
+          
           error
       end
     rescue
@@ -83,6 +114,7 @@ defmodule Pipeline.Executor do
 
   defp initialize_context(workflow, opts) do
     config = workflow["workflow"]
+    pipeline_name = config["name"]
 
     # Create directories with configurable defaults
     workspace_dir =
@@ -126,7 +158,9 @@ defmodule Pipeline.Executor do
       step_index: 0,
       debug_enabled: Keyword.get(opts, :debug, false),
       # Add full config for enhanced step types
-      config: workflow
+      config: workflow,
+      # Add pipeline name for performance monitoring
+      pipeline_name: pipeline_name
     }
   end
 
@@ -184,6 +218,10 @@ defmodule Pipeline.Executor do
   defp execute_step_with_checkpoint(step, index, context) do
     Logger.info("🎯 Executing step #{index + 1}: #{step["name"]} (#{step["type"]})")
 
+    # Notify performance monitoring
+    pipeline_name = context[:pipeline_name] || "unknown"
+    Performance.step_started(pipeline_name, step["name"], step["type"])
+
     # Interpolate variables in step configuration
     interpolated_step = interpolate_step_variables(step, context)
 
@@ -240,16 +278,48 @@ defmodule Pipeline.Executor do
   end
 
   defp handle_step_success(step, index, context, result, step_start) do
-    optimized_result = optimize_result_for_memory(result)
-
-    updated_context =
-      update_context_with_success(step, index, context, optimized_result, step_start)
-
-    save_checkpoint_if_enabled(context, updated_context)
-    save_step_output_if_needed(step, result, context.output_dir)
-
-    Logger.info("✅ Step completed: #{step["name"]}")
-    {:ok, updated_context}
+    # Check if result should be streamed
+    case maybe_create_result_stream(step, result) do
+      {:ok, stream} ->
+        # Store stream reference instead of large result
+        stream_result = %{
+          "success" => true,
+          "type" => "stream",
+          "stream_id" => stream.id,
+          "stream_info" => ResultStream.get_stream_info(stream)
+        }
+        
+        updated_context = update_context_with_success(step, index, context, stream_result, step_start)
+        save_checkpoint_if_enabled(context, updated_context)
+        save_step_output_if_needed(step, result, context.output_dir)
+        
+        Logger.info("✅ Step completed with streaming: #{step["name"]}")
+        
+        # Notify performance monitoring
+        pipeline_name = context[:pipeline_name] || "unknown"
+        Performance.step_completed(pipeline_name, step["name"], stream_result)
+        
+        {:ok, updated_context}
+        
+      {:no_stream, optimized_result} ->
+        # Use normal result handling
+        updated_context = update_context_with_success(step, index, context, optimized_result, step_start)
+        save_checkpoint_if_enabled(context, updated_context)
+        save_step_output_if_needed(step, result, context.output_dir)
+        
+        Logger.info("✅ Step completed: #{step["name"]}")
+        {:ok, updated_context}
+        
+      {:error, reason} ->
+        Logger.warn("⚠️  Failed to create result stream: #{reason}, using optimized result")
+        optimized_result = optimize_result_for_memory(result)
+        updated_context = update_context_with_success(step, index, context, optimized_result, step_start)
+        save_checkpoint_if_enabled(context, updated_context)
+        save_step_output_if_needed(step, result, context.output_dir)
+        
+        Logger.info("✅ Step completed: #{step["name"]}")
+        {:ok, updated_context}
+    end
   end
 
   defp handle_step_success_with_context(step, index, context, result, step_start) do
@@ -475,6 +545,44 @@ defmodule Pipeline.Executor do
 
   defp optimize_result_for_memory(result), do: result
 
+  defp maybe_create_result_stream(step, result) do
+    # Calculate result size
+    result_size = calculate_result_size(result)
+    
+    # Check if streaming is enabled for this step and result is large enough
+    if should_stream_step_result?(step, result_size) do
+      case ResultStream.create_stream(step["name"], "result", result, %{step_type: step["type"]}) do
+        {:ok, stream} ->
+          {:ok, stream}
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:no_stream, optimize_result_for_memory(result)}
+    end
+  end
+
+  defp should_stream_step_result?(step, result_size) do
+    # Check if streaming is explicitly enabled
+    streaming_enabled = get_in(step, ["streaming", "enabled"]) || false
+    
+    # Check if result size exceeds threshold
+    large_result = ResultStream.should_stream_result?(result_size)
+    
+    # Stream if explicitly enabled or result is large
+    streaming_enabled || large_result
+  end
+
+  defp calculate_result_size(result) when is_binary(result) do
+    byte_size(result)
+  end
+
+  defp calculate_result_size(result) do
+    result
+    |> :erlang.term_to_binary()
+    |> byte_size()
+  end
+
   defp log_pipeline_completion(context) do
     duration = DateTime.diff(DateTime.utc_now(), context.start_time, :millisecond)
 
@@ -486,6 +594,29 @@ defmodule Pipeline.Executor do
     Logger.info("🏁 Pipeline execution completed in #{duration}ms")
     Logger.info("🧹 Cleaned up temporary resources and caches")
   end
+
+  defp log_performance_summary(metrics) do
+    Logger.info("📊 Performance Summary:")
+    Logger.info("   Duration: #{metrics.total_duration_ms}ms")
+    Logger.info("   Steps: #{metrics.successful_steps}/#{metrics.total_steps}")
+    Logger.info("   Peak Memory: #{format_bytes(metrics.peak_memory_bytes)}")
+    
+    if metrics.total_warnings > 0 do
+      Logger.warn("⚠️  Performance Warnings: #{metrics.total_warnings}")
+    end
+    
+    if length(metrics.recommendations) > 0 do
+      Logger.info("💡 Recommendations:")
+      Enum.each(metrics.recommendations, fn rec ->
+        Logger.info("   - #{rec}")
+      end)
+    end
+  end
+
+  defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
+  defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+  defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 1)} GB"
 
   defp cleanup_context(context) do
     # Clean up any temporary resources

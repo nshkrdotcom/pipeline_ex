@@ -94,6 +94,9 @@ defmodule Pipeline.Step.DataTransform do
 
   require Logger
   alias Pipeline.Data.Transformer
+  alias Pipeline.Streaming.ResultStream
+
+  @lazy_threshold 1000  # Use lazy evaluation for datasets with >1000 items
 
   @doc """
   Execute a data transformation step.
@@ -167,9 +170,210 @@ defmodule Pipeline.Step.DataTransform do
       {:ok, input_data}
     else
       Logger.debug("Applying #{length(operations)} transformation operations")
-      Transformer.transform(input_data, operations, context)
+      
+      # Check if we should use lazy evaluation
+      if should_use_lazy_evaluation?(input_data, operations, step) do
+        Logger.info("📊 Using lazy evaluation for large dataset transformation")
+        apply_lazy_transformations(input_data, operations, context)
+      else
+        Transformer.transform(input_data, operations, context)
+      end
     end
   end
+
+  defp should_use_lazy_evaluation?(input_data, operations, step) do
+    # Enable lazy evaluation if:
+    # 1. Explicitly enabled in step config
+    # 2. Data size exceeds threshold
+    # 3. Contains streaming operations
+    
+    lazy_enabled = get_in(step, ["lazy", "enabled"]) || false
+    large_dataset = is_list(input_data) && length(input_data) > @lazy_threshold
+    has_streaming_ops = Enum.any?(operations, &is_streaming_operation?/1)
+    
+    lazy_enabled || large_dataset || has_streaming_ops
+  end
+
+  defp is_streaming_operation?(operation) do
+    streaming_ops = ["filter", "map", "sort"]
+    operation["operation"] in streaming_ops
+  end
+
+  defp apply_lazy_transformations(input_data, operations, context) do
+    try do
+      # Convert input to stream if it's a list
+      data_stream = case input_data do
+        list when is_list(list) -> 
+          Stream.chunk_every(list, 100)  # Process in chunks of 100
+        _ -> 
+          [input_data] |> Stream.cycle() |> Stream.take(1)
+      end
+      
+      # Apply operations lazily
+      result_stream = 
+        operations
+        |> Enum.reduce(data_stream, fn operation, acc_stream ->
+          apply_lazy_operation(operation, acc_stream, context)
+        end)
+      
+      # Materialize the result
+      final_result = 
+        result_stream
+        |> Stream.flat_map(fn chunk -> 
+          case chunk do
+            list when is_list(list) -> list
+            item -> [item]
+          end
+        end)
+        |> Enum.to_list()
+      
+      {:ok, final_result}
+    rescue
+      error ->
+        {:error, "Lazy transformation failed: #{Exception.message(error)}"}
+    end
+  end
+
+  defp apply_lazy_operation(operation, data_stream, context) do
+    case operation["operation"] do
+      "filter" ->
+        apply_lazy_filter(operation, data_stream, context)
+      
+      "map" ->
+        apply_lazy_map(operation, data_stream, context)
+        
+      "sort" ->
+        apply_lazy_sort(operation, data_stream, context)
+        
+      other ->
+        # For non-streaming operations, materialize and use regular transformer
+        Logger.debug("Materializing stream for non-lazy operation: #{other}")
+        materialized = 
+          data_stream
+          |> Stream.flat_map(fn chunk -> 
+            case chunk do
+              list when is_list(list) -> list
+              item -> [item]
+            end
+          end)
+          |> Enum.to_list()
+        
+        case Transformer.transform(materialized, [operation], context) do
+          {:ok, result} -> [result] |> Stream.cycle() |> Stream.take(1)
+          {:error, _} -> Stream.cycle([]) |> Stream.take(0)
+        end
+    end
+  end
+
+  defp apply_lazy_filter(operation, data_stream, _context) do
+    field = operation["field"]
+    condition = operation["condition"]
+    
+    data_stream
+    |> Stream.map(fn chunk ->
+      case chunk do
+        list when is_list(list) ->
+          Enum.filter(list, fn item ->
+            evaluate_filter_condition(item, field, condition)
+          end)
+        item ->
+          if evaluate_filter_condition(item, field, condition) do
+            [item]
+          else
+            []
+          end
+      end
+    end)
+    |> Stream.reject(&Enum.empty?/1)
+  end
+
+  defp apply_lazy_map(operation, data_stream, _context) do
+    field = operation["field"]
+    mapping = operation["mapping"] || %{}
+    
+    data_stream
+    |> Stream.map(fn chunk ->
+      case chunk do
+        list when is_list(list) ->
+          Enum.map(list, fn item ->
+            apply_field_mapping(item, field, mapping)
+          end)
+        item ->
+          [apply_field_mapping(item, field, mapping)]
+      end
+    end)
+  end
+
+  defp apply_lazy_sort(operation, data_stream, _context) do
+    field = operation["field"]
+    order = operation["order"] || "asc"
+    
+    # For sorting, we need to collect all data first
+    materialized = 
+      data_stream
+      |> Stream.flat_map(fn chunk -> 
+        case chunk do
+          list when is_list(list) -> list
+          item -> [item]
+        end
+      end)
+      |> Enum.to_list()
+    
+    sorted = sort_data(materialized, field, order)
+    
+    # Return as chunked stream
+    sorted
+    |> Stream.chunk_every(100)
+  end
+
+  defp evaluate_filter_condition(item, field, condition) do
+    field_value = get_nested_field(item, field)
+    
+    # Simple condition evaluation (could be enhanced)
+    case String.split(condition, " ") do
+      [field_name, "==", value] when field_name == field ->
+        to_string(field_value) == String.trim(value, "'\"")
+      
+      [field_name, "!=", value] when field_name == field ->
+        to_string(field_value) != String.trim(value, "'\"")
+        
+      [field_name, ">", value] when field_name == field ->
+        case {field_value, Float.parse(value)} do
+          {num, {target, _}} when is_number(num) -> num > target
+          _ -> false
+        end
+        
+      _ ->
+        # Default to true for unknown conditions
+        true
+    end
+  end
+
+  defp apply_field_mapping(item, field, mapping) when is_map(item) do
+    current_value = get_nested_field(item, field)
+    mapped_value = Map.get(mapping, to_string(current_value), current_value)
+    put_nested_field(item, field, mapped_value)
+  end
+
+  defp apply_field_mapping(item, _field, _mapping), do: item
+
+  defp sort_data(data, field, order) do
+    data
+    |> Enum.sort_by(fn item -> get_nested_field(item, field) end)
+    |> then(fn sorted ->
+      case order do
+        "desc" -> Enum.reverse(sorted)
+        _ -> sorted
+      end
+    end)
+  end
+
+  defp put_nested_field(data, field_path, value) when is_map(data) do
+    fields = String.split(field_path, ".")
+    put_in(data, Enum.map(fields, &Access.key(&1, %{})), value)
+  end
+
+  defp put_nested_field(data, _field_path, _value), do: data
 
   defp format_result(data, step) do
     # Apply any output formatting if specified

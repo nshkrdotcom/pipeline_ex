@@ -438,6 +438,7 @@ Enhance the loop system with nested loops, parallel execution, and advanced cont
 ```
 
 ---
+
 4a done
 
 ---
@@ -478,6 +479,8 @@ Enhance the condition engine with mathematical expressions, functions, and patte
       - "analysis.timestamp > now() - days(7)"
       - "analysis.file_path matches '.*\\.ex$'"
 ```
+---
+4b done
 
 ---
 
@@ -557,13 +560,4 @@ Update all documentation to reflect new capabilities and provide clear usage exa
 5. Create tutorial for advanced features
 
 ---
-
-## Usage Instructions
-
-1. **Run prompts in order** - Each phase builds on previous implementations
-2. **Test between phases** - Ensure stability before proceeding
-3. **Read context files first** - Each prompt includes specific line numbers to focus on
-4. **Implement incrementally** - Don't try to do everything at once
-5. **Maintain backward compatibility** - Existing pipelines should continue working
-
-Each prompt is self-contained and includes all necessary context to implement the feature from scratch.
+ 

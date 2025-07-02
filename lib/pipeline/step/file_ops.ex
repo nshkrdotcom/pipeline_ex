@@ -14,7 +14,7 @@ defmodule Pipeline.Step.FileOps do
   require Logger
   alias Pipeline.Utils.FileUtils
 
-  @operations ~w(copy move delete validate list convert)
+  @operations ~w(copy move delete validate list convert stream_copy stream_process)
 
   @doc """
   Execute a file operations step.
@@ -193,5 +193,80 @@ defmodule Pipeline.Step.FileOps do
 
   defp resolve_path(nil, _context) do
     nil
+  end
+
+  # Streaming operations
+
+  defp perform_operation("stream_copy", step, context) do
+    source = resolve_path(step["source"], context)
+    destination = resolve_path(step["destination"], context)
+
+    case FileUtils.stream_copy_file(source, destination) do
+      :ok ->
+        {:ok,
+         %{
+           "operation" => "stream_copy",
+           "source" => source,
+           "destination" => destination,
+           "status" => "completed",
+           "method" => "streaming"
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp perform_operation("stream_process", step, context) do
+    source = resolve_path(step["source"], context)
+    processor = step["processor"] || "identity"
+
+    processor_fn = get_processor_function(processor, step)
+
+    case FileUtils.stream_process_lines(source, processor_fn) do
+      {:ok, processed_path} ->
+        {:ok,
+         %{
+           "operation" => "stream_process",
+           "source" => source,
+           "processed_path" => processed_path,
+           "processor" => processor,
+           "status" => "completed",
+           "method" => "streaming"
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Processor functions for stream processing
+
+  defp get_processor_function("identity", _step) do
+    fn line -> line end
+  end
+
+  defp get_processor_function("uppercase", _step) do
+    fn line -> String.upcase(line) end
+  end
+
+  defp get_processor_function("lowercase", _step) do
+    fn line -> String.downcase(line) end
+  end
+
+  defp get_processor_function("trim", _step) do
+    fn line -> String.trim(line) <> "\n" end
+  end
+
+  defp get_processor_function("replace", step) do
+    pattern = step["pattern"] || ""
+    replacement = step["replacement"] || ""
+    
+    fn line -> String.replace(line, pattern, replacement) end
+  end
+
+  defp get_processor_function(custom, _step) do
+    Logger.warning("Unknown processor: #{custom}, using identity")
+    fn line -> line end
   end
 end

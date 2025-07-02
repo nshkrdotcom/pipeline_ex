@@ -1,0 +1,64 @@
+workflow:
+  name: "performance_optimization_demo"
+  description: "Demonstrates streaming, memory management, and performance monitoring"
+  
+  steps:
+    # Generate large dataset for testing
+    - name: "generate_data"
+      type: "set_variable"
+      variable: "large_dataset"
+      value: []  # In real use, this would be populated with large data
+      streaming:
+        enabled: true
+    
+    # Stream large file operations
+    - name: "create_test_file"
+      type: "file_ops"
+      operation: "stream_copy"
+      source: "examples/test_data.txt"
+      destination: "workspace/large_copy.txt"
+    
+    # Memory-efficient loop processing with batching
+    - name: "process_items_efficiently"
+      type: "for_loop"
+      iterator: "item"
+      data_source: "previous_response:generate_data:large_dataset"
+      batch_size: 25  # Process in small batches to control memory
+      steps:
+        - name: "validate_item"
+          type: "set_variable"
+          variable: "validated"
+          value: "{{loop.item}}_validated"
+    
+    # Lazy data transformation for large datasets
+    - name: "transform_data_lazily"
+      type: "data_transform"
+      input_source: "previous_response:generate_data:large_dataset"
+      lazy:
+        enabled: true
+      operations:
+        - operation: "filter"
+          field: "active"
+          condition: "active == true"
+        - operation: "map"
+          field: "priority"
+          mapping:
+            "1": "high"
+            "2": "medium"
+            "3": "low"
+        - operation: "sort"
+          field: "created_at"
+          order: "desc"
+    
+    # Stream processing for large text files
+    - name: "process_text_stream"
+      type: "file_ops"
+      operation: "stream_process"
+      source: "workspace/large_copy.txt"
+      processor: "uppercase"
+      
+  # Performance monitoring is automatically enabled
+  # Memory threshold: 500MB (default)
+  # Execution threshold: 30 seconds (default)
+  defaults:
+    output_dir: "outputs/performance_demo"
