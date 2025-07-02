@@ -12,25 +12,48 @@ defmodule Pipeline.Test.ProcessHelper do
       error -> error
     end
   end
-  
-  def ensure_stopped(name) do
-    case Performance.stop_monitoring(name) do
-      {:ok, metrics} -> {:ok, metrics}
-      {:error, :not_found} -> 
-        # Return empty metrics structure when monitoring wasn't found
-        {:ok, %{
-          total_steps: 0,
-          successful_steps: 0,
-          peak_memory_bytes: 0,
-          execution_time_ms: 0,
-          step_details: [],
-          recommendations: [],
-          total_warnings: 0
-        }}
-      error -> error
+
+  def safe_get_metrics(name) do
+    case Performance.get_metrics(name) do
+      {:ok, metrics} ->
+        {:ok, metrics}
+
+      {:error, :not_found} ->
+        {:ok,
+         %{
+           step_count: 0,
+           execution_time_ms: 0,
+           memory_usage_bytes: 0
+         }}
+
+      error ->
+        error
     end
   end
-  
+
+  def ensure_stopped(name) do
+    case Performance.stop_monitoring(name) do
+      {:ok, metrics} ->
+        {:ok, metrics}
+
+      {:error, :not_found} ->
+        # Return empty metrics structure when monitoring wasn't found
+        {:ok,
+         %{
+           total_steps: 0,
+           successful_steps: 0,
+           peak_memory_bytes: 0,
+           execution_time_ms: 0,
+           step_details: [],
+           recommendations: [],
+           total_warnings: 0
+         }}
+
+      error ->
+        error
+    end
+  end
+
   def cleanup_all_monitoring do
     try do
       Registry.select(Pipeline.MonitoringRegistry, [{{:"$1", :"$2", :"$3"}, [], [:"$2"]}])

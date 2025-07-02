@@ -95,7 +95,8 @@ defmodule Pipeline.Step.DataTransform do
   require Logger
   alias Pipeline.Data.Transformer
 
-  @lazy_threshold 1000  # Use lazy evaluation for datasets with >1000 items
+  # Use lazy evaluation for datasets with >1000 items
+  @lazy_threshold 1000
 
   @doc """
   Execute a data transformation step.
@@ -165,7 +166,7 @@ defmodule Pipeline.Step.DataTransform do
         case Map.get(context, :variable_state) do
           nil ->
             get_in(context, [:results, step_name])
-          
+
           variable_state ->
             try do
               case Pipeline.State.VariableEngine.get_variable(variable_state, step_name) do
@@ -190,7 +191,7 @@ defmodule Pipeline.Step.DataTransform do
       {:ok, input_data}
     else
       Logger.debug("Applying #{length(operations)} transformation operations")
-      
+
       # Check if we should use lazy evaluation
       if should_use_lazy_evaluation?(input_data, operations, step) do
         Logger.info("📊 Using lazy evaluation for large dataset transformation")
@@ -206,11 +207,11 @@ defmodule Pipeline.Step.DataTransform do
     # 1. Explicitly enabled in step config
     # 2. Data size exceeds threshold
     # 3. Contains streaming operations (but only if data is large enough)
-    
+
     lazy_enabled = get_in(step, ["lazy", "enabled"]) || false
     large_dataset = is_list(input_data) && length(input_data) > @lazy_threshold
     has_streaming_ops = Enum.any?(operations, &is_streaming_operation?/1) && large_dataset
-    
+
     lazy_enabled || large_dataset || has_streaming_ops
   end
 
@@ -222,31 +223,34 @@ defmodule Pipeline.Step.DataTransform do
   defp apply_lazy_transformations(input_data, operations, context) do
     try do
       # Convert input to stream if it's a list
-      data_stream = case input_data do
-        list when is_list(list) -> 
-          Stream.chunk_every(list, 100)  # Process in chunks of 100
-        _ -> 
-          [input_data] |> Stream.cycle() |> Stream.take(1)
-      end
-      
+      data_stream =
+        case input_data do
+          list when is_list(list) ->
+            # Process in chunks of 100
+            Stream.chunk_every(list, 100)
+
+          _ ->
+            [input_data] |> Stream.cycle() |> Stream.take(1)
+        end
+
       # Apply operations lazily
-      result_stream = 
+      result_stream =
         operations
         |> Enum.reduce(data_stream, fn operation, acc_stream ->
           apply_lazy_operation(operation, acc_stream, context)
         end)
-      
+
       # Materialize the result
-      final_result = 
+      final_result =
         result_stream
-        |> Stream.flat_map(fn chunk -> 
+        |> Stream.flat_map(fn chunk ->
           case chunk do
             list when is_list(list) -> list
             item -> [item]
           end
         end)
         |> Enum.to_list()
-      
+
       {:ok, final_result}
     rescue
       error ->
@@ -258,26 +262,27 @@ defmodule Pipeline.Step.DataTransform do
     case operation["operation"] do
       "filter" ->
         apply_lazy_filter(operation, data_stream, context)
-      
+
       "map" ->
         apply_lazy_map(operation, data_stream, context)
-        
+
       "sort" ->
         apply_lazy_sort(operation, data_stream, context)
-        
+
       other ->
         # For non-streaming operations, materialize and use regular transformer
         Logger.debug("Materializing stream for non-lazy operation: #{other}")
-        materialized = 
+
+        materialized =
           data_stream
-          |> Stream.flat_map(fn chunk -> 
+          |> Stream.flat_map(fn chunk ->
             case chunk do
               list when is_list(list) -> list
               item -> [item]
             end
           end)
           |> Enum.to_list()
-        
+
         case Transformer.transform(materialized, [operation], context) do
           {:ok, result} -> [result] |> Stream.cycle() |> Stream.take(1)
           {:error, _} -> Stream.cycle([]) |> Stream.take(0)
@@ -288,7 +293,7 @@ defmodule Pipeline.Step.DataTransform do
   defp apply_lazy_filter(operation, data_stream, _context) do
     field = operation["field"]
     condition = operation["condition"]
-    
+
     data_stream
     |> Stream.map(fn chunk ->
       case chunk do
@@ -296,6 +301,7 @@ defmodule Pipeline.Step.DataTransform do
           Enum.filter(list, fn item ->
             evaluate_filter_condition(item, field, condition)
           end)
+
         item ->
           if evaluate_filter_condition(item, field, condition) do
             [item]
@@ -310,7 +316,7 @@ defmodule Pipeline.Step.DataTransform do
   defp apply_lazy_map(operation, data_stream, _context) do
     field = operation["field"]
     mapping = operation["mapping"] || %{}
-    
+
     data_stream
     |> Stream.map(fn chunk ->
       case chunk do
@@ -318,6 +324,7 @@ defmodule Pipeline.Step.DataTransform do
           Enum.map(list, fn item ->
             apply_field_mapping(item, field, mapping)
           end)
+
         item ->
           [apply_field_mapping(item, field, mapping)]
       end
@@ -327,20 +334,20 @@ defmodule Pipeline.Step.DataTransform do
   defp apply_lazy_sort(operation, data_stream, _context) do
     field = operation["field"]
     order = operation["order"] || "asc"
-    
+
     # For sorting, we need to collect all data first
-    materialized = 
+    materialized =
       data_stream
-      |> Stream.flat_map(fn chunk -> 
+      |> Stream.flat_map(fn chunk ->
         case chunk do
           list when is_list(list) -> list
           item -> [item]
         end
       end)
       |> Enum.to_list()
-    
+
     sorted = sort_data(materialized, field, order)
-    
+
     # Return as chunked stream
     sorted
     |> Stream.chunk_every(100)
@@ -348,38 +355,41 @@ defmodule Pipeline.Step.DataTransform do
 
   defp evaluate_filter_condition(item, field, condition) do
     field_value = get_nested_field(item, field)
-    
+
     # Simple condition evaluation (could be enhanced)
     case String.split(condition, " ", parts: 3) do
       [field_name, "==", value] when field_name == field ->
         to_string(field_value) == String.trim(value, "'\"")
-      
+
       [field_name, "!=", value] when field_name == field ->
         to_string(field_value) != String.trim(value, "'\"")
-        
+
       [field_name, ">", value] when field_name == field ->
         case {field_value, Float.parse(value)} do
           {num, {target, _}} when is_number(num) -> num > target
           _ -> false
         end
-        
+
       # Handle condition formats like "priority == 'high'"
       [condition_str] ->
         case String.split(condition_str, ~r/\s+(==|!=|>|<)\s+/, parts: 3, include_captures: true) do
           [field_name, "==", value] when field_name == field ->
             to_string(field_value) == String.trim(value, "'\"")
+
           [field_name, "!=", value] when field_name == field ->
             to_string(field_value) != String.trim(value, "'\"")
+
           [field_name, ">", value] when field_name == field ->
             case {field_value, Float.parse(value)} do
               {num, {target, _}} when is_number(num) -> num > target
               _ -> false
             end
+
           _ ->
             # Default to true for unknown conditions
             true
         end
-        
+
       _ ->
         # Default to true for unknown conditions  
         true

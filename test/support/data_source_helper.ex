@@ -13,7 +13,7 @@ defmodule Pipeline.Test.DataSourceHelper do
       }
     }
   end
-  
+
   def create_test_context(step_name, data) do
     %{
       results: %{
@@ -21,11 +21,11 @@ defmodule Pipeline.Test.DataSourceHelper do
       }
     }
   end
-  
+
   def format_variable_source(step_name, variable_name) do
     "previous_response:#{step_name}.variables.#{variable_name}"
   end
-  
+
   def format_result_source(step_name, field_path \\ nil) do
     if field_path do
       "previous_response:#{step_name}.#{field_path}"

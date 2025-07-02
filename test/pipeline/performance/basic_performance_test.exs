@@ -14,29 +14,29 @@ defmodule Pipeline.Performance.BasicTest do
 
   setup do
     File.mkdir_p!(@test_output_dir)
-    
+
     on_exit(fn ->
       File.rm_rf(@test_output_dir)
       cleanup_all_monitoring()
     end)
-    
+
     :ok
   end
 
   describe "Basic performance features" do
     test "performance monitoring can start and stop" do
       test_name = "basic_monitoring_test"
-      
+
       # Clean up any existing
       safe_stop_monitoring(test_name)
-      
+
       # Start monitoring
       assert {:ok, _pid} = Performance.start_monitoring(test_name, memory_threshold: 10_000_000)
-      
+
       # Check it's running
       assert {:ok, metrics} = Performance.get_metrics(test_name)
       assert is_map(metrics)
-      
+
       # Stop monitoring
       assert {:ok, final_metrics} = Performance.stop_monitoring(test_name)
       assert is_map(final_metrics)
@@ -46,13 +46,13 @@ defmodule Pipeline.Performance.BasicTest do
       # Create a small test file
       test_file = Path.join(@test_output_dir, "test_input.txt")
       File.write!(test_file, "line 1\nline 2\nline 3\n")
-      
+
       dest_file = Path.join(@test_output_dir, "test_copy.txt")
-      
+
       # Test streaming copy
       assert :ok = FileUtils.stream_copy_file(test_file, dest_file)
       assert File.exists?(dest_file)
-      
+
       # Verify content
       assert File.read!(dest_file) == File.read!(test_file)
     end
@@ -97,17 +97,20 @@ defmodule Pipeline.Performance.BasicTest do
               "name" => "list_files",
               "type" => "file_ops",
               "operation" => "list",
-              "path" => "."  # Use current directory instead
+              # Use current directory instead
+              "path" => "."
             }
           ]
         }
       }
 
       # Disable monitoring for this test
-      result = Executor.execute(workflow, 
-        output_dir: @test_output_dir, 
-        enable_monitoring: false)
-      
+      result =
+        Executor.execute(workflow,
+          output_dir: @test_output_dir,
+          enable_monitoring: false
+        )
+
       assert {:ok, results} = result
       assert Map.has_key?(results, "list_files")
     end
@@ -145,9 +148,11 @@ defmodule Pipeline.Performance.BasicTest do
       }
 
       # Disable monitoring for this test
-      result = Executor.execute(workflow, 
-        output_dir: @test_output_dir,
-        enable_monitoring: false)
+      result =
+        Executor.execute(workflow,
+          output_dir: @test_output_dir,
+          enable_monitoring: false
+        )
 
       assert {:ok, results} = result
       assert results["process_items"]["success"] == true

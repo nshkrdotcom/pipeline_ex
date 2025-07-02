@@ -13,18 +13,26 @@ defmodule Pipeline.Utils.FileUtils do
 
   require Logger
 
-  @large_file_threshold 100_000_000  # 100MB
-  @stream_chunk_size 1024 * 1024     # 1MB chunks
+  # 100MB
+  @large_file_threshold 100_000_000
+  # 1MB chunks
+  @stream_chunk_size 1024 * 1024
 
   @doc """
   Resolve a path relative to the workspace directory.
   """
   @spec resolve_path(String.t(), String.t()) :: String.t()
   def resolve_path(path, workspace_dir) do
-    if Path.type(path) == :absolute do
-      path
-    else
-      Path.join(workspace_dir, path)
+    cond do
+      Path.type(path) == :absolute ->
+        path
+
+      String.starts_with?(path, "test/") ->
+        # Keep test paths relative to project root, not workspace
+        path
+
+      true ->
+        Path.join(workspace_dir, path)
     end
   end
 
@@ -371,7 +379,6 @@ defmodule Pipeline.Utils.FileUtils do
     with :ok <- ensure_source_exists(source),
          :ok <- ensure_destination_dir(destination),
          {:ok, size} <- get_file_size(source) do
-      
       if size > @large_file_threshold do
         Logger.info("📁 Streaming large file copy: #{format_bytes(size)}")
         stream_copy_large_file(source, destination)
@@ -392,6 +399,7 @@ defmodule Pipeline.Utils.FileUtils do
     case File.exists?(path) do
       true ->
         File.stream!(path, [:read, :binary], @stream_chunk_size)
+
       false ->
         {:error, "File does not exist: #{path}"}
     end
@@ -404,13 +412,13 @@ defmodule Pipeline.Utils.FileUtils do
   def stream_write_file(path, data_stream) do
     try do
       ensure_destination_dir(path)
-      
+
       File.open!(path, [:write, :binary], fn file ->
         data_stream
         |> Stream.each(&IO.binwrite(file, &1))
         |> Stream.run()
       end)
-      
+
       Logger.debug("Streamed write completed: #{path}")
       :ok
     rescue
@@ -423,21 +431,24 @@ defmodule Pipeline.Utils.FileUtils do
   Process a large file line by line with a given function.
   Memory-efficient for large text files.
   """
-  @spec stream_process_lines(String.t(), (String.t() -> String.t())) :: {:ok, String.t()} | {:error, String.t()}
+  @spec stream_process_lines(String.t(), (String.t() -> String.t())) ::
+          {:ok, String.t()} | {:error, String.t()}
   def stream_process_lines(source_path, processor_fn) do
     temp_path = "#{source_path}.tmp"
-    
+
     try do
       source_path
       |> File.stream!()
       |> Stream.map(processor_fn)
       |> Stream.into(File.stream!(temp_path))
       |> Stream.run()
-      
+
       # Replace original with processed file
       case File.rename(temp_path, source_path) do
-        :ok -> {:ok, source_path}
-        {:error, reason} -> 
+        :ok ->
+          {:ok, source_path}
+
+        {:error, reason} ->
           File.rm(temp_path)
           {:error, "Failed to replace file: #{:file.format_error(reason)}"}
       end
@@ -473,12 +484,14 @@ defmodule Pipeline.Utils.FileUtils do
   @doc """
   Process a file with automatic streaming decision.
   """
-  @spec smart_process_file(String.t(), (String.t() -> any())) :: {:ok, any()} | {:error, String.t()}
+  @spec smart_process_file(String.t(), (String.t() -> any())) ::
+          {:ok, any()} | {:error, String.t()}
   def smart_process_file(path, processor_fn) do
     case should_use_streaming?(path) do
       true ->
         Logger.info("📁 Using streaming for large file: #{path}")
         stream_process_large_file(path, processor_fn)
+
       false ->
         case File.read(path) do
           {:ok, content} -> {:ok, processor_fn.(content)}
@@ -495,7 +508,7 @@ defmodule Pipeline.Utils.FileUtils do
       |> File.stream!([:read, :binary], @stream_chunk_size)
       |> Stream.into(File.stream!(destination, [:write, :binary]))
       |> Stream.run()
-      
+
       Logger.debug("Streamed copy completed: #{source} -> #{destination}")
       :ok
     rescue
@@ -506,11 +519,11 @@ defmodule Pipeline.Utils.FileUtils do
 
   defp stream_process_large_file(path, processor_fn) do
     try do
-      content = 
+      content =
         path
         |> File.stream!([:read, :binary], @stream_chunk_size)
         |> Enum.reduce("", fn chunk, acc -> acc <> chunk end)
-      
+
       {:ok, processor_fn.(content)}
     rescue
       error ->
@@ -520,6 +533,9 @@ defmodule Pipeline.Utils.FileUtils do
 
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
-  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024,
+    do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
   defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 1)} GB"
 end

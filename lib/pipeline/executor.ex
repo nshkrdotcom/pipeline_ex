@@ -35,13 +35,16 @@ defmodule Pipeline.Executor do
 
     # Start performance monitoring if enabled
     monitoring_enabled = Keyword.get(opts, :enable_monitoring, true)
+
     if monitoring_enabled do
       case Performance.start_monitoring(pipeline_name, opts) do
-        {:ok, _pid} -> 
+        {:ok, _pid} ->
           Logger.debug("📊 Performance monitoring started for: #{pipeline_name}")
+
         {:already_started, _pid} ->
           Logger.debug("📊 Performance monitoring already running for: #{pipeline_name}")
-        {:error, reason} -> 
+
+        {:error, reason} ->
           Logger.warning("⚠️  Failed to start performance monitoring: #{inspect(reason)}")
       end
     end
@@ -54,28 +57,29 @@ defmodule Pipeline.Executor do
       case execute_steps(workflow["workflow"]["steps"], context) do
         {:ok, final_context} ->
           log_pipeline_completion(final_context)
-          
+
           # Stop performance monitoring and log metrics
           if monitoring_enabled do
             case Performance.stop_monitoring(pipeline_name) do
               {:ok, final_metrics} ->
                 log_performance_summary(final_metrics)
+
               {:error, _} ->
                 Logger.debug("Performance monitoring already stopped")
             end
           end
-          
+
           {:ok, final_context.results}
 
         {:error, reason} = error ->
           Logger.error("❌ Pipeline execution failed: #{reason}")
           cleanup_context(context)
-          
+
           # Stop monitoring on error
           if monitoring_enabled do
             Performance.stop_monitoring(pipeline_name)
           end
-          
+
           error
       end
     rescue
@@ -290,35 +294,42 @@ defmodule Pipeline.Executor do
           "stream_id" => stream.id,
           "stream_info" => ResultStream.get_stream_info(stream)
         }
-        
-        updated_context = update_context_with_success(step, index, context, stream_result, step_start)
+
+        updated_context =
+          update_context_with_success(step, index, context, stream_result, step_start)
+
         save_checkpoint_if_enabled(context, updated_context)
         save_step_output_if_needed(step, result, context.output_dir)
-        
+
         Logger.info("✅ Step completed with streaming: #{step["name"]}")
-        
+
         # Notify performance monitoring
         pipeline_name = context[:pipeline_name] || "unknown"
         Performance.step_completed(pipeline_name, step["name"], stream_result)
-        
+
         {:ok, updated_context}
-        
+
       {:no_stream, optimized_result} ->
         # Use normal result handling
-        updated_context = update_context_with_success(step, index, context, optimized_result, step_start)
+        updated_context =
+          update_context_with_success(step, index, context, optimized_result, step_start)
+
         save_checkpoint_if_enabled(context, updated_context)
         save_step_output_if_needed(step, result, context.output_dir)
-        
+
         Logger.info("✅ Step completed: #{step["name"]}")
         {:ok, updated_context}
-        
+
       {:error, reason} ->
         Logger.warning("⚠️  Failed to create result stream: #{reason}, using optimized result")
         optimized_result = optimize_result_for_memory(result)
-        updated_context = update_context_with_success(step, index, context, optimized_result, step_start)
+
+        updated_context =
+          update_context_with_success(step, index, context, optimized_result, step_start)
+
         save_checkpoint_if_enabled(context, updated_context)
         save_step_output_if_needed(step, result, context.output_dir)
-        
+
         Logger.info("✅ Step completed: #{step["name"]}")
         {:ok, updated_context}
     end
@@ -550,12 +561,13 @@ defmodule Pipeline.Executor do
   defp maybe_create_result_stream(step, result) do
     # Calculate result size
     result_size = calculate_result_size(result)
-    
+
     # Check if streaming is enabled for this step and result is large enough
     if should_stream_step_result?(step, result_size) do
       case ResultStream.create_stream(step["name"], "result", result, %{step_type: step["type"]}) do
         {:ok, stream} ->
           {:ok, stream}
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -567,10 +579,10 @@ defmodule Pipeline.Executor do
   defp should_stream_step_result?(step, result_size) do
     # Check if streaming is explicitly enabled
     streaming_enabled = get_in(step, ["streaming", "enabled"]) || false
-    
+
     # Check if result size exceeds threshold
     large_result = ResultStream.should_stream_result?(result_size)
-    
+
     # Stream if explicitly enabled or result is large
     streaming_enabled || large_result
   end
@@ -602,13 +614,14 @@ defmodule Pipeline.Executor do
     Logger.info("   Duration: #{metrics.total_duration_ms}ms")
     Logger.info("   Steps: #{metrics.successful_steps}/#{metrics.total_steps}")
     Logger.info("   Peak Memory: #{format_bytes(metrics.peak_memory_bytes)}")
-    
+
     if metrics.total_warnings > 0 do
       Logger.warning("⚠️  Performance Warnings: #{metrics.total_warnings}")
     end
-    
+
     if length(metrics.recommendations) > 0 do
       Logger.info("💡 Recommendations:")
+
       Enum.each(metrics.recommendations, fn rec ->
         Logger.info("   - #{rec}")
       end)
@@ -617,7 +630,10 @@ defmodule Pipeline.Executor do
 
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
-  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024,
+    do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
   defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 1)} GB"
 
   defp cleanup_context(context) do

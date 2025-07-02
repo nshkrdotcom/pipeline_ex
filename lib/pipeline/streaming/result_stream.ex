@@ -1,15 +1,17 @@
 defmodule Pipeline.Streaming.ResultStream do
   @moduledoc """
   Result streaming capabilities for pipeline execution.
-  
+
   Provides memory-efficient result passing between steps by streaming
   large results instead of keeping them in memory.
   """
 
   require Logger
 
-  @large_result_threshold 10_000_000  # 10MB
-  @stream_chunk_size 1_000_000        # 1MB chunks
+  # 10MB
+  @large_result_threshold 10_000_000
+  # 1MB chunks
+  @stream_chunk_size 1_000_000
 
   defstruct [
     :id,
@@ -28,9 +30,12 @@ defmodule Pipeline.Streaming.ResultStream do
   @spec create_stream(String.t(), String.t(), any(), map()) :: {:ok, t()} | {:error, String.t()}
   def create_stream(step_name, result_key, data, metadata \\ %{}) do
     result_size = calculate_result_size(data)
-    
+
     if should_stream_result?(result_size) do
-      Logger.info("📊 Creating result stream for #{step_name}:#{result_key} (#{format_bytes(result_size)})")
+      Logger.info(
+        "📊 Creating result stream for #{step_name}:#{result_key} (#{format_bytes(result_size)})"
+      )
+
       do_create_stream(step_name, result_key, data, metadata, result_size)
     else
       {:error, "Result too small for streaming: #{format_bytes(result_size)}"}
@@ -53,12 +58,16 @@ defmodule Pipeline.Streaming.ResultStream do
     case stream.data_type do
       :binary ->
         read_binary_stream(stream)
+
       :json ->
         read_json_stream(stream)
+
       :list ->
         read_list_stream(stream)
+
       :map ->
         read_map_stream(stream)
+
       _ ->
         {:error, "Unsupported stream data type: #{stream.data_type}"}
     end
@@ -72,8 +81,10 @@ defmodule Pipeline.Streaming.ResultStream do
     case stream.data_type do
       :binary ->
         {:ok, stream_binary_chunks(stream)}
+
       :list ->
         {:ok, stream_list_chunks(stream)}
+
       _ ->
         {:error, "Chunk streaming not supported for data type: #{stream.data_type}"}
     end
@@ -88,6 +99,7 @@ defmodule Pipeline.Streaming.ResultStream do
       {:ok, data} ->
         try do
           transformed_data = transform_fn.(data)
+
           create_stream(
             "#{stream.source_step}_transformed",
             "transformed",
@@ -98,7 +110,7 @@ defmodule Pipeline.Streaming.ResultStream do
           error ->
             {:error, "Stream transformation failed: #{Exception.message(error)}"}
         end
-      
+
       error ->
         error
     end
@@ -113,11 +125,11 @@ defmodule Pipeline.Streaming.ResultStream do
       {:file, path} ->
         File.rm(path)
         Logger.debug("🗑️  Cleaned up stream file: #{path}")
-      
+
       {:memory, _pid} ->
         # Memory-based streams are cleaned up by GC
         :ok
-        
+
       _ ->
         :ok
     end
@@ -142,7 +154,7 @@ defmodule Pipeline.Streaming.ResultStream do
   defp do_create_stream(step_name, result_key, data, metadata, result_size) do
     stream_id = generate_stream_id(step_name, result_key)
     data_type = detect_data_type(data)
-    
+
     case create_stream_storage(data, data_type, stream_id) do
       {:ok, stream_ref} ->
         stream = %__MODULE__{
@@ -150,15 +162,16 @@ defmodule Pipeline.Streaming.ResultStream do
           source_step: step_name,
           data_type: data_type,
           stream_ref: stream_ref,
-          metadata: Map.merge(metadata, %{
-            size_bytes: result_size,
-            result_key: result_key
-          }),
+          metadata:
+            Map.merge(metadata, %{
+              size_bytes: result_size,
+              result_key: result_key
+            }),
           created_at: DateTime.utc_now()
         }
-        
+
         {:ok, stream}
-        
+
       {:error, reason} ->
         {:error, "Failed to create stream storage: #{reason}"}
     end
@@ -167,31 +180,32 @@ defmodule Pipeline.Streaming.ResultStream do
   defp create_stream_storage(data, data_type, stream_id) do
     temp_dir = System.tmp_dir!()
     stream_file = Path.join(temp_dir, "pipeline_stream_#{stream_id}")
-    
+
     case data_type do
       :binary ->
         File.write(stream_file, data)
         {:ok, {:file, stream_file}}
-        
+
       :json ->
         case Jason.encode(data) do
           {:ok, json_data} ->
             File.write(stream_file, json_data)
             {:ok, {:file, stream_file}}
+
           {:error, reason} ->
             {:error, "JSON encoding failed: #{inspect(reason)}"}
         end
-        
+
       :list ->
         serialized = :erlang.term_to_binary(data)
         File.write(stream_file, serialized)
         {:ok, {:file, stream_file}}
-        
+
       :map ->
         serialized = :erlang.term_to_binary(data)
         File.write(stream_file, serialized)
         {:ok, {:file, stream_file}}
-        
+
       _ ->
         {:error, "Unsupported data type for streaming: #{data_type}"}
     end
@@ -214,6 +228,7 @@ defmodule Pipeline.Streaming.ResultStream do
           {:ok, data} -> {:ok, data}
           {:error, reason} -> {:error, "JSON decode failed: #{inspect(reason)}"}
         end
+
       {:error, reason} ->
         {:error, "Failed to read JSON stream: #{:file.format_error(reason)}"}
     end
@@ -229,6 +244,7 @@ defmodule Pipeline.Streaming.ResultStream do
           error ->
             {:error, "Failed to deserialize list: #{Exception.message(error)}"}
         end
+
       {:error, reason} ->
         {:error, "Failed to read list stream: #{:file.format_error(reason)}"}
     end
@@ -244,6 +260,7 @@ defmodule Pipeline.Streaming.ResultStream do
           error ->
             {:error, "Failed to deserialize map: #{Exception.message(error)}"}
         end
+
       {:error, reason} ->
         {:error, "Failed to read map stream: #{:file.format_error(reason)}"}
     end
@@ -257,9 +274,12 @@ defmodule Pipeline.Streaming.ResultStream do
     case read_list_stream(stream) do
       {:ok, list} when is_list(list) ->
         list
-        |> Stream.chunk_every(1000)  # Chunk lists into smaller sublists
+        # Chunk lists into smaller sublists
+        |> Stream.chunk_every(1000)
+
       {:ok, _} ->
         Stream.cycle([]) |> Stream.take(0)
+
       {:error, _} ->
         Stream.cycle([]) |> Stream.take(0)
     end
@@ -277,6 +297,7 @@ defmodule Pipeline.Streaming.ResultStream do
 
   defp detect_data_type(data) when is_binary(data), do: :binary
   defp detect_data_type(data) when is_list(data), do: :list
+
   defp detect_data_type(data) when is_map(data) do
     # Try to determine if it's JSON-serializable
     case Jason.encode(data) do
@@ -284,16 +305,23 @@ defmodule Pipeline.Streaming.ResultStream do
       {:error, _} -> :map
     end
   end
+
   defp detect_data_type(_data), do: :unknown
 
   defp generate_stream_id(step_name, result_key) do
     timestamp = DateTime.utc_now() |> DateTime.to_unix(:microsecond)
-    hash = :crypto.hash(:md5, "#{step_name}_#{result_key}_#{timestamp}") |> Base.encode16(case: :lower)
+
+    hash =
+      :crypto.hash(:md5, "#{step_name}_#{result_key}_#{timestamp}") |> Base.encode16(case: :lower)
+
     String.slice(hash, 0, 16)
   end
 
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
-  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024,
+    do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
   defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 1)} GB"
 end

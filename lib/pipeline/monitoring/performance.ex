@@ -1,7 +1,7 @@
 defmodule Pipeline.Monitoring.Performance do
   @moduledoc """
   Performance monitoring and metrics collection for pipeline execution.
-  
+
   Provides real-time performance tracking, memory usage monitoring,
   bottleneck identification, and performance optimization recommendations.
   """
@@ -9,9 +9,12 @@ defmodule Pipeline.Monitoring.Performance do
   require Logger
   use GenServer
 
-  @default_memory_threshold 500_000_000  # 500MB
-  @default_execution_threshold 30_000    # 30 seconds
-  @sample_interval 1_000                 # 1 second
+  # 500MB
+  @default_memory_threshold 500_000_000
+  # 30 seconds
+  @default_execution_threshold 30_000
+  # 1 second
+  @sample_interval 1_000
 
   defstruct [
     :start_time,
@@ -27,12 +30,12 @@ defmodule Pipeline.Monitoring.Performance do
   @type t :: %__MODULE__{}
   @type metric_value :: number()
   @type metrics :: %{
-    memory_usage: metric_value,
-    cpu_usage: metric_value,
-    execution_time: metric_value,
-    step_count: non_neg_integer(),
-    error_count: non_neg_integer()
-  }
+          memory_usage: metric_value,
+          cpu_usage: metric_value,
+          execution_time: metric_value,
+          step_count: non_neg_integer(),
+          error_count: non_neg_integer()
+        }
 
   # Client API
 
@@ -50,17 +53,22 @@ defmodule Pipeline.Monitoring.Performance do
   @spec stop_monitoring(String.t()) :: {:ok, map()} | {:error, term()}
   def stop_monitoring(pipeline_name) do
     case GenServer.whereis(via_tuple(pipeline_name)) do
-      nil -> {:error, :not_found}
-      pid -> 
+      nil ->
+        {:error, :not_found}
+
+      pid ->
         try do
-          metrics = GenServer.call(pid, :get_final_metrics, 1000)  # 1 second timeout
-          GenServer.stop(pid, :normal, 1000)  # 1 second timeout
+          # 1 second timeout
+          metrics = GenServer.call(pid, :get_final_metrics, 1000)
+          # 1 second timeout
+          GenServer.stop(pid, :normal, 1000)
           {:ok, metrics}
         catch
           :exit, {:timeout, _} ->
             # Force kill if timeout
             Process.exit(pid, :kill)
             {:error, :timeout}
+
           :exit, {:noproc, _} ->
             {:error, :not_found}
         end
@@ -156,7 +164,7 @@ defmodule Pipeline.Monitoring.Performance do
   @impl true
   def handle_cast({:step_started, step_name, step_type}, state) do
     step_start_time = DateTime.utc_now()
-    
+
     step_metric = %{
       name: step_name,
       type: step_type,
@@ -173,25 +181,27 @@ defmodule Pipeline.Monitoring.Performance do
   @impl true
   def handle_cast({:step_completed, step_name, result}, state) do
     completion_time = DateTime.utc_now()
-    
+
     case Map.get(state.step_metrics, step_name) do
-      nil -> {:noreply, state}
+      nil ->
+        {:noreply, state}
+
       step_metric ->
         duration = DateTime.diff(completion_time, step_metric.start_time, :millisecond)
-        
+
         updated_step_metric = %{
-          step_metric | 
-          end_time: completion_time,
-          duration_ms: duration,
-          status: :completed,
-          result_size: calculate_result_size(result)
+          step_metric
+          | end_time: completion_time,
+            duration_ms: duration,
+            status: :completed,
+            result_size: calculate_result_size(result)
         }
 
         updated_step_metrics = Map.put(state.step_metrics, step_name, updated_step_metric)
-        
+
         # Check for performance warnings
         warnings = check_step_performance(updated_step_metric, state.warnings)
-        
+
         {:noreply, %{state | step_metrics: updated_step_metrics, warnings: warnings}}
     end
   end
@@ -199,23 +209,25 @@ defmodule Pipeline.Monitoring.Performance do
   @impl true
   def handle_cast({:step_failed, step_name, error}, state) do
     completion_time = DateTime.utc_now()
-    
+
     case Map.get(state.step_metrics, step_name) do
-      nil -> {:noreply, state}
+      nil ->
+        {:noreply, state}
+
       step_metric ->
         duration = DateTime.diff(completion_time, step_metric.start_time, :millisecond)
-        
+
         updated_step_metric = %{
-          step_metric | 
-          end_time: completion_time,
-          duration_ms: duration,
-          status: :failed,
-          error: error
+          step_metric
+          | end_time: completion_time,
+            duration_ms: duration,
+            status: :failed,
+            error: error
         }
 
         updated_step_metrics = Map.put(state.step_metrics, step_name, updated_step_metric)
         updated_metrics = %{state.metrics | error_count: state.metrics.error_count + 1}
-        
+
         {:noreply, %{state | step_metrics: updated_step_metrics, metrics: updated_metrics}}
     end
   end
@@ -241,13 +253,14 @@ defmodule Pipeline.Monitoring.Performance do
   @impl true
   def handle_info(:sample_metrics, state) do
     sample = collect_system_metrics()
-    updated_samples = [sample | Enum.take(state.samples, 99)]  # Keep last 100 samples
-    
+    # Keep last 100 samples
+    updated_samples = [sample | Enum.take(state.samples, 99)]
+
     updated_metrics = %{
-      state.metrics |
-      memory_usage: sample.memory_usage,
-      cpu_usage: sample.cpu_usage,
-      execution_time: DateTime.diff(DateTime.utc_now(), state.start_time, :millisecond)
+      state.metrics
+      | memory_usage: sample.memory_usage,
+        cpu_usage: sample.cpu_usage,
+        execution_time: DateTime.diff(DateTime.utc_now(), state.start_time, :millisecond)
     }
 
     # Check thresholds
@@ -270,11 +283,12 @@ defmodule Pipeline.Monitoring.Performance do
   defp collect_system_metrics do
     # Use Erlang's built-in memory info as fallback
     memory_usage = :erlang.memory(:total)
-    
+
     %{
       timestamp: DateTime.utc_now(),
       memory_usage: memory_usage,
-      memory_total: memory_usage * 2,  # Rough estimate
+      # Rough estimate
+      memory_total: memory_usage * 2,
       memory_available: memory_usage,
       cpu_usage: get_cpu_usage(),
       process_count: :erlang.system_info(:process_count)
@@ -313,30 +327,35 @@ defmodule Pipeline.Monitoring.Performance do
     warnings = []
 
     # Check execution time
-    warnings = if step_metric.duration_ms > 60_000 do
-      warning = %{
-        type: :slow_step,
-        step: step_metric.name,
-        duration_ms: step_metric.duration_ms,
-        timestamp: DateTime.utc_now()
-      }
-      [warning | warnings]
-    else
-      warnings
-    end
+    warnings =
+      if step_metric.duration_ms > 60_000 do
+        warning = %{
+          type: :slow_step,
+          step: step_metric.name,
+          duration_ms: step_metric.duration_ms,
+          timestamp: DateTime.utc_now()
+        }
+
+        [warning | warnings]
+      else
+        warnings
+      end
 
     # Check result size
-    warnings = if step_metric[:result_size] && step_metric.result_size > 10_000_000 do  # 10MB
-      warning = %{
-        type: :large_result,
-        step: step_metric.name,
-        size_bytes: step_metric.result_size,
-        timestamp: DateTime.utc_now()
-      }
-      [warning | warnings]
-    else
-      warnings
-    end
+    # 10MB
+    warnings =
+      if step_metric[:result_size] && step_metric.result_size > 10_000_000 do
+        warning = %{
+          type: :large_result,
+          step: step_metric.name,
+          size_bytes: step_metric.result_size,
+          timestamp: DateTime.utc_now()
+        }
+
+        [warning | warnings]
+      else
+        warnings
+      end
 
     warnings ++ existing_warnings
   end
@@ -345,32 +364,43 @@ defmodule Pipeline.Monitoring.Performance do
     warnings = state.warnings
 
     # Check memory threshold
-    warnings = if sample.memory_usage > state.memory_threshold do
-      warning = %{
-        type: :memory_threshold,
-        current: sample.memory_usage,
-        threshold: state.memory_threshold,
-        timestamp: DateTime.utc_now()
-      }
-      Logger.warning("🚨 Memory usage exceeded threshold: #{format_bytes(sample.memory_usage)} > #{format_bytes(state.memory_threshold)}")
-      [warning | warnings]
-    else
-      warnings
-    end
+    warnings =
+      if sample.memory_usage > state.memory_threshold do
+        warning = %{
+          type: :memory_threshold,
+          current: sample.memory_usage,
+          threshold: state.memory_threshold,
+          timestamp: DateTime.utc_now()
+        }
+
+        Logger.warning(
+          "🚨 Memory usage exceeded threshold: #{format_bytes(sample.memory_usage)} > #{format_bytes(state.memory_threshold)}"
+        )
+
+        [warning | warnings]
+      else
+        warnings
+      end
 
     # Check execution time threshold
-    warnings = if state.metrics.execution_time > state.execution_threshold * 1000 do  # Convert to ms
-      warning = %{
-        type: :execution_threshold,
-        current_ms: state.metrics.execution_time,
-        threshold_ms: state.execution_threshold * 1000,
-        timestamp: DateTime.utc_now()
-      }
-      Logger.warning("🚨 Execution time exceeded threshold: #{state.metrics.execution_time}ms > #{state.execution_threshold * 1000}ms")
-      [warning | warnings]
-    else
-      warnings
-    end
+    # Convert to ms
+    warnings =
+      if state.metrics.execution_time > state.execution_threshold * 1000 do
+        warning = %{
+          type: :execution_threshold,
+          current_ms: state.metrics.execution_time,
+          threshold_ms: state.execution_threshold * 1000,
+          timestamp: DateTime.utc_now()
+        }
+
+        Logger.warning(
+          "🚨 Execution time exceeded threshold: #{state.metrics.execution_time}ms > #{state.execution_threshold * 1000}ms"
+        )
+
+        [warning | warnings]
+      else
+        warnings
+      end
 
     warnings
   end
@@ -395,14 +425,15 @@ defmodule Pipeline.Monitoring.Performance do
       active_steps: count_active_steps(state.step_metrics),
       completed_steps: count_completed_steps(state.step_metrics),
       failed_steps: count_failed_steps(state.step_metrics),
-      warnings: Enum.take(state.warnings, 10)  # Last 10 warnings
+      # Last 10 warnings
+      warnings: Enum.take(state.warnings, 10)
     }
   end
 
   defp calculate_final_metrics(state) do
     total_duration = DateTime.diff(DateTime.utc_now(), state.start_time, :millisecond)
-    
-    step_summary = 
+
+    step_summary =
       state.step_metrics
       |> Map.values()
       |> Enum.map(fn step ->
@@ -415,11 +446,11 @@ defmodule Pipeline.Monitoring.Performance do
         }
       end)
 
-    slowest_step = 
+    slowest_step =
       step_summary
       |> Enum.max_by(& &1.duration_ms, fn -> nil end)
 
-    largest_result_step = 
+    largest_result_step =
       step_summary
       |> Enum.max_by(& &1.result_size_bytes, fn -> nil end)
 
@@ -469,6 +500,7 @@ defmodule Pipeline.Monitoring.Performance do
     total = samples |> Enum.map(& &1.memory_usage) |> Enum.sum()
     div(total, length(samples))
   end
+
   defp get_average_memory(_samples), do: 0
 
   defp get_peak_cpu(samples) do
@@ -487,41 +519,50 @@ defmodule Pipeline.Monitoring.Performance do
     recommendations = []
 
     # Check memory usage
-    recommendations = if get_peak_memory(state.samples) > state.memory_threshold * 0.8 do
-      ["Consider enabling streaming for large data operations" | recommendations]
-    else
-      recommendations
-    end
+    recommendations =
+      if get_peak_memory(state.samples) > state.memory_threshold * 0.8 do
+        ["Consider enabling streaming for large data operations" | recommendations]
+      else
+        recommendations
+      end
 
     # Check slow steps
-    slow_steps = 
+    slow_steps =
       state.step_metrics
       |> Map.values()
       |> Enum.filter(&(&1[:duration_ms] && &1.duration_ms > 30_000))
 
-    recommendations = if length(slow_steps) > 0 do
-      ["Optimize slow steps: #{slow_steps |> Enum.map(& &1.name) |> Enum.join(", ")}" | recommendations]
-    else
-      recommendations
-    end
+    recommendations =
+      if length(slow_steps) > 0 do
+        [
+          "Optimize slow steps: #{slow_steps |> Enum.map(& &1.name) |> Enum.join(", ")}"
+          | recommendations
+        ]
+      else
+        recommendations
+      end
 
     # Check large results
-    large_results = 
+    large_results =
       state.step_metrics
       |> Map.values()
       |> Enum.filter(&(&1[:result_size] && &1.result_size > 5_000_000))
 
-    recommendations = if length(large_results) > 0 do
-      ["Enable result streaming for steps with large outputs" | recommendations]
-    else
-      recommendations
-    end
+    recommendations =
+      if length(large_results) > 0 do
+        ["Enable result streaming for steps with large outputs" | recommendations]
+      else
+        recommendations
+      end
 
     recommendations
   end
 
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   defp format_bytes(bytes) when bytes < 1024 * 1024, do: "#{Float.round(bytes / 1024, 1)} KB"
-  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
+  defp format_bytes(bytes) when bytes < 1024 * 1024 * 1024,
+    do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+
   defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 1)} GB"
 end

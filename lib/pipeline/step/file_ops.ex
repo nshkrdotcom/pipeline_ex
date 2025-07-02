@@ -259,7 +259,7 @@ defmodule Pipeline.Step.FileOps do
   defp get_processor_function("replace", step) do
     pattern = step["pattern"] || ""
     replacement = step["replacement"] || ""
-    
+
     fn line -> String.replace(line, pattern, replacement) end
   end
 
