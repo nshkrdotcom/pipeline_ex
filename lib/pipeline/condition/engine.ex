@@ -116,28 +116,48 @@ defmodule Pipeline.Condition.Engine do
     
     case find_operator(expression, operators) do
       {operator, left, right} ->
-        # For the left side, directly evaluate as mathematical expression to get the actual value
-        left_val = evaluate_mathematical_expression(String.trim(left), context)
+        # For the left side, directly evaluate to get the actual value (not boolean)
+        left_val = evaluate_value_expression(String.trim(left), context)
         
         case operator do
           " between " ->
             # Special handling for "between X and Y"
             case String.split(String.trim(right), " and ", parts: 2) do
               [min_expr, max_expr] ->
-                min_val = evaluate_mathematical_expression(String.trim(min_expr), context)
-                max_val = evaluate_mathematical_expression(String.trim(max_expr), context)
+                min_val = evaluate_value_expression(String.trim(min_expr), context)
+                max_val = evaluate_value_expression(String.trim(max_expr), context)
                 Functions.call_function("between", [left_val, min_val, max_val], context)
               _ ->
                 false
             end
           _ ->
-            right_val = evaluate_mathematical_expression(String.trim(right), context)
+            right_val = evaluate_value_expression(String.trim(right), context)
             perform_comparison(left_val, right_val, String.trim(operator), context)
         end
       nil ->
         # No comparison operator found, evaluate as mathematical expression
         result = evaluate_mathematical_expression(expression, context)
         truthy?(result)
+    end
+  end
+  
+  # Helper function to evaluate expressions and return actual values (not boolean truthiness)
+  defp evaluate_value_expression(expression, context) do
+    expression = String.trim(expression)
+    
+    cond do
+      # Function calls
+      Regex.match?(~r/\w+\s*\(/, expression) ->
+        evaluate_function_calls(expression, context)
+      
+      # Mathematical expressions (but not simple negative numbers)
+      String.contains?(expression, ["+", "*", "/", "%"]) or 
+      (String.contains?(expression, "-") and not Regex.match?(~r/^-?\d+(\.\d+)?$/, expression)) ->
+        evaluate_math_with_precedence(expression, context)
+      
+      # Simple values (including negative number literals)
+      true ->
+        resolve_value_private(expression, context)
     end
   end
 
