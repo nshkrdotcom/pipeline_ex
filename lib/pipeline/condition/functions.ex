@@ -394,25 +394,41 @@ defmodule Pipeline.Condition.Functions do
 
   # Helper function to replace '@' placeholder with actual item value
   defp replace_current_item_placeholder(condition, item) when is_binary(condition) do
+    # Remove quotes if present
+    clean_condition = 
+      cond do
+        String.starts_with?(condition, "'") and String.ends_with?(condition, "'") ->
+          String.slice(condition, 1..-2//1)
+        String.starts_with?(condition, "\"") and String.ends_with?(condition, "\"") ->
+          String.slice(condition, 1..-2//1)
+        true ->
+          condition
+      end
+    
     # For simple conditions like "@ > 6", replace @ with the item value
-    if String.contains?(condition, "@") do
-      String.replace(condition, "@", to_string(item))
+    if String.contains?(clean_condition, "@") do
+      String.replace(clean_condition, "@", to_string(item))
     else
       # For conditions like 'severity == "high"', modify to access @item.field
-      if is_map(item) and not String.contains?(condition, ".") do
-        # Simple field access - need to prefix with @item.
-        # This is a simplified approach - in reality we'd need more sophisticated parsing
-        condition
+      # Use a more general approach: replace any word that's a field in the item
+      if is_map(item) do
+        # Get all field names from the item
+        field_names = Map.keys(item)
+        # Create a regex that matches any of the field names
+        if not Enum.empty?(field_names) do
+          field_pattern = field_names |> Enum.join("|")
+          regex = Regex.compile!("\\b(#{field_pattern})\\b")
+          String.replace(clean_condition, regex, "@item.\\1")
+        else
+          clean_condition
+        end
       else
-        # For field access, prefix non-dot notations with @item.
-        # Look for bare field names and replace them
-        condition = String.replace(condition, ~r/\b(severity|type|priority)\b/, "@item.\\1")
-        condition
+        clean_condition
       end
     end
   end
 
-  defp replace_current_item_placeholder(condition, item) when is_map(condition) do
+  defp replace_current_item_placeholder(condition, _item) when is_map(condition) do
     # Handle complex boolean expressions by recursively processing
     condition
   end

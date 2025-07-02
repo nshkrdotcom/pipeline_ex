@@ -67,14 +67,14 @@ defmodule Pipeline.Condition.Engine do
 
   defp evaluate_simple_condition(condition_expr, context) do
     cond do
+      # Check if it contains function calls FIRST
+      Regex.match?(~r/\w+\s*\(/, condition_expr) ->
+        evaluate_expression_with_functions(condition_expr, context)
+
       # Check if it's a mathematical expression with comparison operators
       String.contains?(condition_expr, ["+", "-", "*", "/", "%"]) and
       String.contains?(condition_expr, [">", "<", "==", "!=", ">=", "<=", "contains", "matches", "between"]) ->
         evaluate_mathematical_comparison(condition_expr, context)
-
-      # Check if it contains function calls
-      Regex.match?(~r/\w+\s*\(/, condition_expr) ->
-        evaluate_expression_with_functions(condition_expr, context)
 
       # Check if it's a comparison expression
       String.contains?(condition_expr, [">", "<", "==", "!=", "contains", "matches", "between"]) ->
@@ -144,14 +144,22 @@ defmodule Pipeline.Condition.Engine do
   defp evaluate_expression_with_functions(expression, context) do
     expression = String.trim(expression)
     
-    # Check if it's a function call comparison (has comparison operators other than function names)
-    comparison_ops = [">", "<", "==", "!=", ">=", "<=", "between"]
-    if String.contains?(expression, comparison_ops) do
-      evaluate_mathematical_comparison(expression, context)
-    else
-      # Pure function call, evaluate and check truthiness
-      result = evaluate_mathematical_expression(expression, context)
-      truthy?(result)
+    # Check if it's a single function call or has comparison operators outside of function calls
+    case Regex.run(~r/^(\w+)\s*\(([^)]*)\)$/, String.trim(expression)) do
+      [_, _, _] ->
+        # It's a single function call, evaluate directly
+        result = evaluate_mathematical_expression(expression, context)
+        truthy?(result)
+      nil ->
+        # Not a single function call, check for comparison operators
+        comparison_ops = [">", "<", "==", "!=", ">=", "<=", "between"]
+        if String.contains?(expression, comparison_ops) do
+          evaluate_mathematical_comparison(expression, context)
+        else
+          # Pure function call, evaluate and check truthiness
+          result = evaluate_mathematical_expression(expression, context)
+          truthy?(result)
+        end
     end
   end
 
@@ -159,6 +167,19 @@ defmodule Pipeline.Condition.Engine do
     expression = String.trim(expression)
 
     cond do
+      String.contains?(expression, " between ") ->
+        [left, right] = String.split(expression, " between ", parts: 2)
+        left_val = resolve_value_private(String.trim(left), context)
+        # For between, right side should be "min and max"
+        case String.split(String.trim(right), " and ", parts: 2) do
+          [min_expr, max_expr] ->
+            min_val = resolve_value_private(String.trim(min_expr), context)
+            max_val = resolve_value_private(String.trim(max_expr), context)
+            Functions.call_function("between", [left_val, min_val, max_val], context)
+          _ ->
+            false
+        end
+
       String.contains?(expression, " contains ") ->
         [left, right] = String.split(expression, " contains ", parts: 2)
         left_val = resolve_value_private(String.trim(left), context)
@@ -278,18 +299,28 @@ defmodule Pipeline.Condition.Engine do
     # Handle operator precedence: *, /, % before +, -
     expression = String.trim(expression)
     
-    # First evaluate high-precedence operations (*, /, %)
-    with_high_precedence = evaluate_operations(expression, context, ["*", "/", "%"])
+    # Simple approach: find the lowest precedence operator and split there
+    # This handles precedence correctly by processing low precedence last
     
-    # Then evaluate low-precedence operations (+, -)
-    with_low_precedence = evaluate_operations(with_high_precedence, context, ["+", "-"])
-    
-    # If still a string after all operations, it's a simple value
-    case with_low_precedence do
-      result when is_binary(result) ->
-        resolve_value_private(result, context)
-      result ->
-        result
+    # First try to find low precedence operators (+, -)
+    case find_rightmost_operator(expression, ["+", "-"]) do
+      {operator, left, right} ->
+        left_val = evaluate_math_with_precedence(String.trim(left), context)
+        right_val = evaluate_math_with_precedence(String.trim(right), context)
+        perform_math_operation(left_val, right_val, operator)
+      
+      nil ->
+        # No low precedence operators, try high precedence (*, /, %)
+        case find_rightmost_operator(expression, ["*", "/", "%"]) do
+          {operator, left, right} ->
+            left_val = evaluate_math_with_precedence(String.trim(left), context)
+            right_val = evaluate_math_with_precedence(String.trim(right), context)
+            perform_math_operation(left_val, right_val, operator)
+          
+          nil ->
+            # No operators found, resolve as simple value
+            resolve_value_private(expression, context)
+        end
     end
   end
   
@@ -298,47 +329,50 @@ defmodule Pipeline.Condition.Engine do
     value
   end
   
-  defp evaluate_operations(expression, context, operators) when is_binary(expression) do
-    # Find the rightmost operator to maintain left-to-right evaluation
-    case find_rightmost_operator(expression, operators) do
-      {operator, left, right} ->
-        left_val = evaluate_math_with_precedence(String.trim(left), context)
-        right_val = evaluate_math_with_precedence(String.trim(right), context)
-        perform_math_operation(left_val, right_val, operator)
-      nil ->
-        # No operator found in this precedence level, return expression unchanged
-        # The caller will handle the next precedence level or resolve as value
-        expression
-    end
-  end
-  
-  defp evaluate_operations(value, _context, _operators) do
-    # If it's not a string, return the value as is
-    value
-  end
   
   defp find_rightmost_operator(expression, operators) when is_binary(expression) do
-    # For mathematical expressions, we want to find the leftmost operator of the current precedence level
-    # This ensures proper left-to-right evaluation within the same precedence
+    # Find the rightmost operator for proper left-to-right evaluation
+    # For "a + b + c", we want to find the last + to evaluate (a + b) first
     operators
     |> Enum.reduce(nil, fn op, acc ->
-      if String.contains?(expression, op) do
-        case String.split(expression, op, parts: 2) do
-          [left, right] ->
-            case acc do
-              nil -> {op, left, right}
-              _ -> acc  # Keep the first one found (leftmost)
-            end
-          _ ->
-            acc
+      # Find all positions of this operator
+      positions = find_all_positions(expression, op)
+      
+      if not Enum.empty?(positions) do
+        # Get the rightmost position
+        rightmost_pos = Enum.max(positions)
+        left = String.slice(expression, 0, rightmost_pos)
+        right = String.slice(expression, rightmost_pos + String.length(op), String.length(expression))
+        
+        case acc do
+          nil -> {op, left, right, rightmost_pos}
+          {_, _, _, prev_pos} when rightmost_pos > prev_pos ->
+            {op, left, right, rightmost_pos}
+          _ -> acc
         end
       else
         acc
       end
     end)
+    |> case do
+      {op, left, right} -> {op, left, right}
+      {op, left, right, _pos} -> {op, left, right}
+      nil -> nil
+    end
   end
   
-  defp find_rightmost_operator(_expression, _operators), do: nil
+  defp find_all_positions(string, substring) do
+    find_all_positions(string, substring, 0, [])
+  end
+  
+  defp find_all_positions(string, substring, start_pos, positions) do
+    case :binary.match(string, substring, scope: {start_pos, String.length(string) - start_pos}) do
+      {pos, _len} ->
+        find_all_positions(string, substring, pos + 1, [pos | positions])
+      :nomatch ->
+        Enum.reverse(positions)
+    end
+  end
   
   defp find_operator(expression, operators) do
     # Find the first occurrence of any operator, but prioritize by order
@@ -384,7 +418,8 @@ defmodule Pipeline.Condition.Engine do
     if is_number(left_num) and is_number(right_num) do
       perform_math_operation(left_num, right_num, operator)
     else
-      0
+      # Return a special value for type mismatches that won't equal 0
+      :type_error
     end
   end
   
@@ -426,11 +461,11 @@ defmodule Pipeline.Condition.Engine do
       String.starts_with?(value, "\"") and String.ends_with?(value, "\"") ->
         String.slice(value, 1..-2//1)
 
-      # Number literal
-      Regex.match?(~r/^\d+$/, value) ->
+      # Number literal (including negative numbers)
+      Regex.match?(~r/^-?\d+$/, value) ->
         String.to_integer(value)
 
-      Regex.match?(~r/^\d+\.\d+$/, value) ->
+      Regex.match?(~r/^-?\d+\.\d+$/, value) ->
         String.to_float(value)
 
       # Boolean literal
