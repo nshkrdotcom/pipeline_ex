@@ -156,9 +156,13 @@ defmodule Pipeline do
     # Check Claude Code SDK availability (only in live mode)
     issues =
       if Pipeline.TestMode.live_mode?() do
-        case System.cmd("claude", ["--version"], stderr_to_stdout: true) do
-          {_, 0} -> issues
-          _ -> ["Claude CLI not available for live mode" | issues]
+        try do
+          case System.cmd("claude", ["--version"], stderr_to_stdout: true) do
+            {_, 0} -> issues
+            _ -> ["Claude CLI not available for live mode" | issues]
+          end
+        rescue
+          ErlangError -> ["Claude CLI not available for live mode" | issues]
         end
       else
         issues
