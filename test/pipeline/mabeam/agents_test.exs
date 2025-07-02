@@ -3,16 +3,22 @@ defmodule Pipeline.MABEAM.AgentsTest do
 
   setup do
     # Enable MABEAM for testing
+    original_mabeam_setting = Application.get_env(:pipeline, :mabeam_enabled, false)
     Application.put_env(:pipeline, :mabeam_enabled, true)
-    
-    # Start the application manually since it doesn't implement child_spec/1
-    {:ok, _} = Application.ensure_all_started(:pipeline)
-    
+
+    # Start the MABEAM supervisor if needed
+    case Supervisor.start_child(Pipeline.Supervisor, Pipeline.MABEAM.Supervisor) do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+    end
+
     on_exit(fn ->
-      Application.stop(:pipeline)
-      Application.put_env(:pipeline, :mabeam_enabled, false)
+      # Stop only the MABEAM supervisor, not the entire application
+      Supervisor.terminate_child(Pipeline.Supervisor, Pipeline.MABEAM.Supervisor)
+      Supervisor.delete_child(Pipeline.Supervisor, Pipeline.MABEAM.Supervisor)
+      Application.put_env(:pipeline, :mabeam_enabled, original_mabeam_setting)
     end)
-    
+
     :ok
   end
 
@@ -37,7 +43,8 @@ defmodule Pipeline.MABEAM.AgentsTest do
     test "maintains execution history in state" do
       # Test that the agent can maintain state according to its schema
       # This would typically be tested through Jido's agent testing utilities
-      assert true  # Placeholder for actual state testing
+      # Placeholder for actual state testing
+      assert true
     end
   end
 
@@ -45,18 +52,20 @@ defmodule Pipeline.MABEAM.AgentsTest do
     test "starts with correct initial state" do
       # Workers should be started with worker_id
       # This tests the schema validation and initial state
-      assert true  # Placeholder - would test actual worker state
+      # Placeholder - would test actual worker state
+      assert true
     end
 
     test "can execute pipeline YAML files" do
       # Test that worker can execute an actual pipeline
       pipeline_file = "test/fixtures/simple_test_workflow.yaml"
-      
+
       if File.exists?(pipeline_file) do
-        assert {:ok, _result} = Pipeline.MABEAM.Actions.ExecutePipelineYaml.run(
-          %{pipeline_file: pipeline_file}, 
-          %{}
-        )
+        assert {:ok, _result} =
+                 Pipeline.MABEAM.Actions.ExecutePipelineYaml.run(
+                   %{pipeline_file: pipeline_file},
+                   %{}
+                 )
       else
         # Skip if test file doesn't exist
         assert true
@@ -67,7 +76,7 @@ defmodule Pipeline.MABEAM.AgentsTest do
       # Test that multiple workers can run concurrently
       # This would be tested through the supervisor
       children = Supervisor.which_children(Pipeline.MABEAM.Supervisor)
-      
+
       # Should have at least the manager and 2 workers
       assert length(children) >= 3
     end
@@ -77,7 +86,7 @@ defmodule Pipeline.MABEAM.AgentsTest do
     test "starts all required children" do
       children = Supervisor.which_children(Pipeline.MABEAM.Supervisor)
       child_ids = Enum.map(children, fn {id, _pid, _type, _modules} -> id end)
-      
+
       # Should have pipeline manager and workers
       assert Pipeline.MABEAM.Agents.PipelineManager in child_ids
       assert :worker_1 in child_ids
@@ -88,7 +97,7 @@ defmodule Pipeline.MABEAM.AgentsTest do
       # Test supervisor restart behavior
       children = Supervisor.which_children(Pipeline.MABEAM.Supervisor)
       assert length(children) > 0
-      
+
       # All children should be running
       Enum.each(children, fn {_id, pid, _type, _modules} ->
         assert is_pid(pid)
@@ -101,7 +110,7 @@ defmodule Pipeline.MABEAM.AgentsTest do
     test "MABEAM actions can execute existing pipeline functionality" do
       # Test that our Jido Actions properly wrap existing Pipeline.run/2
       # This ensures backward compatibility
-      
+
       # Test health check action
       assert {:ok, result} = Pipeline.MABEAM.Actions.HealthCheck.run(%{}, %{})
       assert is_map(result)
@@ -116,16 +125,16 @@ defmodule Pipeline.MABEAM.AgentsTest do
     test "application works without MABEAM when disabled" do
       # Stop current application
       :ok = Application.stop(:pipeline)
-      
+
       # Disable MABEAM
       Application.put_env(:pipeline, :mabeam_enabled, false)
-      
+
       # Start application again
       :ok = Application.start(:pipeline)
-      
+
       # MABEAM supervisor should not be running
       assert Process.whereis(Pipeline.MABEAM.Supervisor) == nil
-      
+
       # Re-enable for cleanup
       Application.put_env(:pipeline, :mabeam_enabled, true)
     end
@@ -135,7 +144,7 @@ defmodule Pipeline.MABEAM.AgentsTest do
     test "agents can process Jido instructions" do
       # This would test the full Jido instruction processing flow
       # For now, we test that our actions work independently
-      
+
       # Test execute pipeline action
       params = %{
         pipeline_file: "test/fixtures/simple_test_workflow.yaml",
@@ -143,21 +152,23 @@ defmodule Pipeline.MABEAM.AgentsTest do
         output_dir: "./test_outputs",
         debug: true
       }
-      
+
       if File.exists?(params.pipeline_file) do
         assert {:ok, _result} = Pipeline.MABEAM.Actions.ExecutePipelineYaml.run(params, %{})
       else
         # Test with minimal params that don't require actual files
         minimal_params = %{pipeline_file: "nonexistent.yaml"}
         # Should fail gracefully
-        assert {:error, _reason} = Pipeline.MABEAM.Actions.ExecutePipelineYaml.run(minimal_params, %{})
+        assert {:error, _reason} =
+                 Pipeline.MABEAM.Actions.ExecutePipelineYaml.run(minimal_params, %{})
       end
     end
 
     test "agents maintain state through instruction processing" do
       # Test that agent state is maintained across instructions
       # This would use Jido's built-in state management testing
-      assert true  # Placeholder for actual state persistence testing
+      # Placeholder for actual state persistence testing
+      assert true
     end
   end
 end

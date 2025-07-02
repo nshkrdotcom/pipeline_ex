@@ -10,14 +10,14 @@ defmodule Pipeline.MABEAM.Supervisor do
     children = [
       # Main pipeline manager
       {Pipeline.MABEAM.Agents.PipelineManager, id: "pipeline_manager"},
-      
+
       # Default worker pool - use Supervisor.child_spec/2 for unique IDs
       Supervisor.child_spec(
-        {Pipeline.MABEAM.Agents.PipelineWorker, worker_id: "worker_1"}, 
+        {Pipeline.MABEAM.Agents.PipelineWorker, worker_id: "worker_1"},
         id: :worker_1
       ),
       Supervisor.child_spec(
-        {Pipeline.MABEAM.Agents.PipelineWorker, worker_id: "worker_2"}, 
+        {Pipeline.MABEAM.Agents.PipelineWorker, worker_id: "worker_2"},
         id: :worker_2
       )
     ]
