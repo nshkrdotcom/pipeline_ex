@@ -81,10 +81,30 @@ defmodule Pipeline.Executor do
   defp initialize_context(workflow, opts) do
     config = workflow["workflow"]
 
-    # Create directories
-    workspace_dir = Path.expand(config["workspace_dir"] || "./workspace")
-    output_dir = Path.expand(config["defaults"]["output_dir"] || "./outputs")
-    checkpoint_dir = Path.expand(config["checkpoint_dir"] || "./checkpoints")
+    # Create directories with configurable defaults
+    workspace_dir =
+      Path.expand(
+        Keyword.get(opts, :workspace_dir) ||
+          config["workspace_dir"] ||
+          System.get_env("PIPELINE_WORKSPACE_DIR") ||
+          "./workspace"
+      )
+
+    output_dir =
+      Path.expand(
+        Keyword.get(opts, :output_dir) ||
+          get_in(config, ["defaults", "output_dir"]) ||
+          System.get_env("PIPELINE_OUTPUT_DIR") ||
+          "./outputs"
+      )
+
+    checkpoint_dir =
+      Path.expand(
+        Keyword.get(opts, :checkpoint_dir) ||
+          config["checkpoint_dir"] ||
+          System.get_env("PIPELINE_CHECKPOINT_DIR") ||
+          "./checkpoints"
+      )
 
     File.mkdir_p!(workspace_dir)
     File.mkdir_p!(output_dir)

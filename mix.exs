@@ -8,7 +8,14 @@ defmodule Pipeline.MixProject do
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      dialyzer: dialyzer()
+      dialyzer: dialyzer(),
+
+      # Library package configuration
+      description: description(),
+      package: package(),
+      docs: docs(),
+      source_url: "https://github.com/nshkrdotcom/pipeline_ex",
+      homepage_url: "https://github.com/nshkrdotcom/pipeline_ex"
     ]
   end
 
@@ -41,6 +48,45 @@ defmodule Pipeline.MixProject do
       # Code quality and analysis tools
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+    ]
+  end
+
+  defp description do
+    "AI pipeline orchestration library for Elixir. Chain Claude and Gemini APIs with robust execution, fault tolerance, and self-improving Genesis pipelines."
+  end
+
+  defp package do
+    [
+      name: "pipeline_ex",
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => "https://github.com/nshkrdotcom/pipeline_ex",
+        "Docs" => "https://hexdocs.pm/pipeline_ex"
+      },
+      maintainers: ["nshkr"],
+      files: ~w(lib mix.exs README.md LICENSE CHANGELOG.md),
+      exclude_patterns: ["priv/plts/*"]
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      source_ref: "v0.1.0",
+      source_url: "https://github.com/nshkrdotcom/pipeline_ex",
+      extras: [
+        "README.md",
+        "CHANGELOG.md": [title: "Changelog"],
+        "JULY_1_ARCH_DOCS_01_VISION.md": [title: "System Vision"],
+        "JULY_1_ARCH_DOCS_02_HYBRID_ARCHITECTURE.md": [title: "Architecture"]
+      ],
+      groups_for_modules: [
+        Core: [Pipeline, Pipeline.Config, Pipeline.Executor],
+        Providers: [Pipeline.Providers.ClaudeProvider, Pipeline.Providers.GeminiProvider],
+        Steps: [Pipeline.Step.Claude, Pipeline.Step.Gemini, Pipeline.Step.ClaudeSmart],
+        Meta: [Pipeline.Meta.Generator, Pipeline.Meta.DNA],
+        Testing: [Pipeline.TestMode, Pipeline.Test.Mocks]
+      ]
     ]
   end
 
