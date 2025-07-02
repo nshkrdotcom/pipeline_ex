@@ -5,7 +5,7 @@ defmodule PipelineLibraryTest do
   These tests ensure the library works correctly when consumed by other applications.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   use Pipeline.TestCase
 
   describe "Pipeline main module API" do
