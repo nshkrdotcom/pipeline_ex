@@ -336,16 +336,55 @@ defmodule Pipeline.Executor do
   end
 
   defp handle_step_success_with_context(step, index, context, result, step_start) do
-    optimized_result = optimize_result_for_memory(result)
+    # Check if result should be streamed
+    case maybe_create_result_stream(step, result) do
+      {:ok, stream} ->
+        # Store stream reference instead of large result
+        stream_result = %{
+          "success" => true,
+          "type" => "stream",
+          "stream_id" => stream.id,
+          "stream_info" => ResultStream.get_stream_info(stream)
+        }
 
-    updated_context =
-      update_context_with_success(step, index, context, optimized_result, step_start)
+        updated_context =
+          update_context_with_success(step, index, context, stream_result, step_start)
 
-    save_checkpoint_if_enabled(context, updated_context)
-    save_step_output_if_needed(step, result, context.output_dir)
+        save_checkpoint_if_enabled(context, updated_context)
+        save_step_output_if_needed(step, result, context.output_dir)
 
-    Logger.info("✅ Step completed: #{step["name"]}")
-    {:ok, updated_context}
+        Logger.info("✅ Step completed with streaming: #{step["name"]}")
+
+        # Notify performance monitoring
+        pipeline_name = context[:pipeline_name] || "unknown"
+        Performance.step_completed(pipeline_name, step["name"], stream_result)
+
+        {:ok, updated_context}
+
+      {:no_stream, optimized_result} ->
+        # Use normal result handling
+        updated_context =
+          update_context_with_success(step, index, context, optimized_result, step_start)
+
+        save_checkpoint_if_enabled(context, updated_context)
+        save_step_output_if_needed(step, result, context.output_dir)
+
+        Logger.info("✅ Step completed: #{step["name"]}")
+        {:ok, updated_context}
+
+      {:error, reason} ->
+        Logger.warning("⚠️  Failed to create result stream: #{reason}, using optimized result")
+        optimized_result = optimize_result_for_memory(result)
+
+        updated_context =
+          update_context_with_success(step, index, context, optimized_result, step_start)
+
+        save_checkpoint_if_enabled(context, updated_context)
+        save_step_output_if_needed(step, result, context.output_dir)
+
+        Logger.info("✅ Step completed: #{step["name"]}")
+        {:ok, updated_context}
+    end
   end
 
   defp handle_step_failure(step, context, reason, step_start) do
@@ -564,7 +603,15 @@ defmodule Pipeline.Executor do
 
     # Check if streaming is enabled for this step and result is large enough
     if should_stream_step_result?(step, result_size) do
-      case ResultStream.create_stream(step["name"], "result", result, %{step_type: step["type"]}) do
+      # Check if streaming is explicitly enabled
+      streaming_enabled = get_in(step, ["streaming", "enabled"]) || false
+
+      metadata = %{
+        step_type: step["type"],
+        forced_streaming: streaming_enabled
+      }
+
+      case ResultStream.create_stream(step["name"], "result", result, metadata) do
         {:ok, stream} ->
           {:ok, stream}
 

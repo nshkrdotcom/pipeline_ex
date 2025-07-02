@@ -189,13 +189,13 @@ defmodule Pipeline.Monitoring.Performance do
       step_metric ->
         duration = DateTime.diff(completion_time, step_metric.start_time, :millisecond)
 
-        updated_step_metric = %{
-          step_metric
-          | end_time: completion_time,
+        updated_step_metric =
+          Map.merge(step_metric, %{
+            end_time: completion_time,
             duration_ms: duration,
             status: :completed,
             result_size: calculate_result_size(result)
-        }
+          })
 
         updated_step_metrics = Map.put(state.step_metrics, step_name, updated_step_metric)
 
@@ -316,9 +316,16 @@ defmodule Pipeline.Monitoring.Performance do
   end
 
   defp calculate_result_size(result) when is_map(result) do
-    result
-    |> :erlang.term_to_binary()
-    |> byte_size()
+    # Check if this is a streaming result
+    case result do
+      %{"type" => "stream", "stream_info" => %{metadata: %{size_bytes: size}}} ->
+        size
+
+      _ ->
+        result
+        |> :erlang.term_to_binary()
+        |> byte_size()
+    end
   end
 
   defp calculate_result_size(_result), do: 0

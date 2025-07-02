@@ -13,8 +13,8 @@ defmodule Pipeline.Utils.FileUtils do
 
   require Logger
 
-  # 100MB
-  @large_file_threshold 100_000_000
+  # 10MB threshold - reasonable for practical file streaming
+  @large_file_threshold 10_000_000
   # 1MB chunks
   @stream_chunk_size 1024 * 1024
 

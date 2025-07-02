@@ -30,10 +30,11 @@ defmodule Pipeline.Streaming.ResultStream do
   @spec create_stream(String.t(), String.t(), any(), map()) :: {:ok, t()} | {:error, String.t()}
   def create_stream(step_name, result_key, data, metadata \\ %{}) do
     result_size = calculate_result_size(data)
+    forced_streaming = Map.get(metadata, :forced_streaming, false)
 
-    if should_stream_result?(result_size) do
+    if should_stream_result?(result_size) || forced_streaming do
       Logger.info(
-        "📊 Creating result stream for #{step_name}:#{result_key} (#{format_bytes(result_size)})"
+        "📊 Creating result stream for #{step_name}:#{result_key} (#{format_bytes(result_size)})#{if forced_streaming, do: " [forced]", else: ""}"
       )
 
       do_create_stream(step_name, result_key, data, metadata, result_size)
