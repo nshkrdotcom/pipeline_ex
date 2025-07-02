@@ -730,7 +730,7 @@ defmodule Pipeline.Step.Loop do
     end
   end
 
-  defp process_streaming_batch(batch, iterator_name, sub_steps, step, context, start_index) do
+  defp process_streaming_batch(batch, iterator_name, sub_steps, _step, context, start_index) do
     batch_results = 
       batch
       |> Enum.with_index()

@@ -11,7 +11,6 @@ defmodule Pipeline.Performance.LoadTest do
 
   alias Pipeline.Executor
   alias Pipeline.Monitoring.Performance
-  alias Pipeline.Streaming.ResultStream
   alias Pipeline.Utils.FileUtils
 
   @large_dataset_size 2000
@@ -329,7 +328,7 @@ defmodule Pipeline.Performance.LoadTest do
       result = Executor.execute(workflow, output_dir: @test_output_dir)
       Performance.step_completed("monitoring_test", "step1", %{"success" => true})
 
-      assert {:ok, results} = result
+      assert {:ok, _results} = result
 
       {:ok, metrics} = Performance.get_metrics("monitoring_test")
       assert metrics.step_count >= 2

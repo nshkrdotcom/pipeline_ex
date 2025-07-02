@@ -185,18 +185,6 @@ defmodule Pipeline.Step.FileOps do
     end
   end
 
-  # Helper functions
-
-  defp resolve_path(path, context) when is_binary(path) do
-    FileUtils.resolve_path(path, context.workspace_dir)
-  end
-
-  defp resolve_path(nil, _context) do
-    nil
-  end
-
-  # Streaming operations
-
   defp perform_operation("stream_copy", step, context) do
     source = resolve_path(step["source"], context)
     destination = resolve_path(step["destination"], context)
@@ -238,6 +226,16 @@ defmodule Pipeline.Step.FileOps do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # Helper functions
+
+  defp resolve_path(path, context) when is_binary(path) do
+    FileUtils.resolve_path(path, context.workspace_dir)
+  end
+
+  defp resolve_path(nil, _context) do
+    nil
   end
 
   # Processor functions for stream processing

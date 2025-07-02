@@ -94,7 +94,6 @@ defmodule Pipeline.Step.DataTransform do
 
   require Logger
   alias Pipeline.Data.Transformer
-  alias Pipeline.Streaming.ResultStream
 
   @lazy_threshold 1000  # Use lazy evaluation for datasets with >1000 items
 
@@ -185,11 +184,11 @@ defmodule Pipeline.Step.DataTransform do
     # Enable lazy evaluation if:
     # 1. Explicitly enabled in step config
     # 2. Data size exceeds threshold
-    # 3. Contains streaming operations
+    # 3. Contains streaming operations (but only if data is large enough)
     
     lazy_enabled = get_in(step, ["lazy", "enabled"]) || false
     large_dataset = is_list(input_data) && length(input_data) > @lazy_threshold
-    has_streaming_ops = Enum.any?(operations, &is_streaming_operation?/1)
+    has_streaming_ops = Enum.any?(operations, &is_streaming_operation?/1) && large_dataset
     
     lazy_enabled || large_dataset || has_streaming_ops
   end
@@ -330,7 +329,7 @@ defmodule Pipeline.Step.DataTransform do
     field_value = get_nested_field(item, field)
     
     # Simple condition evaluation (could be enhanced)
-    case String.split(condition, " ") do
+    case String.split(condition, " ", parts: 3) do
       [field_name, "==", value] when field_name == field ->
         to_string(field_value) == String.trim(value, "'\"")
       
@@ -343,8 +342,25 @@ defmodule Pipeline.Step.DataTransform do
           _ -> false
         end
         
+      # Handle condition formats like "priority == 'high'"
+      [condition_str] ->
+        case String.split(condition_str, ~r/\s+(==|!=|>|<)\s+/, parts: 3, include_captures: true) do
+          [field_name, "==", value] when field_name == field ->
+            to_string(field_value) == String.trim(value, "'\"")
+          [field_name, "!=", value] when field_name == field ->
+            to_string(field_value) != String.trim(value, "'\"")
+          [field_name, ">", value] when field_name == field ->
+            case {field_value, Float.parse(value)} do
+              {num, {target, _}} when is_number(num) -> num > target
+              _ -> false
+            end
+          _ ->
+            # Default to true for unknown conditions
+            true
+        end
+        
       _ ->
-        # Default to true for unknown conditions
+        # Default to true for unknown conditions  
         true
     end
   end

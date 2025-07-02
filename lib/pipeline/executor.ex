@@ -40,7 +40,7 @@ defmodule Pipeline.Executor do
         {:ok, _pid} -> 
           Logger.debug("📊 Performance monitoring started for: #{pipeline_name}")
         {:error, reason} -> 
-          Logger.warn("⚠️  Failed to start performance monitoring: #{reason}")
+          Logger.warning("⚠️  Failed to start performance monitoring: #{reason}")
       end
     end
 
@@ -311,7 +311,7 @@ defmodule Pipeline.Executor do
         {:ok, updated_context}
         
       {:error, reason} ->
-        Logger.warn("⚠️  Failed to create result stream: #{reason}, using optimized result")
+        Logger.warning("⚠️  Failed to create result stream: #{reason}, using optimized result")
         optimized_result = optimize_result_for_memory(result)
         updated_context = update_context_with_success(step, index, context, optimized_result, step_start)
         save_checkpoint_if_enabled(context, updated_context)
@@ -602,7 +602,7 @@ defmodule Pipeline.Executor do
     Logger.info("   Peak Memory: #{format_bytes(metrics.peak_memory_bytes)}")
     
     if metrics.total_warnings > 0 do
-      Logger.warn("⚠️  Performance Warnings: #{metrics.total_warnings}")
+      Logger.warning("⚠️  Performance Warnings: #{metrics.total_warnings}")
     end
     
     if length(metrics.recommendations) > 0 do
