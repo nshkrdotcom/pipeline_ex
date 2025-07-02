@@ -41,6 +41,10 @@ condition:
 
 ---
 
+1A IS DONE!
+
+---
+
 ## Phase 1B: Basic Loop Step Types
 
 ### Context Files to Read:
@@ -84,6 +88,11 @@ Implement `for_loop` and `while_loop` step types that can iterate over data and 
       type: "claude"
       prompt: "Fix based on: {{previous_response}}"
 ```
+
+---
+
+1B is DONE!
+
 
 ---
 
@@ -135,6 +144,9 @@ Create a `file_ops` step type for comprehensive file operations within the pipel
   destination: "data.json"
   format: "csv_to_json"
 ```
+---
+
+1c is done!
 
 ---
 
@@ -185,6 +197,10 @@ Implement a comprehensive schema validation system for step outputs to ensure st
             priority: {type: "string", enum: ["high", "medium", "low"]}
             action: {type: "string"}
 ```
+--
+
+2a done
+
 
 ---
 
@@ -229,6 +245,10 @@ Create a `data_transform` step type for manipulating structured data between pip
       join_key: "filename"
   output_field: "processed_data"
 ```
+
+---
+
+2b done
 
 ---
 
