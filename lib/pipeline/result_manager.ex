@@ -4,11 +4,21 @@ defmodule Pipeline.ResultManager do
 
   Provides structured storage, retrieval, and transformation of results
   between pipeline steps with support for serialization and validation.
+
+  Features include:
+  - JSON Schema validation for step outputs
+  - Structured result storage and retrieval
+  - Result transformation for prompt consumption
+  - Serialization and persistence
   """
+
+  alias Pipeline.Validation.SchemaValidator
+  require Logger
 
   @type result :: map()
   @type result_key :: String.t()
   @type result_store :: map()
+  @type schema :: map()
 
   defstruct results: %{}, metadata: %{}
 
@@ -44,6 +54,27 @@ defmodule Pipeline.ResultManager do
       | results: Map.put(manager.results, step_name, validated_result),
         metadata: Map.put(manager.metadata, :last_updated, DateTime.utc_now())
     }
+  end
+
+  @doc """
+  Store a result for a step with optional schema validation.
+  """
+  @spec store_result_with_schema(%__MODULE__{}, result_key, result, schema | nil) ::
+          {:ok, %__MODULE__{}} | {:error, String.t()}
+  def store_result_with_schema(%__MODULE__{} = manager, step_name, result, schema \\ nil) do
+    case validate_result_with_schema(step_name, result, schema) do
+      {:ok, validated_result} ->
+        new_manager = %{
+          manager
+          | results: Map.put(manager.results, step_name, validated_result),
+            metadata: Map.put(manager.metadata, :last_updated, DateTime.utc_now())
+        }
+
+        {:ok, new_manager}
+
+      {:error, error_message} ->
+        {:error, error_message}
+    end
   end
 
   @doc """
@@ -314,4 +345,105 @@ defmodule Pipeline.ResultManager do
       acc + cost
     end)
   end
+
+  defp validate_result_with_schema(step_name, result, schema) do
+    case schema do
+      nil ->
+        # No schema validation - use existing validation
+        validated_result = validate_and_transform_result(result)
+        {:ok, validated_result}
+
+      schema when is_map(schema) ->
+        # Extract the actual data from the result for validation
+        data_to_validate = extract_validation_data(result)
+
+        case SchemaValidator.validate_step_output(step_name, data_to_validate, schema) do
+          {:ok, _validated_data} ->
+            # If validation passes, apply standard transformation
+            validated_result = validate_and_transform_result(result)
+            {:ok, validated_result}
+
+          {:error, error_message, _errors} ->
+            {:error, error_message}
+        end
+
+      _ ->
+        Logger.warning("Invalid schema format for step #{step_name}, skipping schema validation")
+        validated_result = validate_and_transform_result(result)
+        {:ok, validated_result}
+    end
+  end
+
+  defp extract_validation_data(result) do
+    data =
+      case result do
+        # For structured results, extract the main content for validation
+        %{data: data} ->
+          data
+
+        %{"data" => data} ->
+          data
+
+        %{content: content} ->
+          content
+
+        %{"content" => content} ->
+          content
+
+        %{text: text} ->
+          text
+
+        %{"text" => text} ->
+          text
+
+        %{response: response} ->
+          response
+
+        %{"response" => response} ->
+          response
+
+        # For maps that look like they contain the actual data
+        %{success: true} = result ->
+          # Remove metadata fields and validate the rest
+          filtered_result =
+            result
+            |> Map.drop([
+              :success,
+              "success",
+              :cost,
+              "cost",
+              :duration,
+              "duration",
+              :timestamp,
+              "timestamp"
+            ])
+
+          case map_size(filtered_result) do
+            # If nothing left, validate the whole result
+            0 -> result
+            # Otherwise validate the filtered data
+            _ -> filtered_result
+          end
+
+        # For any other format, validate as-is
+        data ->
+          data
+      end
+
+    # Convert atom keys to strings for JSON Schema validation
+    stringify_keys(data)
+  end
+
+  defp stringify_keys(data) when is_map(data) do
+    Map.new(data, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), stringify_keys(value)}
+      {key, value} -> {key, stringify_keys(value)}
+    end)
+  end
+
+  defp stringify_keys(data) when is_list(data) do
+    Enum.map(data, &stringify_keys/1)
+  end
+
+  defp stringify_keys(data), do: data
 end

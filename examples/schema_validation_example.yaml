@@ -1,0 +1,132 @@
+# Example Pipeline with Schema Validation
+# This demonstrates how to use output_schema for step validation
+
+pipeline:
+  name: "Schema Validation Example"
+  description: "Demonstrates JSON Schema validation for step outputs"
+
+steps:
+  - name: "analyze_code"
+    type: "claude"
+    prompt: |
+      Analyze the following code and provide:
+      - A detailed analysis (at least 50 characters)
+      - A quality score from 0-10
+      - Actionable recommendations with priority levels
+      
+      Code to analyze:
+      ```python
+      def hello_world():
+          print("Hello, World!")
+      ```
+    
+    # JSON Schema for validating the output
+    output_schema:
+      type: "object"
+      required: ["analysis", "recommendations", "score"]
+      properties:
+        analysis:
+          type: "string"
+          minLength: 50
+          description: "Detailed analysis of the code"
+        score:
+          type: "number"
+          minimum: 0
+          maximum: 10
+          description: "Quality score from 0-10"
+        recommendations:
+          type: "array"
+          items:
+            type: "object"
+            required: ["priority", "action"]
+            properties:
+              priority:
+                type: "string"
+                enum: ["high", "medium", "low"]
+                description: "Priority level"
+              action:
+                type: "string"
+                minLength: 5
+                description: "Recommended action"
+              rationale:
+                type: "string"
+                description: "Why this action is recommended"
+        confidence:
+          type: "number"
+          minimum: 0.0
+          maximum: 1.0
+          description: "Confidence in the analysis"
+      additionalProperties: false
+
+  - name: "run_tests"
+    type: "bash"
+    command: "echo 'Running tests...'; exit 0"
+    
+    # Schema for test results
+    output_schema:
+      type: "object"
+      required: ["total_tests", "passed", "failed", "status"]
+      properties:
+        total_tests:
+          type: "integer"
+          minimum: 0
+        passed:
+          type: "integer"
+          minimum: 0
+        failed:
+          type: "integer"
+          minimum: 0
+        status:
+          type: "string"
+          enum: ["passed", "failed", "partial"]
+        duration:
+          type: "number"
+          minimum: 0
+          description: "Test duration in seconds"
+        failures:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              test_name: {type: "string"}
+              error_message: {type: "string"}
+              file: {type: "string"}
+              line: {type: "integer", minimum: 1}
+
+  - name: "generate_report"
+    type: "claude"
+    prompt: |
+      Based on the code analysis results:
+      {{analyze_code.analysis}}
+      
+      Score: {{analyze_code.score}}/10
+      
+      Generate a comprehensive report with:
+      - Executive summary
+      - Detailed findings
+      - Recommendations prioritized by impact
+    
+    # Using a predefined common schema
+    output_schema:
+      type: "object"
+      required: ["sections", "total_pages"]
+      properties:
+        sections:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              title: {type: "string"}
+              content: {type: "string"}
+              word_count: {type: "integer", minimum: 0}
+        total_pages:
+          type: "integer"
+          minimum: 0
+        format:
+          type: "string"
+          enum: ["markdown", "html", "pdf", "docx"]
+          default: "markdown"
+
+output:
+  format: "json"
+  file: "schema_validation_results.json"
