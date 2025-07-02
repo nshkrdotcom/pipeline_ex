@@ -1,0 +1,16 @@
+workflow:
+  name: "simple_mabeam_test_workflow"
+  description: "Simple test workflow for MABEAM integration testing"
+  
+  steps:
+    - name: "test_claude"
+      type: "claude"
+      prompt: 
+        - type: "static"
+          content: "Return a simple JSON response: {\"test\": \"success\", \"timestamp\": \"2024-01-01T00:00:00Z\"}"
+    
+    - name: "test_gemini"
+      type: "gemini"
+      prompt:
+        - type: "static"
+          content: "Return a simple JSON response: {\"test\": \"gemini_success\", \"model\": \"test\"}"

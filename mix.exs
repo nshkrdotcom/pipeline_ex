@@ -45,6 +45,7 @@ defmodule Pipeline.MixProject do
       {:claude_code_sdk, github: "nshkrdotcom/claude_code_sdk_elixir", ref: "main"},
       {:nimble_options, "~> 1.1"},
       {:ecto, "~> 3.12"},
+      {:jido, "~> 1.2"},
 
       # Code quality and analysis tools
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
