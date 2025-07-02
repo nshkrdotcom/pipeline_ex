@@ -80,7 +80,8 @@ defmodule Pipeline.Step.Loop do
     {final_results, _final_context} =
       data
       |> Enum.with_index()
-      |> Enum.reduce_while({initial_results, context}, fn {item, index}, {acc_results, acc_context} ->
+      |> Enum.reduce_while({initial_results, context}, fn {item, index},
+                                                          {acc_results, acc_context} ->
         Logger.info("🔄 Processing item #{index + 1}/#{length(data)}")
 
         # Memory check for large datasets
@@ -89,7 +90,9 @@ defmodule Pipeline.Step.Loop do
         end
 
         # Create nested loop context with parent reference
-        loop_context = create_nested_loop_context(iterator_name, item, index, length(data), acc_context)
+        loop_context =
+          create_nested_loop_context(iterator_name, item, index, length(data), acc_context)
+
         updated_context = add_loop_context(acc_context, loop_context)
 
         case execute_sub_steps(sub_steps, updated_context) do
@@ -114,9 +117,11 @@ defmodule Pipeline.Step.Loop do
               :break ->
                 Logger.info("🔄 Loop break condition met at iteration #{index + 1}")
                 {:halt, {updated_results, merged_context}}
+
               :continue ->
                 Logger.info("🔄 Loop continue condition met at iteration #{index + 1}")
                 {:cont, {updated_results, merged_context}}
+
               :normal ->
                 {:cont, {updated_results, merged_context}}
             end
@@ -161,11 +166,12 @@ defmodule Pipeline.Step.Loop do
   end
 
   # Parallel For Loop Execution
-  defp execute_parallel_for_loop(data, iterator_name, sub_steps, step, context) when is_list(data) do
+  defp execute_parallel_for_loop(data, iterator_name, sub_steps, step, context)
+       when is_list(data) do
     Logger.info("🚀 Processing #{length(data)} items in parallel for_loop")
-    
+
     max_parallel = get_max_parallel(step)
-    
+
     initial_results = %{
       "iterations" => [],
       "success" => true,
@@ -176,7 +182,7 @@ defmodule Pipeline.Step.Loop do
     }
 
     # Create tasks for parallel execution
-    async_tasks = 
+    async_tasks =
       data
       |> Enum.with_index()
       |> Enum.chunk_every(max_parallel)
@@ -188,10 +194,10 @@ defmodule Pipeline.Step.Loop do
 
     # Wait for all tasks to complete
     chunk_results = Task.await_many(async_tasks, :infinity)
-    
+
     # Combine results from all chunks
     final_results = combine_parallel_results(chunk_results, initial_results)
-    
+
     Logger.info(
       "✅ Parallel for loop completed: #{final_results["completed_items"]}/#{final_results["total_items"]} items"
     )
@@ -207,7 +213,9 @@ defmodule Pipeline.Step.Loop do
     chunk
     |> Enum.map(fn {item, index} ->
       # Create loop context for this item
-      loop_context = create_nested_loop_context(iterator_name, item, index, length(chunk), context)
+      loop_context =
+        create_nested_loop_context(iterator_name, item, index, length(chunk), context)
+
       updated_context = add_loop_context(context, loop_context)
 
       case execute_sub_steps(sub_steps, updated_context) do
@@ -221,6 +229,7 @@ defmodule Pipeline.Step.Loop do
 
         {:error, reason} ->
           Logger.error("❌ Parallel iteration #{index + 1} failed: #{reason}")
+
           %{
             "index" => index,
             "item" => item,
@@ -232,14 +241,14 @@ defmodule Pipeline.Step.Loop do
   end
 
   defp combine_parallel_results(chunk_results, initial_results) do
-    all_iterations = 
+    all_iterations =
       chunk_results
       |> List.flatten()
       |> Enum.sort_by(& &1["index"])
-    
+
     completed_count = Enum.count(all_iterations, & &1["success"])
     all_successful = Enum.all?(all_iterations, & &1["success"])
-    
+
     %{
       initial_results
       | "iterations" => all_iterations,
@@ -409,7 +418,7 @@ defmodule Pipeline.Step.Loop do
                   value -> {:ok, value}
                 end
             end
-          
+
           loop_value ->
             case get_nested_value(loop_value, field) do
               nil -> {:error, "Field not found in loop context: #{field}"}
@@ -435,18 +444,6 @@ defmodule Pipeline.Step.Loop do
 
   defp get_nested_value(_value, _field_path), do: nil
 
-  defp create_loop_context(iterator_name, item, index, total) do
-    %{
-      "loop" => %{
-        iterator_name => item,
-        "index" => index,
-        "total" => total,
-        "first" => index == 0,
-        "last" => index == total - 1
-      }
-    }
-  end
-
   # Enhanced loop context with nested support
   def create_nested_loop_context(iterator_name, item, index, total, context) do
     # Check if we're already in a loop (nested scenario)
@@ -463,7 +460,7 @@ defmodule Pipeline.Step.Loop do
             "level" => 0
           }
         }
-      
+
       parent_loop ->
         # Nested loop - preserve parent context
         %{
@@ -558,7 +555,7 @@ defmodule Pipeline.Step.Loop do
       # Loop control steps
       "break" ->
         {:break, "Loop break requested"}
-        
+
       "continue" ->
         {:continue, "Loop continue requested"}
 
@@ -598,10 +595,10 @@ defmodule Pipeline.Step.Loop do
     cond do
       step["break_condition"] && evaluate_simple_condition(step["break_condition"], context) ->
         :break
-      
+
       step["continue_condition"] && evaluate_simple_condition(step["continue_condition"], context) ->
         :continue
-        
+
       true ->
         :normal
     end
@@ -627,11 +624,15 @@ defmodule Pipeline.Step.Loop do
   # Memory Management
   defp check_memory_usage(current_index, total_items) do
     case :erlang.memory(:total) do
-      memory when memory > 500_000_000 -> # 500MB threshold
-        Logger.warning("⚠️  High memory usage detected at iteration #{current_index}/#{total_items}: #{div(memory, 1_000_000)}MB")
+      # 500MB threshold
+      memory when memory > 500_000_000 ->
+        Logger.warning(
+          "⚠️  High memory usage detected at iteration #{current_index}/#{total_items}: #{div(memory, 1_000_000)}MB"
+        )
+
         :erlang.garbage_collect()
-        
-      _ -> 
+
+      _ ->
         :ok
     end
   end
