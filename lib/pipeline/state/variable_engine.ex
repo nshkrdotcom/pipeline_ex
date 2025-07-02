@@ -192,16 +192,16 @@ defmodule Pipeline.State.VariableEngine do
   defp resolve_value(value, _state), do: value
 
   defp evaluate_expression(expression, state) do
-    # Handle state references
+    # Handle expressions in priority order
     cond do
+      # Handle arithmetic expressions first (basic support)
+      String.contains?(expression, ["+", "-", "*", "/"]) ->
+        evaluate_arithmetic(expression, state)
+        
+      # Handle state references (only simple ones without operators)
       String.starts_with?(expression, "state.") ->
         var_path = String.replace_leading(expression, "state.", "")
         get_nested_variable(state, var_path)
-        
-      # Handle arithmetic expressions (basic support)
-      String.contains?(expression, ["+", "-", "*", "/"]) ->
-        result = evaluate_arithmetic(expression, state)
-        result
         
       # Simple variable lookup
       true ->

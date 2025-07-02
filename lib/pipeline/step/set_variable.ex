@@ -69,7 +69,7 @@ defmodule Pipeline.Step.SetVariable do
       Logger.info("✅ Set variable step completed: #{map_size(variables)} variables in #{scope} scope")
       
       # Return success with updated context
-      {:ok, result, %{context | variable_state: updated_state}}
+      {:ok, result, Map.put(context, :variable_state, updated_state)}
     end
   rescue
     error ->
