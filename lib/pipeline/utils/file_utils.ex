@@ -394,11 +394,12 @@ defmodule Pipeline.Utils.FileUtils do
   Read a file in chunks using streaming.
   Returns a stream that yields binary chunks.
   """
-  @spec stream_read_file(String.t()) :: Stream.t() | {:error, String.t()}
+  @spec stream_read_file(String.t()) :: File.Stream.t() | {:error, String.t()}
   def stream_read_file(path) do
     case File.exists?(path) do
       true ->
-        File.stream!(path, [:read, :binary], @stream_chunk_size)
+        path
+        |> File.stream!(@stream_chunk_size, [])
 
       false ->
         {:error, "File does not exist: #{path}"}
@@ -408,19 +409,22 @@ defmodule Pipeline.Utils.FileUtils do
   @doc """
   Write data to a file using streaming.
   """
-  @spec stream_write_file(String.t(), Stream.t()) :: :ok | {:error, String.t()}
+  @spec stream_write_file(String.t(), Enumerable.t()) :: :ok | {:error, String.t()}
   def stream_write_file(path, data_stream) do
     try do
-      ensure_destination_dir(path)
+      case ensure_destination_dir(path) do
+        :ok -> 
+          File.open!(path, [:write, :binary], fn file ->
+            data_stream
+            |> Stream.each(&IO.binwrite(file, &1))
+            |> Stream.run()
+          end)
 
-      File.open!(path, [:write, :binary], fn file ->
-        data_stream
-        |> Stream.each(&IO.binwrite(file, &1))
-        |> Stream.run()
-      end)
-
-      Logger.debug("Streamed write completed: #{path}")
-      :ok
+          Logger.debug("Streamed write completed: #{path}")
+          :ok
+        {:error, reason} -> 
+          {:error, "Failed to create directory: #{reason}"}
+      end
     rescue
       error ->
         {:error, "Stream write failed: #{Exception.message(error)}"}
@@ -449,12 +453,12 @@ defmodule Pipeline.Utils.FileUtils do
           {:ok, source_path}
 
         {:error, reason} ->
-          File.rm(temp_path)
+          _ = File.rm(temp_path)
           {:error, "Failed to replace file: #{:file.format_error(reason)}"}
       end
     rescue
       error ->
-        File.rm(temp_path)
+        _ = File.rm(temp_path)
         {:error, "Stream processing failed: #{Exception.message(error)}"}
     end
   end
@@ -505,8 +509,8 @@ defmodule Pipeline.Utils.FileUtils do
   defp stream_copy_large_file(source, destination) do
     try do
       source
-      |> File.stream!([:read, :binary], @stream_chunk_size)
-      |> Stream.into(File.stream!(destination, [:write, :binary]))
+      |> File.stream!(@stream_chunk_size, [])
+      |> Stream.into(File.stream!(destination, [:write], @stream_chunk_size))
       |> Stream.run()
 
       Logger.debug("Streamed copy completed: #{source} -> #{destination}")
@@ -521,7 +525,7 @@ defmodule Pipeline.Utils.FileUtils do
     try do
       content =
         path
-        |> File.stream!([:read, :binary], @stream_chunk_size)
+        |> File.stream!(@stream_chunk_size, [])
         |> Enum.reduce("", fn chunk, acc -> acc <> chunk end)
 
       {:ok, processor_fn.(content)}

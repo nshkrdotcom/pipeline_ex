@@ -86,7 +86,11 @@ defmodule Pipeline.Step.Loop do
 
         # Memory check for large datasets
         if rem(index, @memory_check_interval) == 0 do
-          check_memory_usage(index, length(data))
+          case check_memory_usage(index, length(data)) do
+            :ok -> :ok
+            {:error, reason} -> 
+              Logger.warning("Memory check failed: #{inspect(reason)}")
+          end
         end
 
         # Create nested loop context with parent reference
@@ -161,9 +165,6 @@ defmodule Pipeline.Step.Loop do
     {:ok, final_results}
   end
 
-  defp execute_for_loop_iterations(data, _iterator_name, _sub_steps, _step, _context) do
-    {:error, "For loop data must be a list, got: #{inspect(data)}"}
-  end
 
   # Parallel For Loop Execution
   defp execute_parallel_for_loop(data, iterator_name, sub_steps, step, context)
@@ -205,9 +206,6 @@ defmodule Pipeline.Step.Loop do
     {:ok, final_results}
   end
 
-  defp execute_parallel_for_loop(data, _iterator_name, _sub_steps, _step, _context) do
-    {:error, "Parallel for loop data must be a list, got: #{inspect(data)}"}
-  end
 
   defp process_parallel_chunk(chunk, iterator_name, sub_steps, _step, context) do
     chunk
@@ -771,9 +769,6 @@ defmodule Pipeline.Step.Loop do
             {:error, reason} ->
               {:halt, {:error, reason}}
           end
-
-        {:error, reason} ->
-          {:halt, {:error, reason}}
       end
     end)
     |> case do

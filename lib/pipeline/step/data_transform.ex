@@ -420,7 +420,6 @@ defmodule Pipeline.Step.DataTransform do
     put_in(data, Enum.map(fields, &Access.key(&1, %{})), value)
   end
 
-  defp put_nested_field(data, _field_path, _value), do: data
 
   defp format_result(data, step) do
     # Apply any output formatting if specified

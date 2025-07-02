@@ -77,7 +77,7 @@ defmodule Pipeline.Streaming.ResultStream do
   @doc """
   Stream data from a result stream in chunks.
   """
-  @spec stream_chunks(t()) :: {:ok, Stream.t()} | {:error, String.t()}
+  @spec stream_chunks(t()) :: {:ok, Enumerable.t()} | {:error, String.t()}
   def stream_chunks(%__MODULE__{} = stream) do
     case stream.data_type do
       :binary ->
@@ -124,8 +124,12 @@ defmodule Pipeline.Streaming.ResultStream do
   def cleanup_stream(%__MODULE__{} = stream) do
     case stream.stream_ref do
       {:file, path} ->
-        File.rm(path)
-        Logger.debug("🗑️  Cleaned up stream file: #{path}")
+        case File.rm(path) do
+          :ok -> 
+            Logger.debug("🗑️  Cleaned up stream file: #{path}")
+          {:error, reason} ->
+            Logger.warning("Failed to cleanup stream file #{path}: #{inspect(reason)}")
+        end
 
       {:memory, _pid} ->
         # Memory-based streams are cleaned up by GC
@@ -184,14 +188,18 @@ defmodule Pipeline.Streaming.ResultStream do
 
     case data_type do
       :binary ->
-        File.write(stream_file, data)
-        {:ok, {:file, stream_file}}
+        case File.write(stream_file, data) do
+          :ok -> {:ok, {:file, stream_file}}
+          {:error, reason} -> {:error, "Failed to write binary stream: #{reason}"}
+        end
 
       :json ->
         case Jason.encode(data) do
           {:ok, json_data} ->
-            File.write(stream_file, json_data)
-            {:ok, {:file, stream_file}}
+            case File.write(stream_file, json_data) do
+              :ok -> {:ok, {:file, stream_file}}
+              {:error, reason} -> {:error, "Failed to write JSON stream: #{reason}"}
+            end
 
           {:error, reason} ->
             {:error, "JSON encoding failed: #{inspect(reason)}"}
@@ -199,13 +207,17 @@ defmodule Pipeline.Streaming.ResultStream do
 
       :list ->
         serialized = :erlang.term_to_binary(data)
-        File.write(stream_file, serialized)
-        {:ok, {:file, stream_file}}
+        case File.write(stream_file, serialized) do
+          :ok -> {:ok, {:file, stream_file}}
+          {:error, reason} -> {:error, "Failed to write list stream: #{reason}"}
+        end
 
       :map ->
         serialized = :erlang.term_to_binary(data)
-        File.write(stream_file, serialized)
-        {:ok, {:file, stream_file}}
+        case File.write(stream_file, serialized) do
+          :ok -> {:ok, {:file, stream_file}}
+          {:error, reason} -> {:error, "Failed to write map stream: #{reason}"}
+        end
 
       _ ->
         {:error, "Unsupported data type for streaming: #{data_type}"}
@@ -268,7 +280,12 @@ defmodule Pipeline.Streaming.ResultStream do
   end
 
   defp stream_binary_chunks(%__MODULE__{stream_ref: {:file, path}}) do
-    File.stream!(path, [:read, :binary], @stream_chunk_size)
+    path
+    |> File.stream!(@stream_chunk_size, [])
+  end
+
+  defp stream_binary_chunks(%__MODULE__{} = stream) do
+    raise "Unsupported stream_ref for binary chunks: #{inspect(stream.stream_ref)}"
   end
 
   defp stream_list_chunks(%__MODULE__{} = stream) do

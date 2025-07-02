@@ -41,7 +41,7 @@ defmodule Pipeline.Executor do
         {:ok, _pid} ->
           Logger.debug("📊 Performance monitoring started for: #{pipeline_name}")
 
-        {:already_started, _pid} ->
+        {:error, {:already_started, _pid}} ->
           Logger.debug("📊 Performance monitoring already running for: #{pipeline_name}")
 
         {:error, reason} ->
@@ -77,7 +77,12 @@ defmodule Pipeline.Executor do
 
           # Stop monitoring on error
           if monitoring_enabled do
-            Performance.stop_monitoring(pipeline_name)
+            case Performance.stop_monitoring(pipeline_name) do
+              {:ok, _metrics} -> :ok
+              {:error, :not_found} -> :ok  # Already stopped
+              {:error, reason} -> 
+                Logger.warning("Failed to stop monitoring: #{inspect(reason)}")
+            end
           end
 
           error
