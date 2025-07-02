@@ -8,7 +8,7 @@ defmodule Pipeline.Codebase.Analyzers.RustAnalyzer do
     case File.read(file_path) do
       {:ok, content} ->
         {:ok, extract_rust_info(content, file_path)}
-      
+
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
     end
@@ -19,7 +19,7 @@ defmodule Pipeline.Codebase.Analyzers.RustAnalyzer do
     case analyze_file(file_path) do
       {:ok, info} ->
         info[:uses] || []
-      
+
       {:error, _} ->
         []
     end
@@ -36,7 +36,7 @@ defmodule Pipeline.Codebase.Analyzers.RustAnalyzer do
 
   defp extract_uses(content) do
     use_regex = ~r/use\s+([^;]+);/
-    
+
     Regex.scan(use_regex, content)
     |> Enum.map(fn [_, use_stmt] -> String.trim(use_stmt) end)
   end

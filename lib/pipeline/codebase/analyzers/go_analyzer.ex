@@ -8,7 +8,7 @@ defmodule Pipeline.Codebase.Analyzers.GoAnalyzer do
     case File.read(file_path) do
       {:ok, content} ->
         {:ok, extract_go_info(content, file_path)}
-      
+
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
     end
@@ -19,7 +19,7 @@ defmodule Pipeline.Codebase.Analyzers.GoAnalyzer do
     case analyze_file(file_path) do
       {:ok, info} ->
         info[:imports] || []
-      
+
       {:error, _} ->
         []
     end
@@ -43,7 +43,7 @@ defmodule Pipeline.Codebase.Analyzers.GoAnalyzer do
 
   defp extract_imports(content) do
     import_regex = ~r/import\s+(?:\(\s*([^)]+)\s*\)|"([^"]+)")/
-    
+
     Regex.scan(import_regex, content)
     |> Enum.flat_map(fn
       [_, multi_imports, ""] ->
@@ -52,10 +52,10 @@ defmodule Pipeline.Codebase.Analyzers.GoAnalyzer do
         |> Enum.map(&String.trim/1)
         |> Enum.reject(&(&1 == ""))
         |> Enum.map(&String.trim(&1, "\""))
-      
+
       [_, "", single_import] ->
         [single_import]
-      
+
       _ ->
         []
     end)

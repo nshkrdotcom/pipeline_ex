@@ -1,44 +1,44 @@
 defmodule Pipeline.Codebase.Context do
   @moduledoc """
   Codebase discovery and context analysis system.
-  
+
   Automatically analyzes project structure and provides intelligent context
   to pipeline steps including project type detection, file structure analysis,
   dependency parsing, and git information integration.
   """
 
   alias Pipeline.Codebase.Discovery
-  
+
   @type project_type :: :elixir | :javascript | :python | :rust | :go | :unknown
   @type file_info :: %{
-    type: String.t(),
-    size: non_neg_integer(),
-    modified: DateTime.t(),
-    language: String.t() | nil
-  }
+          type: String.t(),
+          size: non_neg_integer(),
+          modified: DateTime.t(),
+          language: String.t() | nil
+        }
   @type git_info :: %{
-    branch: String.t() | nil,
-    commit: String.t() | nil,
-    status: String.t() | nil,
-    recent_commits: [String.t()]
-  }
+          branch: String.t() | nil,
+          commit: String.t() | nil,
+          status: String.t() | nil,
+          recent_commits: [String.t()]
+        }
   @type structure_info :: %{
-    directories: [String.t()],
-    main_files: [String.t()],
-    test_files: [String.t()],
-    config_files: [String.t()],
-    source_files: [String.t()]
-  }
+          directories: [String.t()],
+          main_files: [String.t()],
+          test_files: [String.t()],
+          config_files: [String.t()],
+          source_files: [String.t()]
+        }
 
   @type t :: %__MODULE__{
-    root_path: String.t(),
-    project_type: project_type(),
-    files: %{String.t() => file_info()},
-    dependencies: map(),
-    git_info: git_info(),
-    structure: structure_info(),
-    metadata: map()
-  }
+          root_path: String.t(),
+          project_type: project_type(),
+          files: %{String.t() => file_info()},
+          dependencies: map(),
+          git_info: git_info(),
+          structure: structure_info(),
+          metadata: map()
+        }
 
   defstruct [
     :root_path,
@@ -52,9 +52,9 @@ defmodule Pipeline.Codebase.Context do
 
   @doc """
   Discover and analyze codebase context for a given workspace directory.
-  
+
   ## Examples
-  
+
       iex> context = Pipeline.Codebase.Context.discover("/path/to/project")
       %Pipeline.Codebase.Context{
         project_type: :elixir,
@@ -65,7 +65,7 @@ defmodule Pipeline.Codebase.Context do
   @spec discover(String.t()) :: t()
   def discover(workspace_dir) do
     workspace_dir = Path.expand(workspace_dir)
-    
+
     %__MODULE__{
       root_path: workspace_dir,
       project_type: Discovery.detect_project_type(workspace_dir),
@@ -79,9 +79,9 @@ defmodule Pipeline.Codebase.Context do
 
   @doc """
   Convert context to template variables for use in pipeline steps.
-  
+
   ## Examples
-  
+
       iex> context |> Pipeline.Codebase.Context.to_template_vars()
       %{
         "codebase.project_type" => "elixir",
@@ -131,18 +131,18 @@ defmodule Pipeline.Codebase.Context do
     """
     Project Type: #{context.project_type}
     Root Path: #{context.root_path}
-    
+
     Structure:
     - Directories: #{length(context.structure.directories)}
     - Source files: #{length(context.structure.source_files)}
     - Test files: #{length(context.structure.test_files)}
     - Config files: #{length(context.structure.config_files)}
-    
+
     Main Files:
     #{context.structure.main_files |> Enum.take(10) |> Enum.join("\n")}
-    
+
     Dependencies: #{map_size(context.dependencies)}
-    
+
     Git Info:
     - Branch: #{context.git_info.branch || "unknown"}
     - Latest commit: #{context.git_info.commit || "unknown"}

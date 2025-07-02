@@ -1,7 +1,7 @@
 defmodule Pipeline.Codebase.Analyzers.JavaScriptAnalyzer do
   @moduledoc """
   Specialized analyzer for JavaScript/TypeScript projects.
-  
+
   Provides analysis of JavaScript codebases including:
   - Module and function discovery
   - Import/export analysis
@@ -16,7 +16,7 @@ defmodule Pipeline.Codebase.Analyzers.JavaScriptAnalyzer do
     case File.read(file_path) do
       {:ok, content} ->
         {:ok, extract_js_info(content, file_path)}
-      
+
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
     end
@@ -30,7 +30,7 @@ defmodule Pipeline.Codebase.Analyzers.JavaScriptAnalyzer do
     case analyze_file(file_path) do
       {:ok, info} ->
         info[:imports] || []
-      
+
       {:error, _} ->
         []
     end
@@ -51,7 +51,7 @@ defmodule Pipeline.Codebase.Analyzers.JavaScriptAnalyzer do
     # Simple regex-based import extraction
     # In production, you'd use a proper JS parser
     import_regex = ~r/import\s+.*?\s+from\s+['"]([^'"]+)['"]/
-    
+
     Regex.scan(import_regex, content)
     |> Enum.map(fn [_, module] -> module end)
   end

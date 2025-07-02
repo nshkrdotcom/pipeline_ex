@@ -2,7 +2,6 @@ defmodule Pipeline.Step.FileOpsTest do
   use ExUnit.Case, async: false
 
   alias Pipeline.Step.FileOps
-  alias Pipeline.Utils.FileUtils
 
   @test_workspace "/tmp/pipeline_test_workspace"
 

@@ -1,7 +1,7 @@
 defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
   @moduledoc """
   Specialized analyzer for Elixir projects.
-  
+
   Provides deep analysis of Elixir codebases including:
   - Module and function discovery
   - Dependency analysis
@@ -19,11 +19,11 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
         case Code.string_to_quoted(content, file: file_path) do
           {:ok, ast} ->
             {:ok, extract_module_info(ast, file_path)}
-          
+
           {:error, {_line, error, _token}} ->
             {:error, "Parse error: #{error}"}
         end
-      
+
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
     end
@@ -36,9 +36,9 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
   def find_module_dependencies(file_path, project_root) do
     case analyze_file(file_path) do
       {:ok, info} ->
-        info[:imports] ++ info[:aliases] ++ info[:uses]
+        (info[:imports] ++ info[:aliases] ++ info[:uses])
         |> Enum.filter(&is_project_module?(&1, project_root))
-      
+
       {:error, _} ->
         []
     end
@@ -51,17 +51,18 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
   def find_test_file(source_file, project_root) do
     # Convert lib/my_app/user.ex -> test/my_app/user_test.exs
     relative_path = Path.relative_to(source_file, project_root)
-    
+
     case String.replace_prefix(relative_path, "lib/", "") do
       ^relative_path ->
-        nil  # Not in lib/ directory
-      
+        # Not in lib/ directory
+        nil
+
       lib_relative ->
         base_name = Path.basename(lib_relative, ".ex")
         dir_path = Path.dirname(lib_relative)
-        
+
         test_file = Path.join([project_root, "test", dir_path, "#{base_name}_test.exs"])
-        
+
         if File.exists?(test_file), do: test_file, else: nil
     end
   end
@@ -69,7 +70,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
   @doc """
   Extract documentation from module.
   """
-  @spec extract_documentation(String.t()) :: map()
+  @spec extract_documentation(String.t()) :: %{module_doc: String.t() | nil, function_docs: map()}
   def extract_documentation(file_path) do
     case analyze_file(file_path) do
       {:ok, info} ->
@@ -77,7 +78,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
           module_doc: info[:module_doc],
           function_docs: info[:function_docs] || %{}
         }
-      
+
       {:error, _} ->
         %{module_doc: nil, function_docs: %{}}
     end
@@ -96,7 +97,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
       module_doc: nil,
       function_docs: %{}
     }
-    
+
     traverse_ast(ast, info)
   end
 
@@ -108,22 +109,23 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
           functions: extract_functions(body),
           doc: extract_module_doc(body)
         }
-        
-        updated_info = %{info | 
-          modules: [module_info | info.modules],
-          module_doc: module_info.doc
+
+        updated_info = %{
+          info
+          | modules: [module_info | info.modules],
+            module_doc: module_info.doc
         }
-        
+
         traverse_module_body(body, updated_info)
-      
+
       list when is_list(list) ->
         Enum.reduce(list, info, &traverse_ast/2)
-      
+
       tuple when is_tuple(tuple) ->
         tuple
         |> Tuple.to_list()
         |> Enum.reduce(info, &traverse_ast/2)
-      
+
       _ ->
         info
     end
@@ -133,7 +135,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     case body do
       {:__block__, _meta, statements} ->
         Enum.reduce(statements, info, &process_statement/2)
-      
+
       statement ->
         process_statement(statement, info)
     end
@@ -143,32 +145,34 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     case statement do
       {:import, _meta, [module]} ->
         %{info | imports: [module_name_to_string(module) | info.imports]}
-      
+
       {:alias, _meta, [module]} ->
         %{info | aliases: [module_name_to_string(module) | info.aliases]}
-      
+
       {:alias, _meta, [module, [as: _alias_name]]} ->
         %{info | aliases: [module_name_to_string(module) | info.aliases]}
-      
+
       {:use, _meta, [module]} ->
         %{info | uses: [module_name_to_string(module) | info.uses]}
-      
+
       {:def, _meta, [{function_name, _fun_meta, args} | _]} ->
         function_info = %{
           name: function_name,
           arity: length(args || []),
           type: :public
         }
+
         %{info | functions: [function_info | info.functions]}
-      
+
       {:defp, _meta, [{function_name, _fun_meta, args} | _]} ->
         function_info = %{
           name: function_name,
           arity: length(args || []),
           type: :private
         }
+
         %{info | functions: [function_info | info.functions]}
-      
+
       _ ->
         info
     end
@@ -178,7 +182,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     case body do
       {:__block__, _meta, statements} ->
         Enum.flat_map(statements, &extract_function_from_statement/1)
-      
+
       statement ->
         extract_function_from_statement(statement)
     end
@@ -187,19 +191,23 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
   defp extract_function_from_statement(statement) do
     case statement do
       {:def, _meta, [{function_name, _fun_meta, args} | _]} ->
-        [%{
-          name: function_name,
-          arity: length(args || []),
-          type: :public
-        }]
-      
+        [
+          %{
+            name: function_name,
+            arity: length(args || []),
+            type: :public
+          }
+        ]
+
       {:defp, _meta, [{function_name, _fun_meta, args} | _]} ->
-        [%{
-          name: function_name,
-          arity: length(args || []),
-          type: :private
-        }]
-      
+        [
+          %{
+            name: function_name,
+            arity: length(args || []),
+            type: :private
+          }
+        ]
+
       _ ->
         []
     end
@@ -209,7 +217,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     case body do
       {:__block__, _meta, statements} ->
         Enum.find_value(statements, &extract_moduledoc/1)
-      
+
       statement ->
         extract_moduledoc(statement)
     end
@@ -241,10 +249,10 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     case String.split(module_name, ".") do
       [first | _] ->
         String.match?(first, ~r/^[A-Z][a-zA-Z]*$/) and
-        not String.starts_with?(module_name, "Elixir.") and
-        not String.starts_with?(module_name, "Enum") and
-        not String.starts_with?(module_name, "GenServer")
-      
+          not String.starts_with?(module_name, "Elixir.") and
+          not String.starts_with?(module_name, "Enum") and
+          not String.starts_with?(module_name, "GenServer")
+
       _ ->
         false
     end

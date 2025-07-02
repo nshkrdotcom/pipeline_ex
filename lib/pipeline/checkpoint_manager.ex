@@ -25,7 +25,7 @@ defmodule Pipeline.CheckpointManager do
     filepath = Path.join(checkpoint_dir, filename)
 
     # Serialize variable state if present
-    variable_state = 
+    variable_state =
       case Map.get(context, :variable_state) do
         nil -> %{}
         state -> Pipeline.State.VariableEngine.serialize_state(state)
@@ -75,7 +75,8 @@ defmodule Pipeline.CheckpointManager do
         case Jason.decode(content) do
           {:ok, data} ->
             # Deserialize variable state
-            variable_state = Pipeline.State.VariableEngine.deserialize_state(data["variable_state"])
+            variable_state =
+              Pipeline.State.VariableEngine.deserialize_state(data["variable_state"])
 
             checkpoint = %{
               workflow_name: data["workflow_name"],
@@ -112,7 +113,8 @@ defmodule Pipeline.CheckpointManager do
         case Jason.decode(content) do
           {:ok, data} ->
             # Deserialize variable state
-            variable_state = Pipeline.State.VariableEngine.deserialize_state(data["variable_state"])
+            variable_state =
+              Pipeline.State.VariableEngine.deserialize_state(data["variable_state"])
 
             checkpoint = %{
               workflow_name: data["workflow_name"],

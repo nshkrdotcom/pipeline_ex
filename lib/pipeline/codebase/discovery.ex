@@ -1,7 +1,7 @@
 defmodule Pipeline.Codebase.Discovery do
   @moduledoc """
   Core discovery engine for codebase analysis.
-  
+
   Handles project type detection, file scanning, dependency parsing,
   git integration, and structure analysis.
   """
@@ -65,14 +65,15 @@ defmodule Pipeline.Codebase.Discovery do
     Path.wildcard(Path.join(workspace_dir, "**/*"))
     |> Enum.reduce(%{}, fn path, acc ->
       relative_path = Path.relative_to(path, workspace_dir)
-      
+
       case File.stat(path) do
         {:ok, %File.Stat{type: :regular} = stat} ->
-          modified_time = case stat.mtime do
-            mtime when is_integer(mtime) -> DateTime.from_unix!(mtime, :second)
-            _ -> DateTime.utc_now()
-          end
-          
+          modified_time =
+            case stat.mtime do
+              mtime when is_integer(mtime) -> DateTime.from_unix!(mtime, :second)
+              _ -> DateTime.utc_now()
+            end
+
           Map.put(acc, relative_path, %{
             type: "file",
             size: stat.size,
@@ -80,7 +81,7 @@ defmodule Pipeline.Codebase.Discovery do
             language: detect_language(relative_path),
             full_path: path
           })
-        
+
         {:ok, %File.Stat{type: :directory}} ->
           Map.put(acc, relative_path, %{
             type: "directory",
@@ -89,7 +90,7 @@ defmodule Pipeline.Codebase.Discovery do
             language: nil,
             full_path: path
           })
-        
+
         {:error, _} ->
           acc
       end
@@ -102,7 +103,7 @@ defmodule Pipeline.Codebase.Discovery do
   @spec parse_dependencies(String.t()) :: map()
   def parse_dependencies(workspace_dir) do
     project_type = detect_project_type(workspace_dir)
-    
+
     case project_type do
       :elixir -> parse_elixir_dependencies(workspace_dir)
       :javascript -> parse_javascript_dependencies(workspace_dir)
@@ -133,11 +134,17 @@ defmodule Pipeline.Codebase.Discovery do
   @doc """
   Analyze project structure and categorize files.
   """
-  @spec analyze_structure(String.t()) :: map()
+  @spec analyze_structure(String.t()) :: %{
+          directories: [String.t()],
+          main_files: [String.t()],
+          test_files: [String.t()],
+          config_files: [String.t()],
+          source_files: [String.t()]
+        }
   def analyze_structure(workspace_dir) do
     files = scan_files(workspace_dir)
     project_type = detect_project_type(workspace_dir)
-    
+
     %{
       directories: get_directories(files),
       main_files: get_main_files(files, project_type),
@@ -150,16 +157,21 @@ defmodule Pipeline.Codebase.Discovery do
   @doc """
   Extract project metadata.
   """
-  @spec extract_metadata(String.t()) :: map()
+  @spec extract_metadata(String.t()) :: %{
+          optional(atom()) => any(),
+          project_type: atom(),
+          discovered_at: DateTime.t(),
+          root_path: String.t()
+        }
   def extract_metadata(workspace_dir) do
     project_type = detect_project_type(workspace_dir)
-    
+
     base_metadata = %{
       project_type: project_type,
       discovered_at: DateTime.utc_now(),
       root_path: workspace_dir
     }
-    
+
     case project_type do
       :elixir -> Map.merge(base_metadata, extract_elixir_metadata(workspace_dir))
       :javascript -> Map.merge(base_metadata, extract_javascript_metadata(workspace_dir))
@@ -179,18 +191,18 @@ defmodule Pipeline.Codebase.Discovery do
     # Find files in same directory
     # Find files with similar names
     # Find files that import/require the given file
-    
+
     related = []
-    
+
     # Same directory files
     same_dir = get_same_directory_files(context, file_path)
-    
+
     # Test/source counterparts
     counterparts = find_test_source_counterparts(context, file_path)
-    
+
     # Files with similar names
     similar_names = find_similar_named_files(context, file_path)
-    
+
     (related ++ same_dir ++ counterparts ++ similar_names)
     |> Enum.uniq()
     |> Enum.reject(&(&1 == file_path))
@@ -218,7 +230,7 @@ defmodule Pipeline.Codebase.Discovery do
         |> Path.join(pattern)
         |> Path.wildcard()
         |> length() > 0
-      
+
       false ->
         workspace_dir
         |> Path.join(pattern)
@@ -228,7 +240,7 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp detect_language(file_path) do
     extension = Path.extname(file_path)
-    
+
     @source_extensions
     |> Enum.find(fn {_lang, exts} -> extension in exts end)
     |> case do
@@ -245,15 +257,16 @@ defmodule Pipeline.Codebase.Discovery do
   end
 
   defp get_main_files(files, project_type) do
-    main_patterns = case project_type do
-      :elixir -> ["lib/**/*.ex", "mix.exs"]
-      :javascript -> ["src/**/*.{js,ts}", "index.{js,ts}", "package.json"]
-      :python -> ["**/*.py", "setup.py", "main.py"]
-      :rust -> ["src/**/*.rs", "Cargo.toml"]
-      :go -> ["**/*.go", "go.mod"]
-      _ -> []
-    end
-    
+    main_patterns =
+      case project_type do
+        :elixir -> ["lib/**/*.ex", "mix.exs"]
+        :javascript -> ["src/**/*.{js,ts}", "index.{js,ts}", "package.json"]
+        :python -> ["**/*.py", "setup.py", "main.py"]
+        :rust -> ["src/**/*.rs", "Cargo.toml"]
+        :go -> ["**/*.go", "go.mod"]
+        _ -> []
+      end
+
     filter_files_by_patterns(files, main_patterns)
   end
 
@@ -269,7 +282,7 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp get_source_files(files, project_type) do
     extensions = Map.get(@source_extensions, project_type, [])
-    
+
     files
     |> Enum.filter(fn {path, info} ->
       info.type == "file" && Path.extname(path) in extensions
@@ -280,17 +293,19 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp filter_files_by_patterns(files, patterns) do
     file_paths = Map.keys(files)
-    
+
     patterns
     |> Enum.flat_map(fn pattern ->
       case String.contains?(pattern, "*") do
-        true -> 
+        true ->
           # Use Path.wildcard style matching
           regex = convert_glob_to_regex(pattern)
+
           Enum.filter(file_paths, fn path ->
             Regex.match?(regex, path)
           end)
-        false -> 
+
+        false ->
           if pattern in file_paths, do: [pattern], else: []
       end
     end)
@@ -301,10 +316,14 @@ defmodule Pipeline.Codebase.Discovery do
   defp convert_glob_to_regex(pattern) do
     pattern
     |> String.replace(".", "\\.")
-    |> String.replace("**/", "__GLOBSTAR__")  # Match zero or more path segments
-    |> String.replace("**", "__GLOBSTAR__")   # Match zero or more path segments  
-    |> String.replace("*", "[^/]*")           # Match anything except path separator
-    |> String.replace("__GLOBSTAR__", "(?:[^/]*/?)*") # Zero or more segments with optional trailing slash
+    # Match zero or more path segments
+    |> String.replace("**/", "__GLOBSTAR__")
+    # Match zero or more path segments  
+    |> String.replace("**", "__GLOBSTAR__")
+    # Match anything except path separator
+    |> String.replace("*", "[^/]*")
+    # Zero or more segments with optional trailing slash
+    |> String.replace("__GLOBSTAR__", "(?:[^/]*/?)*")
     |> String.replace("{", "(")
     |> String.replace("}", ")")
     |> String.replace(",", "|")
@@ -314,7 +333,10 @@ defmodule Pipeline.Codebase.Discovery do
   # Git helper functions
 
   defp get_git_branch(workspace_dir) do
-    case System.cmd("git", ["branch", "--show-current"], cd: workspace_dir, stderr_to_stdout: true) do
+    case System.cmd("git", ["branch", "--show-current"],
+           cd: workspace_dir,
+           stderr_to_stdout: true
+         ) do
       {output, 0} -> String.trim(output)
       _ -> nil
     end
@@ -329,23 +351,27 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp get_git_status(workspace_dir) do
     case System.cmd("git", ["status", "--porcelain"], cd: workspace_dir, stderr_to_stdout: true) do
-      {output, 0} -> 
+      {output, 0} ->
         case String.trim(output) do
           "" -> "clean"
           _ -> "dirty"
         end
-      _ -> nil
+
+      _ ->
+        nil
     end
   end
 
   defp get_recent_commits(workspace_dir) do
     case System.cmd("git", ["log", "--oneline", "-5"], cd: workspace_dir, stderr_to_stdout: true) do
-      {output, 0} -> 
+      {output, 0} ->
         output
         |> String.trim()
         |> String.split("\n")
         |> Enum.reject(&(&1 == ""))
-      _ -> []
+
+      _ ->
+        []
     end
   end
 
@@ -353,12 +379,12 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp parse_elixir_dependencies(workspace_dir) do
     mix_file = Path.join(workspace_dir, "mix.exs")
-    
+
     if File.exists?(mix_file) do
       # Simple regex-based parsing for dependencies
       # This is more reliable than trying to eval the mix.exs file in tests
       content = File.read!(mix_file)
-      
+
       # Extract dependencies from the deps function
       case Regex.run(~r/defp deps do\s*\[(.*?)\]/ms, content) do
         [_, deps_content] ->
@@ -367,7 +393,9 @@ defmodule Pipeline.Codebase.Discovery do
           |> Enum.reduce(%{}, fn [_, name, version], acc ->
             Map.put(acc, name, version)
           end)
-        _ -> %{}
+
+        _ ->
+          %{}
       end
     else
       %{}
@@ -376,7 +404,7 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp parse_javascript_dependencies(workspace_dir) do
     package_file = Path.join(workspace_dir, "package.json")
-    
+
     if File.exists?(package_file) do
       case File.read!(package_file) |> Jason.decode() do
         {:ok, %{"dependencies" => deps}} -> deps
@@ -390,7 +418,7 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp parse_python_dependencies(workspace_dir) do
     requirements_file = Path.join(workspace_dir, "requirements.txt")
-    
+
     if File.exists?(requirements_file) do
       requirements_file
       |> File.read!()
@@ -415,11 +443,11 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp extract_elixir_metadata(workspace_dir) do
     mix_file = Path.join(workspace_dir, "mix.exs")
-    
+
     if File.exists?(mix_file) do
       try do
         content = File.read!(mix_file)
-        
+
         %{
           app_name: extract_app_name(content),
           version: extract_version(content),
@@ -463,7 +491,7 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp get_same_directory_files(context, file_path) do
     dir = Path.dirname(file_path)
-    
+
     context.files
     |> Map.keys()
     |> Enum.filter(&(Path.dirname(&1) == dir))
@@ -473,7 +501,7 @@ defmodule Pipeline.Codebase.Discovery do
     # Logic to find corresponding test/source files
     # This is a simplified implementation
     base_name = Path.basename(file_path, Path.extname(file_path))
-    
+
     context.files
     |> Map.keys()
     |> Enum.filter(fn path ->
@@ -484,7 +512,7 @@ defmodule Pipeline.Codebase.Discovery do
 
   defp find_similar_named_files(context, file_path) do
     base_name = Path.basename(file_path, Path.extname(file_path))
-    
+
     context.files
     |> Map.keys()
     |> Enum.filter(fn path ->
@@ -496,16 +524,26 @@ defmodule Pipeline.Codebase.Discovery do
   defp matches_criteria?(file_path, file_info, criteria) do
     Enum.all?(criteria, fn {key, value} ->
       case key do
-        :type -> file_info.type == value
-        :language -> file_info.language == value
-        :extension -> Path.extname(file_path) == value
-        :contains -> String.contains?(file_path, value)
-        :modified_since -> 
+        :type ->
+          file_info.type == value
+
+        :language ->
+          file_info.language == value
+
+        :extension ->
+          Path.extname(file_path) == value
+
+        :contains ->
+          String.contains?(file_path, value)
+
+        :modified_since ->
           case Date.from_iso8601(value) do
             {:ok, date} -> Date.compare(DateTime.to_date(file_info.modified), date) != :lt
             _ -> false
           end
-        _ -> true
+
+        _ ->
+          true
       end
     end)
   end

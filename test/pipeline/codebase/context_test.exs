@@ -1,6 +1,6 @@
 defmodule Pipeline.Codebase.ContextTest do
   use ExUnit.Case, async: true
-  
+
   alias Pipeline.Codebase.Context
   alias Pipeline.Codebase.Discovery
 
@@ -10,12 +10,12 @@ defmodule Pipeline.Codebase.ContextTest do
     # Create a test workspace
     File.rm_rf!(@test_workspace)
     File.mkdir_p!(@test_workspace)
-    
+
     # Create sample Elixir project structure
     File.mkdir_p!(Path.join(@test_workspace, "lib"))
     File.mkdir_p!(Path.join(@test_workspace, "test"))
     File.mkdir_p!(Path.join(@test_workspace, "config"))
-    
+
     # Create mix.exs
     mix_content = """
     defmodule TestApp.MixProject do
@@ -38,8 +38,9 @@ defmodule Pipeline.Codebase.ContextTest do
       end
     end
     """
+
     File.write!(Path.join(@test_workspace, "mix.exs"), mix_content)
-    
+
     # Create sample source file
     lib_content = """
     defmodule TestApp do
@@ -59,8 +60,9 @@ defmodule Pipeline.Codebase.ContextTest do
       end
     end
     """
+
     File.write!(Path.join([@test_workspace, "lib", "test_app.ex"]), lib_content)
-    
+
     # Create sample test file
     test_content = """
     defmodule TestAppTest do
@@ -71,19 +73,20 @@ defmodule Pipeline.Codebase.ContextTest do
       end
     end
     """
+
     File.write!(Path.join([@test_workspace, "test", "test_app_test.exs"]), test_content)
-    
+
     on_exit(fn ->
       File.rm_rf!(@test_workspace)
     end)
-    
+
     {:ok, workspace: @test_workspace}
   end
 
   describe "discover/1" do
     test "discovers Elixir project structure", %{workspace: workspace} do
       context = Context.discover(workspace)
-      
+
       assert context.project_type == :elixir
       assert context.root_path == workspace
       assert is_map(context.files)
@@ -92,23 +95,23 @@ defmodule Pipeline.Codebase.ContextTest do
       assert is_map(context.structure)
       assert is_map(context.metadata)
     end
-    
+
     test "identifies main files correctly", %{workspace: workspace} do
       context = Context.discover(workspace)
-      
+
       assert "mix.exs" in context.structure.main_files
       assert "lib/test_app.ex" in context.structure.main_files
     end
-    
+
     test "identifies test files correctly", %{workspace: workspace} do
       context = Context.discover(workspace)
-      
+
       assert "test/test_app_test.exs" in context.structure.test_files
     end
-    
+
     test "parses dependencies correctly", %{workspace: workspace} do
       context = Context.discover(workspace)
-      
+
       assert Map.has_key?(context.dependencies, "jason")
       assert Map.has_key?(context.dependencies, "req")
     end
@@ -118,7 +121,7 @@ defmodule Pipeline.Codebase.ContextTest do
     test "converts context to template variables", %{workspace: workspace} do
       context = Context.discover(workspace)
       vars = Context.to_template_vars(context)
-      
+
       assert vars["codebase.project_type"] == "elixir"
       assert vars["codebase.root_path"] == workspace
       assert is_list(vars["codebase.structure.main_files"])
@@ -132,7 +135,7 @@ defmodule Pipeline.Codebase.ContextTest do
     test "finds related files for a source file", %{workspace: workspace} do
       context = Context.discover(workspace)
       related = Context.find_related_files(context, "lib/test_app.ex")
-      
+
       # Should find the test file
       assert "test/test_app_test.exs" in related
     end
@@ -141,17 +144,17 @@ defmodule Pipeline.Codebase.ContextTest do
   describe "query_files/2" do
     test "queries files by type", %{workspace: workspace} do
       context = Context.discover(workspace)
-      
+
       files = Context.query_files(context, type: "file")
       assert length(files) > 0
-      
+
       dirs = Context.query_files(context, type: "directory")
       assert length(dirs) > 0
     end
-    
+
     test "queries files by language", %{workspace: workspace} do
       context = Context.discover(workspace)
-      
+
       elixir_files = Context.query_files(context, language: "elixir")
       assert "lib/test_app.ex" in elixir_files
       assert "test/test_app_test.exs" in elixir_files
@@ -162,7 +165,7 @@ defmodule Pipeline.Codebase.ContextTest do
     test "generates a readable summary", %{workspace: workspace} do
       context = Context.discover(workspace)
       summary = Context.get_summary(context)
-      
+
       assert String.contains?(summary, "Project Type: elixir")
       assert String.contains?(summary, "Root Path: #{workspace}")
       assert String.contains?(summary, "mix.exs")
@@ -172,7 +175,7 @@ end
 
 defmodule Pipeline.Codebase.DiscoveryTest do
   use ExUnit.Case, async: true
-  
+
   alias Pipeline.Codebase.Discovery
 
   @test_workspace Path.join([System.tmp_dir!(), "pipeline_discovery_test"])
@@ -180,36 +183,36 @@ defmodule Pipeline.Codebase.DiscoveryTest do
   setup do
     File.rm_rf!(@test_workspace)
     File.mkdir_p!(@test_workspace)
-    
+
     on_exit(fn ->
       File.rm_rf!(@test_workspace)
     end)
-    
+
     {:ok, workspace: @test_workspace}
   end
 
   describe "detect_project_type/1" do
     test "detects Elixir project", %{workspace: workspace} do
       File.write!(Path.join(workspace, "mix.exs"), "defmodule Test.MixProject, do: nil")
-      
+
       assert Discovery.detect_project_type(workspace) == :elixir
     end
-    
+
     test "detects JavaScript project", %{workspace: workspace} do
       File.write!(Path.join(workspace, "package.json"), "{}")
-      
+
       assert Discovery.detect_project_type(workspace) == :javascript
     end
-    
+
     test "detects Python project", %{workspace: workspace} do
       File.write!(Path.join(workspace, "requirements.txt"), "requests==2.25.1")
-      
+
       assert Discovery.detect_project_type(workspace) == :python
     end
-    
+
     test "returns unknown for unrecognized projects", %{workspace: workspace} do
       File.write!(Path.join(workspace, "random.txt"), "content")
-      
+
       assert Discovery.detect_project_type(workspace) == :unknown
     end
   end
@@ -219,13 +222,13 @@ defmodule Pipeline.Codebase.DiscoveryTest do
       File.write!(Path.join(workspace, "test.ex"), "content")
       File.mkdir_p!(Path.join(workspace, "subdir"))
       File.write!(Path.join([workspace, "subdir", "nested.ex"]), "content")
-      
+
       files = Discovery.scan_files(workspace)
-      
+
       assert Map.has_key?(files, "test.ex")
       assert Map.has_key?(files, "subdir")
       assert Map.has_key?(files, "subdir/nested.ex")
-      
+
       assert files["test.ex"].type == "file"
       assert files["subdir"].type == "directory"
       assert files["test.ex"].language == "elixir"
@@ -250,14 +253,15 @@ defmodule Pipeline.Codebase.DiscoveryTest do
         end
       end
       """
+
       File.write!(Path.join(workspace, "mix.exs"), mix_content)
-      
+
       deps = Discovery.parse_dependencies(workspace)
-      
+
       assert Map.has_key?(deps, "jason")
       assert Map.has_key?(deps, "req")
     end
-    
+
     test "parses JavaScript dependencies from package.json", %{workspace: workspace} do
       package_content = """
       {
@@ -267,10 +271,11 @@ defmodule Pipeline.Codebase.DiscoveryTest do
         }
       }
       """
+
       File.write!(Path.join(workspace, "package.json"), package_content)
-      
+
       deps = Discovery.parse_dependencies(workspace)
-      
+
       assert deps["express"] == "^4.18.0"
       assert deps["lodash"] == "^4.17.21"
     end
@@ -284,9 +289,9 @@ defmodule Pipeline.Codebase.DiscoveryTest do
       File.write!(Path.join(workspace, "mix.exs"), "content")
       File.write!(Path.join([workspace, "lib", "app.ex"]), "content")
       File.write!(Path.join([workspace, "test", "app_test.exs"]), "content")
-      
+
       structure = Discovery.analyze_structure(workspace)
-      
+
       assert "lib" in structure.directories
       assert "test" in structure.directories
       assert "mix.exs" in structure.main_files

@@ -8,7 +8,7 @@ defmodule Pipeline.Codebase.Analyzers.PythonAnalyzer do
     case File.read(file_path) do
       {:ok, content} ->
         {:ok, extract_python_info(content, file_path)}
-      
+
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
     end
@@ -19,7 +19,7 @@ defmodule Pipeline.Codebase.Analyzers.PythonAnalyzer do
     case analyze_file(file_path) do
       {:ok, info} ->
         info[:imports] || []
-      
+
       {:error, _} ->
         []
     end
@@ -36,7 +36,7 @@ defmodule Pipeline.Codebase.Analyzers.PythonAnalyzer do
 
   defp extract_imports(content) do
     import_regex = ~r/(?:from\s+(\S+)\s+)?import\s+([^\n]+)/
-    
+
     Regex.scan(import_regex, content)
     |> Enum.map(fn
       [_, "", imports] -> String.split(imports, ",") |> Enum.map(&String.trim/1)

@@ -186,7 +186,7 @@ defmodule Pipeline.Executor do
 
     # Interpolate variables in step configuration
     interpolated_step = interpolate_step_variables(step, context)
-    
+
     # Update variable state with current step info
     updated_context = update_variable_step_info(context, step["name"], index)
 
@@ -345,7 +345,7 @@ defmodule Pipeline.Executor do
     case step["type"] do
       "set_variable" ->
         SetVariable.execute(step, context)
-        
+
       "claude" ->
         Claude.execute(step, context)
 
@@ -503,7 +503,9 @@ defmodule Pipeline.Executor do
 
   defp interpolate_step_variables(step, context) do
     case Map.get(context, :variable_state) do
-      nil -> step
+      nil ->
+        step
+
       variable_state ->
         VariableEngine.interpolate_data(step, variable_state)
     end
@@ -511,7 +513,9 @@ defmodule Pipeline.Executor do
 
   defp update_variable_step_info(context, step_name, step_index) do
     case Map.get(context, :variable_state) do
-      nil -> context
+      nil ->
+        context
+
       variable_state ->
         updated_state = VariableEngine.update_step_info(variable_state, step_name, step_index)
         %{context | variable_state: updated_state}
