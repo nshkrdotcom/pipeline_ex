@@ -210,12 +210,12 @@ defmodule Pipeline.Step.DataTransform do
 
     lazy_enabled = get_in(step, ["lazy", "enabled"]) || false
     large_dataset = is_list(input_data) && length(input_data) > @lazy_threshold
-    has_streaming_ops = Enum.any?(operations, &is_streaming_operation?/1) && large_dataset
+    has_streaming_ops = Enum.any?(operations, &streaming_operation?/1) && large_dataset
 
     lazy_enabled || large_dataset || has_streaming_ops
   end
 
-  defp is_streaming_operation?(operation) do
+  defp streaming_operation?(operation) do
     streaming_ops = ["filter", "map", "sort"]
     operation["operation"] in streaming_ops
   end
@@ -419,7 +419,6 @@ defmodule Pipeline.Step.DataTransform do
     fields = String.split(field_path, ".")
     put_in(data, Enum.map(fields, &Access.key(&1, %{})), value)
   end
-
 
   defp format_result(data, step) do
     # Apply any output formatting if specified

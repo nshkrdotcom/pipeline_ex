@@ -87,8 +87,10 @@ defmodule Pipeline.Step.Loop do
         # Memory check for large datasets
         if rem(index, @memory_check_interval) == 0 do
           case check_memory_usage(index, length(data)) do
-            :ok -> :ok
-            {:error, reason} -> 
+            :ok ->
+              :ok
+
+            {:error, reason} ->
               Logger.warning("Memory check failed: #{inspect(reason)}")
           end
         end
@@ -165,7 +167,6 @@ defmodule Pipeline.Step.Loop do
     {:ok, final_results}
   end
 
-
   # Parallel For Loop Execution
   defp execute_parallel_for_loop(data, iterator_name, sub_steps, step, context)
        when is_list(data) do
@@ -205,7 +206,6 @@ defmodule Pipeline.Step.Loop do
 
     {:ok, final_results}
   end
-
 
   defp process_parallel_chunk(chunk, iterator_name, sub_steps, _step, context) do
     chunk
@@ -842,11 +842,11 @@ defmodule Pipeline.Step.Loop do
       is_integer(configured_size) && configured_size > 0 ->
         min(configured_size, total_items)
 
-      total_items > 10000 ->
+      total_items > 10_000 ->
         # Large datasets
         100
 
-      total_items > 1000 ->
+      total_items > 1_000 ->
         # Medium datasets
         50
 

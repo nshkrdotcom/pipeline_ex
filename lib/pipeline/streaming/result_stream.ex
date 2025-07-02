@@ -125,8 +125,9 @@ defmodule Pipeline.Streaming.ResultStream do
     case stream.stream_ref do
       {:file, path} ->
         case File.rm(path) do
-          :ok -> 
+          :ok ->
             Logger.debug("🗑️  Cleaned up stream file: #{path}")
+
           {:error, reason} ->
             Logger.warning("Failed to cleanup stream file #{path}: #{inspect(reason)}")
         end
@@ -207,6 +208,7 @@ defmodule Pipeline.Streaming.ResultStream do
 
       :list ->
         serialized = :erlang.term_to_binary(data)
+
         case File.write(stream_file, serialized) do
           :ok -> {:ok, {:file, stream_file}}
           {:error, reason} -> {:error, "Failed to write list stream: #{reason}"}
@@ -214,6 +216,7 @@ defmodule Pipeline.Streaming.ResultStream do
 
       :map ->
         serialized = :erlang.term_to_binary(data)
+
         case File.write(stream_file, serialized) do
           :ok -> {:ok, {:file, stream_file}}
           {:error, reason} -> {:error, "Failed to write map stream: #{reason}"}

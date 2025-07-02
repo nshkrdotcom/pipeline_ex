@@ -413,7 +413,7 @@ defmodule Pipeline.Utils.FileUtils do
   def stream_write_file(path, data_stream) do
     try do
       case ensure_destination_dir(path) do
-        :ok -> 
+        :ok ->
           File.open!(path, [:write, :binary], fn file ->
             data_stream
             |> Stream.each(&IO.binwrite(file, &1))
@@ -422,7 +422,8 @@ defmodule Pipeline.Utils.FileUtils do
 
           Logger.debug("Streamed write completed: #{path}")
           :ok
-        {:error, reason} -> 
+
+        {:error, reason} ->
           {:error, "Failed to create directory: #{reason}"}
       end
     rescue
@@ -510,7 +511,7 @@ defmodule Pipeline.Utils.FileUtils do
     try do
       source
       |> File.stream!(@stream_chunk_size, [])
-      |> Stream.into(File.stream!(destination, [:write], @stream_chunk_size))
+      |> Stream.into(File.stream!(destination, @stream_chunk_size, []))
       |> Stream.run()
 
       Logger.debug("Streamed copy completed: #{source} -> #{destination}")

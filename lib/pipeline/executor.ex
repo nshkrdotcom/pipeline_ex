@@ -78,9 +78,14 @@ defmodule Pipeline.Executor do
           # Stop monitoring on error
           if monitoring_enabled do
             case Performance.stop_monitoring(pipeline_name) do
-              {:ok, _metrics} -> :ok
-              {:error, :not_found} -> :ok  # Already stopped
-              {:error, reason} -> 
+              {:ok, _metrics} ->
+                :ok
+
+              # Already stopped
+              {:error, :not_found} ->
+                :ok
+
+              {:error, reason} ->
                 Logger.warning("Failed to stop monitoring: #{inspect(reason)}")
             end
           end
