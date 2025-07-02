@@ -411,11 +411,12 @@ defmodule Pipeline.Step.Loop do
   end
 
   defp evaluate_condition(condition, context) do
-    case ConditionEngine.evaluate(condition, context) do
-      true -> true
-      false -> false
-      {:error, reason} -> {:error, reason}
-      _ -> false
+    try do
+      ConditionEngine.evaluate(condition, context)
+    rescue
+      error ->
+        Logger.error("❌ Condition evaluation error: #{inspect(error)}")
+        {:error, "Condition evaluation failed: #{inspect(error)}"}
     end
   end
 end
