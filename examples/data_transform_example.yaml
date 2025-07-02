@@ -1,0 +1,107 @@
+workflow:
+  name: "Data Transformation Example"
+  description: "Demonstrates the data_transform step type capabilities"
+
+  steps:
+    # Step 1: Create sample data
+    - name: "generate_sample_data"
+      type: "gemini"
+      prompt: |
+        Generate sample e-commerce data as JSON with the following structure:
+        - orders: array of order objects with id, user_id, total, status, created_at
+        - users: array of user objects with id, name, email, tier
+        - products: array of product objects with id, name, category, price, rating
+        
+        Generate at least 10 orders, 5 users, and 8 products.
+        Make sure some orders have status "completed", "pending", or "cancelled".
+        User tiers should be "gold", "silver", or "bronze".
+        Product categories should include "electronics", "books", "clothing".
+        
+        Return only the JSON data, no additional text.
+
+    # Step 2: Filter high-value completed orders
+    - name: "filter_high_value_orders"
+      type: "data_transform"
+      input_source: "previous_response:generate_sample_data.orders"
+      operations:
+        - operation: "filter"
+          field: "status"
+          condition: "status == 'completed'"
+        - operation: "filter"
+          field: "total"
+          condition: "total > 100"
+        - operation: "sort"
+          field: "total"
+          order: "desc"
+      output_field: "high_value_orders"
+
+    # Step 3: Join orders with user information
+    - name: "enrich_orders_with_users"
+      type: "data_transform"
+      input_source: "previous_response:filter_high_value_orders"
+      operations:
+        - operation: "join"
+          left_field: "user_id"
+          right_source: "previous_response:generate_sample_data.users"
+          join_key: "id"
+      output_field: "enriched_orders"
+
+    # Step 4: Group orders by user tier
+    - name: "group_by_user_tier"
+      type: "data_transform"
+      input_source: "previous_response:enrich_orders_with_users"
+      operations:
+        - operation: "group_by"
+          field: "tier"
+      output_field: "orders_by_tier"
+
+    # Step 5: Calculate statistics per tier
+    - name: "calculate_tier_stats"
+      type: "data_transform"
+      input_source: "previous_response:orders_by_tier.gold"
+      operations:
+        - operation: "aggregate"
+          field: "total"
+          function: "average"
+      output_field: "gold_tier_avg"
+
+    # Step 6: Transform product categories
+    - name: "categorize_products"
+      type: "data_transform"
+      input_source: "previous_response:generate_sample_data.products"
+      operations:
+        - operation: "filter"
+          field: "rating"
+          condition: "rating > 4.0"
+        - operation: "map"
+          field: "category"
+          mapping:
+            "electronics": "tech"
+            "books": "media"
+            "clothing": "fashion"
+        - operation: "sort"
+          field: "rating"
+          order: "desc"
+      output_field: "premium_products"
+
+    # Step 7: Generate summary report
+    - name: "generate_report"
+      type: "claude"
+      prompt: |
+        Based on the data transformation results, create a comprehensive business intelligence report.
+        
+        High-value completed orders: {{previous_response:filter_high_value_orders}}
+        
+        Orders by user tier: {{previous_response:orders_by_tier}}
+        
+        Gold tier average order value: {{previous_response:calculate_tier_stats}}
+        
+        Premium products (rating > 4.0): {{previous_response:categorize_products}}
+        
+        Please analyze:
+        1. Revenue patterns by customer tier
+        2. Product performance insights
+        3. Customer behavior analysis
+        4. Recommendations for business growth
+        
+        Format the report with clear sections and actionable insights.

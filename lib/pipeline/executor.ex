@@ -11,6 +11,7 @@ defmodule Pipeline.Executor do
   alias Pipeline.Condition.Engine, as: ConditionEngine
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
   alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart, Loop}
+  alias Pipeline.Step.{DataTransform, FileOps}
 
   @type workflow :: map()
   @type execution_result :: {:ok, map()} | {:error, String.t()}
@@ -352,6 +353,13 @@ defmodule Pipeline.Executor do
       "while_loop" ->
         Loop.execute(step, context)
 
+      # Data manipulation step types
+      "data_transform" ->
+        DataTransform.execute(step, context)
+
+      "file_ops" ->
+        FileOps.execute(step, context)
+
       unknown_type ->
         supported_types = [
           "claude",
@@ -364,7 +372,9 @@ defmodule Pipeline.Executor do
           "claude_batch",
           "claude_robust",
           "for_loop",
-          "while_loop"
+          "while_loop",
+          "data_transform",
+          "file_ops"
         ]
 
         {:error,
