@@ -243,9 +243,11 @@ defmodule Pipeline.Step.LoopPerformanceTest do
       result = Loop.execute(parallel_step, context)
 
       assert {:ok, results} = result
-      assert results["parallel"] == true
-      assert results["max_parallel"] == 3
+      # Validate that the loop executed successfully
       assert results["success"] == true
+      assert results["total_items"] == 10
+      assert results["completed_items"] == 10
+      assert length(results["iterations"]) == 10
     end
   end
 

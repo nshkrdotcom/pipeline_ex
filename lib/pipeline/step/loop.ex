@@ -426,9 +426,36 @@ defmodule Pipeline.Step.Loop do
         end
 
       [step_name] ->
-        case get_in(context.results, [step_name]) do
-          nil -> {:error, "Step result not found: #{step_name}"}
-          value -> {:ok, value}
+        # First try to get from variable state
+        case Map.get(context, :variable_state) do
+          nil ->
+            # Fall back to step results
+            case get_in(context.results, [step_name]) do
+              nil -> {:error, "Step result not found: #{step_name}"}
+              value -> {:ok, value}
+            end
+          
+          variable_state ->
+            # Check if it's a variable - handle case where variable state doesn't have expected structure
+            try do
+              case Pipeline.State.VariableEngine.get_variable(variable_state, step_name) do
+                nil ->
+                  # Fall back to step results
+                  case get_in(context.results, [step_name]) do
+                    nil -> {:error, "Step result not found: #{step_name}"}
+                    value -> {:ok, value}
+                  end
+                
+                variable_value -> {:ok, variable_value}
+              end
+            rescue
+              _ ->
+                # Variable state access failed, fall back to step results
+                case get_in(context.results, [step_name]) do
+                  nil -> {:error, "Step result not found: #{step_name}"}
+                  value -> {:ok, value}
+                end
+            end
         end
 
       _ ->
@@ -543,6 +570,9 @@ defmodule Pipeline.Step.Loop do
 
       "claude_robust" ->
         Pipeline.Step.ClaudeRobust.execute(step, context)
+
+      "set_variable" ->
+        Pipeline.Step.SetVariable.execute(step, context)
 
       # Nested loops are supported
       "for_loop" ->

@@ -146,7 +146,14 @@ defmodule Pipeline.Step.DataTransform do
   end
 
   defp resolve_input_source(source, context) do
-    case String.split(source, ":", parts: 2) do
+    case String.split(source, ":", parts: 3) do
+      ["previous_response", step_name, field_path] ->
+        # Handle nested field paths like "previous_response:step_name:field"
+        case get_in(context, [:results, step_name]) do
+          nil -> nil
+          step_result -> get_nested_field(step_result, field_path)
+        end
+
       ["previous_response", step_name] ->
         get_in(context, [:results, step_name])
 
@@ -154,7 +161,21 @@ defmodule Pipeline.Step.DataTransform do
         get_nested_field(context, field)
 
       [step_name] ->
-        get_in(context, [:results, step_name])
+        # First try to get from variable state, then from step results
+        case Map.get(context, :variable_state) do
+          nil ->
+            get_in(context, [:results, step_name])
+          
+          variable_state ->
+            try do
+              case Pipeline.State.VariableEngine.get_variable(variable_state, step_name) do
+                nil -> get_in(context, [:results, step_name])
+                variable_value -> variable_value
+              end
+            rescue
+              _ -> get_in(context, [:results, step_name])
+            end
+        end
 
       _ ->
         nil

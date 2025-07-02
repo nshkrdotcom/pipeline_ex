@@ -130,7 +130,7 @@ defmodule Pipeline.Performance.BasicTest do
               "name" => "process_items",
               "type" => "for_loop",
               "iterator" => "item",
-              "data_source" => "previous_response:create_data.variables.items",
+              "data_source" => "items",
               "steps" => [
                 %{
                   "name" => "process_item",

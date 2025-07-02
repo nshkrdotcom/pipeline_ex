@@ -8,6 +8,7 @@ defmodule Pipeline.Performance.LoadTest do
 
   use ExUnit.Case, async: false
   require Logger
+  alias Pipeline.Test.ProcessHelper
 
   alias Pipeline.Executor
   alias Pipeline.Monitoring.Performance
@@ -84,7 +85,7 @@ defmodule Pipeline.Performance.LoadTest do
       assert metrics.memory_usage_bytes < @memory_threshold
 
       # Stop monitoring and get final metrics
-      {:ok, final_metrics} = Performance.stop_monitoring("memory_test_loop")
+      {:ok, final_metrics} = ProcessHelper.ensure_stopped("memory_test_loop")
       assert final_metrics.peak_memory_bytes < @memory_threshold * 1.5
     end
 
@@ -167,7 +168,7 @@ defmodule Pipeline.Performance.LoadTest do
       # Verify files exist and have correct content
       assert File.exists?(Path.join(@test_output_dir, "large_copy.txt"))
       
-      {:ok, final_metrics} = Performance.stop_monitoring("file_streaming_test")
+      {:ok, final_metrics} = ProcessHelper.ensure_stopped("file_streaming_test")
       # Should have low memory usage due to streaming
       assert final_metrics.peak_memory_bytes < @memory_threshold
     end
@@ -238,13 +239,14 @@ defmodule Pipeline.Performance.LoadTest do
             %{
               "name" => "create_dataset",
               "type" => "set_variable",
-              "variable" => "dataset",
-              "value" => large_dataset
+              "variables" => %{
+                "dataset" => large_dataset
+              }
             },
             %{
               "name" => "lazy_transform",
               "type" => "data_transform",
-              "input_source" => "previous_response:create_dataset:dataset",
+              "input_source" => "dataset",
               "lazy" => %{"enabled" => true},
               "operations" => [
                 %{"operation" => "filter", "field" => "status", "condition" => "status == active"},
@@ -262,7 +264,7 @@ defmodule Pipeline.Performance.LoadTest do
       assert {:ok, results} = result
       assert Map.has_key?(results["lazy_transform"], "lazy_transform")
 
-      {:ok, final_metrics} = Performance.stop_monitoring("lazy_transform_test")
+      {:ok, final_metrics} = ProcessHelper.ensure_stopped("lazy_transform_test")
       # Should have reasonable memory usage due to lazy evaluation
       assert final_metrics.peak_memory_bytes < @memory_threshold * 2
     end
@@ -284,7 +286,7 @@ defmodule Pipeline.Performance.LoadTest do
             %{
               "name" => "auto_lazy_transform",
               "type" => "data_transform",
-              "input_source" => "previous_response:create_dataset:dataset",
+              "input_source" => "dataset",
               # No explicit lazy config - should auto-enable
               "operations" => [
                 %{"operation" => "filter", "field" => "active", "condition" => "active == true"}
@@ -334,7 +336,7 @@ defmodule Pipeline.Performance.LoadTest do
       assert metrics.step_count >= 2
       assert metrics.execution_time_ms > 0
 
-      {:ok, final_metrics} = Performance.stop_monitoring("monitoring_test")
+      {:ok, final_metrics} = ProcessHelper.ensure_stopped("monitoring_test")
       assert final_metrics.total_steps == 2
       assert final_metrics.successful_steps >= 1
       assert length(final_metrics.step_details) == 2
@@ -362,7 +364,7 @@ defmodule Pipeline.Performance.LoadTest do
       result = Executor.execute(workflow, output_dir: @test_output_dir)
       assert {:ok, _results} = result
 
-      {:ok, final_metrics} = Performance.stop_monitoring("performance_issues_test")
+      {:ok, final_metrics} = ProcessHelper.ensure_stopped("performance_issues_test")
       
       # Should have recommendations for optimization
       assert length(final_metrics.recommendations) > 0
@@ -436,7 +438,7 @@ defmodule Pipeline.Performance.LoadTest do
       assert results["load_data"]["type"] == "stream"
       assert results["process_items"]["success"] == true
 
-      {:ok, final_metrics} = Performance.stop_monitoring("complex_performance_test")
+      {:ok, final_metrics} = ProcessHelper.ensure_stopped("complex_performance_test")
       assert final_metrics.total_steps == 4
       assert final_metrics.successful_steps == 4
       
@@ -505,15 +507,15 @@ defmodule Pipeline.Performance.LoadTest do
   defp cleanup_monitoring do
     # Stop any running monitoring processes
     try do
-      Performance.stop_monitoring("memory_test_loop")
-      Performance.stop_monitoring("streaming_test_loop") 
-      Performance.stop_monitoring("file_streaming_test")
-      Performance.stop_monitoring("result_streaming_test")
-      Performance.stop_monitoring("lazy_transform_test")
-      Performance.stop_monitoring("auto_lazy_test")
-      Performance.stop_monitoring("monitoring_test")
-      Performance.stop_monitoring("performance_issues_test")
-      Performance.stop_monitoring("complex_performance_test")
+      ProcessHelper.ensure_stopped("memory_test_loop")
+      ProcessHelper.ensure_stopped("streaming_test_loop") 
+      ProcessHelper.ensure_stopped("file_streaming_test")
+      ProcessHelper.ensure_stopped("result_streaming_test")
+      ProcessHelper.ensure_stopped("lazy_transform_test")
+      ProcessHelper.ensure_stopped("auto_lazy_test")
+      ProcessHelper.ensure_stopped("monitoring_test")
+      ProcessHelper.ensure_stopped("performance_issues_test")
+      ProcessHelper.ensure_stopped("complex_performance_test")
     rescue
       _ -> :ok
     end

@@ -39,8 +39,10 @@ defmodule Pipeline.Executor do
       case Performance.start_monitoring(pipeline_name, opts) do
         {:ok, _pid} -> 
           Logger.debug("📊 Performance monitoring started for: #{pipeline_name}")
+        {:already_started, _pid} ->
+          Logger.debug("📊 Performance monitoring already running for: #{pipeline_name}")
         {:error, reason} -> 
-          Logger.warning("⚠️  Failed to start performance monitoring: #{reason}")
+          Logger.warning("⚠️  Failed to start performance monitoring: #{inspect(reason)}")
       end
     end
 
