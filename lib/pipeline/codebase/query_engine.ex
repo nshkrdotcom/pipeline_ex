@@ -29,9 +29,9 @@ defmodule Pipeline.Codebase.QueryEngine do
   @spec find_files(Context.t(), keyword()) :: [String.t()]
   def find_files(context, criteria) do
     Logger.debug("🔍 Finding files with criteria: #{inspect(criteria)}")
-    
+
     base_files = get_base_file_set(context, criteria)
-    
+
     base_files
     |> apply_type_filter(context, criteria)
     |> apply_pattern_filter(criteria)
@@ -55,13 +55,13 @@ defmodule Pipeline.Codebase.QueryEngine do
   - `language`: Filter by programming language
   """
   @spec find_dependencies(Context.t(), keyword()) :: %{
-    direct: [String.t()],
-    transitive: [String.t()],
-    file_specific: %{String.t() => [String.t()]}
-  }
+          direct: [String.t()],
+          transitive: [String.t()],
+          file_specific: %{String.t() => [String.t()]}
+        }
   def find_dependencies(context, config) do
     Logger.debug("🔍 Finding dependencies with config: #{inspect(config)}")
-    
+
     case Keyword.get(config, :for_file) do
       nil ->
         # Project-wide dependencies
@@ -70,11 +70,11 @@ defmodule Pipeline.Codebase.QueryEngine do
           transitive: get_transitive_dependencies(context, config),
           file_specific: %{}
         }
-      
+
       file_path ->
         # File-specific dependencies
         file_deps = get_file_dependencies(context, file_path, config)
-        
+
         %{
           direct: file_deps.direct,
           transitive: file_deps.transitive,
@@ -94,18 +94,20 @@ defmodule Pipeline.Codebase.QueryEngine do
   - `in_files`: List of files to search in
   - `language`: Programming language filter
   """
-  @spec find_functions(Context.t(), keyword()) :: [%{
-    name: String.t(),
-    type: String.t(),
-    file: String.t(),
-    line: non_neg_integer() | nil,
-    signature: String.t() | nil
-  }]
+  @spec find_functions(Context.t(), keyword()) :: [
+          %{
+            name: String.t(),
+            type: String.t(),
+            file: String.t(),
+            line: non_neg_integer() | nil,
+            signature: String.t() | nil
+          }
+        ]
   def find_functions(context, config) do
     Logger.debug("🔍 Finding functions with config: #{inspect(config)}")
-    
+
     target_files = get_target_files_for_function_search(context, config)
-    
+
     target_files
     |> Enum.flat_map(fn file_path ->
       search_functions_in_file(context, file_path, config)
@@ -121,18 +123,20 @@ defmodule Pipeline.Codebase.QueryEngine do
   - `types`: List of relation types ["test", "source", "similar", "directory"]
   - `max_results`: Maximum number of results
   """
-  @spec find_related_files(Context.t(), keyword()) :: [%{
-    file: String.t(),
-    relation_type: String.t(),
-    confidence: float()
-  }]
+  @spec find_related_files(Context.t(), keyword()) :: [
+          %{
+            file: String.t(),
+            relation_type: String.t(),
+            confidence: float()
+          }
+        ]
   def find_related_files(context, config) do
     Logger.debug("🔍 Finding related files with config: #{inspect(config)}")
-    
+
     target_file = Keyword.get(config, :file)
     relation_types = Keyword.get(config, :types, ["test", "source", "similar", "directory"])
     max_results = Keyword.get(config, :max_results, 20)
-    
+
     if target_file do
       relation_types
       |> Enum.flat_map(fn type ->
@@ -154,23 +158,23 @@ defmodule Pipeline.Codebase.QueryEngine do
   - `max_depth`: Maximum depth for dependency traversal
   """
   @spec analyze_impact(Context.t(), keyword()) :: %{
-    directly_affected: [String.t()],
-    potentially_affected: [String.t()],
-    test_files: [String.t()],
-    impact_score: non_neg_integer()
-  }
+          directly_affected: [String.t()],
+          potentially_affected: [String.t()],
+          test_files: [String.t()],
+          impact_score: non_neg_integer()
+        }
   def analyze_impact(context, config) do
     Logger.debug("🔍 Analyzing impact with config: #{inspect(config)}")
-    
+
     target_file = Keyword.get(config, :file)
     include_tests = Keyword.get(config, :include_tests, true)
     max_depth = Keyword.get(config, :max_depth, 3)
-    
+
     if target_file do
       directly_affected = find_direct_dependents(context, target_file)
       potentially_affected = find_transitive_dependents(context, target_file, max_depth)
       test_files = if include_tests, do: find_test_files_for(context, target_file), else: []
-      
+
       %{
         directly_affected: directly_affected,
         potentially_affected: potentially_affected,
@@ -188,7 +192,7 @@ defmodule Pipeline.Codebase.QueryEngine do
     case Keyword.get(criteria, :related_to) do
       nil ->
         Map.keys(context.files)
-      
+
       file_path ->
         Discovery.find_related_files(context, file_path)
     end
@@ -236,7 +240,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp apply_size_filter(files, context, criteria) do
     min_size = Keyword.get(criteria, :size_min)
     max_size = Keyword.get(criteria, :size_max)
-    
+
     case {min_size, max_size} do
       {nil, nil} -> files
       _ -> Enum.filter(files, &meets_size_criteria?(&1, context, min_size, max_size))
@@ -252,19 +256,24 @@ defmodule Pipeline.Codebase.QueryEngine do
 
   defp apply_exclude_tests_filter(files, context, criteria) do
     case Keyword.get(criteria, :exclude_tests) do
-      true -> 
+      true ->
         test_files = context.structure.test_files
+
         Enum.reject(files, fn file ->
           file in test_files or String.contains?(file, "test")
         end)
-      _ -> files
+
+      _ ->
+        files
     end
   end
 
   defp apply_related_to_filter(files, context, criteria) do
     case Keyword.get(criteria, :related_to) do
-      nil -> files
-      file_path -> 
+      nil ->
+        files
+
+      file_path ->
         related = Discovery.find_related_files(context, file_path)
         Enum.filter(files, &(&1 in related))
     end
@@ -305,23 +314,30 @@ defmodule Pipeline.Codebase.QueryEngine do
 
   defp meets_size_criteria?(path, context, min_size, max_size) do
     case Map.get(context.files, path) do
-      nil -> false
+      nil ->
+        false
+
       file_info ->
         size = file_info.size
+
         (min_size == nil or size >= min_size) and
-        (max_size == nil or size <= max_size)
+          (max_size == nil or size <= max_size)
     end
   end
 
   defp modified_since?(path, context, date_string) do
     case Map.get(context.files, path) do
-      nil -> false
+      nil ->
+        false
+
       file_info ->
         case Date.from_iso8601(date_string) do
-          {:ok, date} -> 
+          {:ok, date} ->
             file_date = DateTime.to_date(file_info.modified)
             Date.compare(file_date, date) != :lt
-          _ -> false
+
+          _ ->
+            false
         end
     end
   end
@@ -346,14 +362,15 @@ defmodule Pipeline.Codebase.QueryEngine do
     # Analyze file content for imports/requires
     # This is a simplified implementation
     file_content = read_file_safely(Path.join(context.root_path, file_path))
-    
+
     direct_deps = extract_imports_from_content(file_content, context.project_type)
-    
-    transitive_deps = case Keyword.get(config, :include_transitive, false) do
-      true -> get_transitive_for_file(context, direct_deps)
-      false -> []
-    end
-    
+
+    transitive_deps =
+      case Keyword.get(config, :include_transitive, false) do
+        true -> get_transitive_for_file(context, direct_deps)
+        false -> []
+      end
+
     %{
       direct: direct_deps,
       transitive: transitive_deps,
@@ -380,7 +397,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp extract_elixir_imports(content) do
     # Extract alias, import, use statements
     import_regex = ~r/(?:alias|import|use)\s+([A-Z][A-Za-z0-9_.]*)/
-    
+
     Regex.scan(import_regex, content)
     |> Enum.map(fn [_, module] -> module end)
     |> Enum.uniq()
@@ -389,7 +406,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp extract_javascript_imports(content) do
     # Extract import statements
     import_regex = ~r/import\s+.*?from\s+['"](.*?)['"]/
-    
+
     Regex.scan(import_regex, content)
     |> Enum.map(fn [_, module] -> module end)
     |> Enum.uniq()
@@ -398,7 +415,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp extract_python_imports(content) do
     # Extract import and from statements
     import_regex = ~r/(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)/
-    
+
     Regex.scan(import_regex, content)
     |> Enum.map(fn [_, module] -> module end)
     |> Enum.uniq()
@@ -415,14 +432,14 @@ defmodule Pipeline.Codebase.QueryEngine do
     cond do
       in_file = Keyword.get(config, :in_file) ->
         [in_file]
-      
+
       in_files = Keyword.get(config, :in_files) ->
         in_files
-      
+
       language = Keyword.get(config, :language) ->
         context.structure.source_files
         |> Enum.filter(&has_language?(&1, language))
-      
+
       true ->
         context.structure.source_files
     end
@@ -430,7 +447,7 @@ defmodule Pipeline.Codebase.QueryEngine do
 
   defp search_functions_in_file(context, file_path, config) do
     file_content = read_file_safely(Path.join(context.root_path, file_path))
-    
+
     case context.project_type do
       :elixir -> search_elixir_functions(file_content, file_path, config)
       :javascript -> search_javascript_functions(file_content, file_path, config)
@@ -442,9 +459,9 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp search_elixir_functions(content, file_path, config) do
     # Simple regex-based function detection
     function_regex = ~r/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/
-    
+
     Regex.scan(function_regex, content)
-    |> Enum.map(fn [_, name] -> 
+    |> Enum.map(fn [_, name] ->
       %{
         name: name,
         type: "function",
@@ -458,15 +475,18 @@ defmodule Pipeline.Codebase.QueryEngine do
 
   defp search_javascript_functions(content, file_path, config) do
     # Simple regex-based function detection
-    function_regex = ~r/(?:function\s+([a-zA-Z_][a-zA-Z0-9_]*)|([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:function|\([^)]*\)\s*=>))/
-    
+    function_regex =
+      ~r/(?:function\s+([a-zA-Z_][a-zA-Z0-9_]*)|([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:function|\([^)]*\)\s*=>))/
+
     Regex.scan(function_regex, content)
-    |> Enum.map(fn 
-      [_, name, ""] -> 
+    |> Enum.map(fn
+      [_, name, ""] ->
         %{name: name, type: "function", file: file_path, line: nil, signature: nil}
-      [_, "", name] -> 
+
+      [_, "", name] ->
         %{name: name, type: "function", file: file_path, line: nil, signature: nil}
-      [_, name] -> 
+
+      [_, name] ->
         %{name: name, type: "function", file: file_path, line: nil, signature: nil}
     end)
     |> filter_functions_by_config(config)
@@ -475,9 +495,9 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp search_python_functions(content, file_path, config) do
     # Simple regex-based function detection
     function_regex = ~r/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/
-    
+
     Regex.scan(function_regex, content)
-    |> Enum.map(fn [_, name] -> 
+    |> Enum.map(fn [_, name] ->
       %{
         name: name,
         type: "function",
@@ -493,12 +513,12 @@ defmodule Pipeline.Codebase.QueryEngine do
     name_filter = Keyword.get(config, :name)
     pattern_filter = Keyword.get(config, :pattern)
     type_filter = Keyword.get(config, :type)
-    
+
     functions
     |> Enum.filter(fn func ->
       (name_filter == nil or func.name == name_filter) and
-      (pattern_filter == nil or Regex.match?(Regex.compile!(pattern_filter), func.name)) and
-      (type_filter == nil or func.type == type_filter)
+        (pattern_filter == nil or Regex.match?(Regex.compile!(pattern_filter), func.name)) and
+        (type_filter == nil or func.type == type_filter)
     end)
   end
 
@@ -507,7 +527,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp find_relations_by_type(context, target_file, "test") do
     # Find test files for the target file
     test_files = find_test_files_for(context, target_file)
-    
+
     Enum.map(test_files, fn file ->
       %{file: file, relation_type: "test", confidence: 0.9}
     end)
@@ -516,7 +536,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp find_relations_by_type(context, target_file, "source") do
     # Find source files for the target test file
     source_files = find_source_files_for(context, target_file)
-    
+
     Enum.map(source_files, fn file ->
       %{file: file, relation_type: "source", confidence: 0.9}
     end)
@@ -525,7 +545,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp find_relations_by_type(context, target_file, "similar") do
     # Find files with similar names
     similar_files = find_similar_files(context, target_file)
-    
+
     Enum.map(similar_files, fn {file, confidence} ->
       %{file: file, relation_type: "similar", confidence: confidence}
     end)
@@ -534,7 +554,7 @@ defmodule Pipeline.Codebase.QueryEngine do
   defp find_relations_by_type(context, target_file, "directory") do
     # Find files in the same directory
     dir = Path.dirname(target_file)
-    
+
     # Only return directory relations if the target file actually exists
     if Map.has_key?(context.files, target_file) do
       context.files
@@ -552,7 +572,7 @@ defmodule Pipeline.Codebase.QueryEngine do
 
   defp find_test_files_for(context, target_file) do
     base_name = Path.basename(target_file, Path.extname(target_file))
-    
+
     context.structure.test_files
     |> Enum.filter(fn test_file ->
       test_base = Path.basename(test_file, Path.extname(test_file))
@@ -562,7 +582,7 @@ defmodule Pipeline.Codebase.QueryEngine do
 
   defp find_source_files_for(context, target_file) do
     base_name = Path.basename(target_file, Path.extname(target_file))
-    
+
     context.structure.source_files
     |> Enum.filter(fn source_file ->
       source_base = Path.basename(source_file, Path.extname(source_file))
@@ -572,7 +592,7 @@ defmodule Pipeline.Codebase.QueryEngine do
 
   defp find_similar_files(context, target_file) do
     base_name = Path.basename(target_file, Path.extname(target_file))
-    
+
     context.files
     |> Map.keys()
     |> Enum.filter(&(&1 != target_file))
@@ -599,13 +619,13 @@ defmodule Pipeline.Codebase.QueryEngine do
     # Find files that transitively depend on the target file
     # This is a simplified implementation
     direct = find_direct_dependents(context, target_file)
-    
+
     if max_depth > 1 do
-      transitive = 
+      transitive =
         direct
         |> Enum.flat_map(&find_transitive_dependents(context, &1, max_depth - 1))
         |> Enum.uniq()
-      
+
       (direct ++ transitive) |> Enum.uniq()
     else
       direct
@@ -616,12 +636,20 @@ defmodule Pipeline.Codebase.QueryEngine do
     # Check if file imports/requires target_file
     file_content = read_file_safely(Path.join(context.root_path, file))
     target_module = path_to_module_name(target_file, context.project_type)
-    
+
     case context.project_type do
-      :elixir -> String.contains?(file_content, target_module)
-      :javascript -> String.contains?(file_content, target_file) or String.contains?(file_content, target_module)
-      :python -> String.contains?(file_content, target_module)
-      _ -> false
+      :elixir ->
+        String.contains?(file_content, target_module)
+
+      :javascript ->
+        String.contains?(file_content, target_file) or
+          String.contains?(file_content, target_module)
+
+      :python ->
+        String.contains?(file_content, target_module)
+
+      _ ->
+        false
     end
   end
 
@@ -634,25 +662,25 @@ defmodule Pipeline.Codebase.QueryEngine do
         |> String.split("/")
         |> Enum.map(&Macro.camelize/1)
         |> Enum.join(".")
-      
+
       :javascript ->
         file_path
         |> String.replace(~r/^src\//, "")
         |> String.replace(~r/\.(js|ts)$/, "")
-      
+
       :python ->
         file_path
         |> String.replace(~r/\.py$/, "")
         |> String.replace("/", ".")
-      
+
       _ ->
         file_path
     end
   end
 
   defp calculate_impact_score(directly_affected, potentially_affected, test_files) do
-    length(directly_affected) * 3 + 
-    length(potentially_affected) * 1 + 
-    length(test_files) * 2
+    length(directly_affected) * 3 +
+      length(potentially_affected) +
+      length(test_files) * 2
   end
 end

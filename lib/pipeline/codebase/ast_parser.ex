@@ -5,43 +5,56 @@ defmodule Pipeline.Codebase.ASTParser do
   Provides a consistent interface for parsing and analyzing code across
   multiple languages, extracting functions, classes, imports, and other
   code constructs.
+
+  ## ⚠️  IMPORTANT WARNING ⚠️ 
+
+  This is a PROTOTYPE implementation using simplified regex-based parsing.
+
+  For production use, this module should be replaced with proper language parsers:
+  - JavaScript/TypeScript: Babylon, Acorn, or ESTree-based parsers
+  - Python: Built-in `ast` module or `parso` library
+  - Rust: `syn` crate or `rustc_parse`
+  - Go: `go/parser` and `go/ast` from Go standard library
+  - Elixir: Enhanced AST traversal using `Code.string_to_quoted/2`
+
+  The current regex patterns are fragile and will fail on complex code patterns.
   """
 
   require Logger
 
   @type parse_result :: %{
-    functions: [function_info()],
-    classes: [class_info()],
-    imports: [String.t()],
-    exports: [String.t()],
-    comments: [comment_info()],
-    complexity: non_neg_integer()
-  }
+          functions: [function_info()],
+          classes: [class_info()],
+          imports: [String.t()],
+          exports: [String.t()],
+          comments: [comment_info()],
+          complexity: non_neg_integer()
+        }
 
   @type function_info :: %{
-    name: String.t(),
-    type: String.t(),
-    line: non_neg_integer(),
-    end_line: non_neg_integer() | nil,
-    parameters: [String.t()],
-    visibility: String.t(),
-    signature: String.t()
-  }
+          name: String.t(),
+          type: String.t(),
+          line: non_neg_integer(),
+          end_line: non_neg_integer() | nil,
+          parameters: [String.t()],
+          visibility: String.t(),
+          signature: String.t()
+        }
 
   @type class_info :: %{
-    name: String.t(),
-    line: non_neg_integer(),
-    end_line: non_neg_integer() | nil,
-    methods: [function_info()],
-    properties: [String.t()],
-    inheritance: [String.t()]
-  }
+          name: String.t(),
+          line: non_neg_integer(),
+          end_line: non_neg_integer() | nil,
+          methods: [function_info()],
+          properties: [String.t()],
+          inheritance: [String.t()]
+        }
 
   @type comment_info :: %{
-    line: non_neg_integer(),
-    type: String.t(),
-    content: String.t()
-  }
+          line: non_neg_integer(),
+          type: String.t(),
+          content: String.t()
+        }
 
   @doc """
   Parse a file and extract code information.
@@ -70,20 +83,23 @@ defmodule Pipeline.Codebase.ASTParser do
     case parse_file(file_path) do
       {:ok, result} ->
         functions = result.functions
-        
-        functions = case Keyword.get(opts, :name) do
-          nil -> functions
-          name -> Enum.filter(functions, &(&1.name == name))
-        end
-        
-        functions = case Keyword.get(opts, :visibility) do
-          nil -> functions
-          visibility -> Enum.filter(functions, &(&1.visibility == visibility))
-        end
-        
+
+        functions =
+          case Keyword.get(opts, :name) do
+            nil -> functions
+            name -> Enum.filter(functions, &(&1.name == name))
+          end
+
+        functions =
+          case Keyword.get(opts, :visibility) do
+            nil -> functions
+            visibility -> Enum.filter(functions, &(&1.visibility == visibility))
+          end
+
         {:ok, functions}
-      
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -95,15 +111,17 @@ defmodule Pipeline.Codebase.ASTParser do
     case parse_file(file_path) do
       {:ok, result} ->
         classes = result.classes
-        
-        classes = case Keyword.get(opts, :name) do
-          nil -> classes
-          name -> Enum.filter(classes, &(&1.name == name))
-        end
-        
+
+        classes =
+          case Keyword.get(opts, :name) do
+            nil -> classes
+            name -> Enum.filter(classes, &(&1.name == name))
+          end
+
         {:ok, classes}
-      
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -153,17 +171,28 @@ defmodule Pipeline.Codebase.ASTParser do
       {:ok, content} ->
         case Code.string_to_quoted(content, file: file_path) do
           {:ok, ast} ->
-            {:ok, %{
-              functions: extract_elixir_functions(ast),
-              classes: extract_elixir_modules(ast),
-              imports: extract_elixir_imports(ast),
-              exports: extract_elixir_exports(ast),
-              comments: extract_elixir_comments(content),
-              complexity: calculate_elixir_complexity(ast)
-            }}
+            {:ok,
+             %{
+               functions: extract_elixir_functions_from_content(content),
+               classes: extract_elixir_modules(ast),
+               imports: extract_elixir_imports_from_content(content),
+               exports: extract_elixir_exports(ast),
+               comments: extract_elixir_comments(content),
+               complexity: calculate_elixir_complexity(ast)
+             }}
 
-          {:error, {line, error, _token}} ->
-            {:error, "Parse error at line #{line}: #{error}"}
+          {:error, error} ->
+            # Code.string_to_quoted/2 returns {:error, {line, message, token}}
+            # Handle the standard error format from Elixir parser
+            error_msg =
+              case error do
+                {line, msg, _token} ->
+                  line_str = if is_integer(line), do: " at line #{line}", else: ""
+                  msg_str = if is_list(msg), do: inspect(msg), else: to_string(msg)
+                  "Parse error#{line_str}: #{msg_str}"
+              end
+
+            {:error, error_msg}
         end
 
       {:error, reason} ->
@@ -172,18 +201,22 @@ defmodule Pipeline.Codebase.ASTParser do
   end
 
   defp parse_javascript_file(file_path) do
-    # Simple regex-based parsing for JavaScript
-    # In a real implementation, you'd use a proper JS parser
+    # WARNING: This is a simplified regex-based parser for demonstration only
+    # For production use, replace with proper JavaScript parsers like:
+    # - Babylon/Babel parser for ES6+ syntax
+    # - Acorn for lightweight parsing
+    # - ESTree-compliant parsers for full AST analysis
     case File.read(file_path) do
       {:ok, content} ->
-        {:ok, %{
-          functions: extract_javascript_functions(content),
-          classes: extract_javascript_classes(content),
-          imports: extract_javascript_imports(content),
-          exports: extract_javascript_exports(content),
-          comments: extract_javascript_comments(content),
-          complexity: calculate_javascript_complexity(content)
-        }}
+        {:ok,
+         %{
+           functions: extract_javascript_functions(content),
+           classes: extract_javascript_classes(content),
+           imports: extract_javascript_imports(content),
+           exports: extract_javascript_exports(content),
+           comments: extract_javascript_comments(content),
+           complexity: calculate_javascript_complexity(content)
+         }}
 
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
@@ -196,17 +229,22 @@ defmodule Pipeline.Codebase.ASTParser do
   end
 
   defp parse_python_file(file_path) do
-    # Simple regex-based parsing for Python
+    # WARNING: This is a simplified regex-based parser for demonstration only
+    # For production use, replace with proper Python AST parsers like:
+    # - Python's built-in ast module
+    # - parso for error-tolerant parsing
+    # - libcst for concrete syntax trees
     case File.read(file_path) do
       {:ok, content} ->
-        {:ok, %{
-          functions: extract_python_functions(content),
-          classes: extract_python_classes(content),
-          imports: extract_python_imports(content),
-          exports: extract_python_exports(content),
-          comments: extract_python_comments(content),
-          complexity: calculate_python_complexity(content)
-        }}
+        {:ok,
+         %{
+           functions: extract_python_functions(content),
+           classes: extract_python_classes(content),
+           imports: extract_python_imports(content),
+           exports: extract_python_exports(content),
+           comments: extract_python_comments(content),
+           complexity: calculate_python_complexity(content)
+         }}
 
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
@@ -214,17 +252,22 @@ defmodule Pipeline.Codebase.ASTParser do
   end
 
   defp parse_rust_file(file_path) do
-    # Simple regex-based parsing for Rust
+    # WARNING: This is a simplified regex-based parser for demonstration only
+    # For production use, replace with proper Rust parsers like:
+    # - syn crate for procedural macros
+    # - rustc_parse for compiler-grade parsing
+    # - tree-sitter-rust for syntax highlighting
     case File.read(file_path) do
       {:ok, content} ->
-        {:ok, %{
-          functions: extract_rust_functions(content),
-          classes: extract_rust_structs(content),
-          imports: extract_rust_imports(content),
-          exports: extract_rust_exports(content),
-          comments: extract_rust_comments(content),
-          complexity: calculate_rust_complexity(content)
-        }}
+        {:ok,
+         %{
+           functions: extract_rust_functions(content),
+           classes: extract_rust_structs(content),
+           imports: extract_rust_imports(content),
+           exports: extract_rust_exports(content),
+           comments: extract_rust_comments(content),
+           complexity: calculate_rust_complexity(content)
+         }}
 
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
@@ -232,17 +275,22 @@ defmodule Pipeline.Codebase.ASTParser do
   end
 
   defp parse_go_file(file_path) do
-    # Simple regex-based parsing for Go
+    # WARNING: This is a simplified regex-based parser for demonstration only
+    # For production use, replace with proper Go parsers like:
+    # - go/parser and go/ast packages from Go standard library
+    # - tree-sitter-go for syntax highlighting
+    # - gopls language server internals
     case File.read(file_path) do
       {:ok, content} ->
-        {:ok, %{
-          functions: extract_go_functions(content),
-          classes: extract_go_structs(content),
-          imports: extract_go_imports(content),
-          exports: extract_go_exports(content),
-          comments: extract_go_comments(content),
-          complexity: calculate_go_complexity(content)
-        }}
+        {:ok,
+         %{
+           functions: extract_go_functions(content),
+           classes: extract_go_structs(content),
+           imports: extract_go_imports(content),
+           exports: extract_go_exports(content),
+           comments: extract_go_comments(content),
+           complexity: calculate_go_complexity(content)
+         }}
 
       {:error, reason} ->
         {:error, "File read error: #{reason}"}
@@ -251,18 +299,27 @@ defmodule Pipeline.Codebase.ASTParser do
 
   # Elixir AST extraction functions
 
-  defp extract_elixir_functions(ast) do
-    ast
-    |> extract_function_defs()
-    |> Enum.map(fn {name, line, params, visibility} ->
+  defp extract_elixir_functions_from_content(content) do
+    # Simple regex-based function extraction for Elixir
+    function_regex = ~r/def\s+([a-zA-Z_][a-zA-Z0-9_?!]*)\s*\(([^)]*)\)/
+
+    Regex.scan(function_regex, content)
+    |> Enum.map(fn [match, name, params] ->
+      line = count_lines_to_match(content, match)
+
+      param_list =
+        if String.trim(params) == "",
+          do: [],
+          else: String.split(params, ",") |> Enum.map(&String.trim/1)
+
       %{
-        name: to_string(name),
+        name: name,
         type: "function",
         line: line,
         end_line: nil,
-        parameters: Enum.map(params, &to_string/1),
-        visibility: visibility,
-        signature: "#{name}(#{Enum.join(params, ", ")})"
+        parameters: param_list,
+        visibility: if(String.starts_with?(name, "_"), do: "private", else: "public"),
+        signature: "#{name}(#{params})"
       }
     end)
   end
@@ -282,10 +339,13 @@ defmodule Pipeline.Codebase.ASTParser do
     end)
   end
 
-  defp extract_elixir_imports(ast) do
-    ast
-    |> extract_import_statements()
-    |> Enum.map(&to_string/1)
+  defp extract_elixir_imports_from_content(content) do
+    # Simple regex-based import extraction for Elixir
+    import_regex = ~r/(?:alias|import|use)\s+([A-Z][A-Za-z0-9_.]*)/
+
+    Regex.scan(import_regex, content)
+    |> Enum.map(fn [_, module] -> module end)
+    |> Enum.uniq()
   end
 
   defp extract_elixir_exports(_ast) do
@@ -316,16 +376,17 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_javascript_functions(content) do
     # Match function declarations and arrow functions
-    function_regex = ~r/(?:function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)|([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:function\s*\(([^)]*)\)|\(([^)]*)\)\s*=>))/
+    function_regex =
+      ~r/(?:function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)|([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:function\s*\(([^)]*)\)|\(([^)]*)\)\s*=>))/
 
     Regex.scan(function_regex, content, return: :index)
     |> Enum.with_index()
     |> Enum.map(fn {[{start, _length} | _], index} ->
       line = count_lines_to_position(content, start)
-      
+
       # Extract function name and parameters (simplified)
       name = "function_#{index}"
-      
+
       %{
         name: name,
         type: "function",
@@ -340,11 +401,11 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_javascript_classes(content) do
     class_regex = ~r/class\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/
-    
+
     Regex.scan(class_regex, content)
     |> Enum.map(fn [match, name] ->
       line = count_lines_to_match(content, match)
-      
+
       %{
         name: name,
         line: line,
@@ -357,25 +418,26 @@ defmodule Pipeline.Codebase.ASTParser do
   end
 
   defp extract_javascript_imports(content) do
-    import_regex = ~r/import\s+.*?from\s+['"](.*?)['"]|require\s*\(\s*['"](.*?)['"]|import\s*\(\s*['"](.*?)['"]|\s*import\s+['"](.*?)['"]/ 
-    
-    Regex.scan(import_regex, content)
-    |> Enum.map(fn 
-      [_, module, "", "", ""] -> module
-      [_, "", module, "", ""] -> module
-      [_, "", "", module, ""] -> module
-      [_, "", "", "", module] -> module
-      _ -> nil
-    end)
-    |> Enum.reject(&is_nil/1)
+    # NOTE: This regex-based approach is very brittle and incomplete
+    # For production use, this should be replaced with a proper JavaScript parser like:
+    # - Babylon/Babel parser
+    # - Acorn
+    # - ESTree-based parsers
+    # This simplified version only handles basic import statements
+
+    basic_import_regex = ~r/import\s+.*?from\s+['"](.*?)['"]/
+
+    Regex.scan(basic_import_regex, content)
+    |> Enum.map(fn [_, module] -> module end)
     |> Enum.uniq()
   end
 
   defp extract_javascript_exports(content) do
-    export_regex = ~r/export\s+(?:default\s+)?(?:function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)|class\s+([a-zA-Z_$][a-zA-Z0-9_$]*)|(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)|(\{[^}]+\}))/
-    
+    export_regex =
+      ~r/export\s+(?:default\s+)?(?:function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)|class\s+([a-zA-Z_$][a-zA-Z0-9_$]*)|(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)|(\{[^}]+\}))/
+
     Regex.scan(export_regex, content)
-    |> Enum.map(fn 
+    |> Enum.map(fn
       [_, name, "", "", ""] -> name
       [_, "", name, "", ""] -> name
       [_, "", "", name, ""] -> name
@@ -388,14 +450,14 @@ defmodule Pipeline.Codebase.ASTParser do
   defp extract_javascript_comments(content) do
     # Match single-line and multi-line comments
     comment_regex = ~r/\/\/.*|\/\*[\s\S]*?\*\//
-    
+
     Regex.scan(comment_regex, content, return: :index)
     |> Enum.map(fn [{start, length}] ->
       line = count_lines_to_position(content, start)
       comment_text = String.slice(content, start, length)
-      
+
       type = if String.starts_with?(comment_text, "//"), do: "line_comment", else: "block_comment"
-      
+
       %{
         line: line,
         type: type,
@@ -415,25 +477,27 @@ defmodule Pipeline.Codebase.ASTParser do
       ~r/\bcase\b/,
       ~r/\bcatch\b/,
       ~r/\btry\b/,
-      ~r/\?\s*.*?\s*:/  # ternary operator
+      # ternary operator
+      ~r/\?\s*.*?\s*:/
     ]
-    
+
     complexity_patterns
-    |> Enum.map(&(length(Regex.scan(&1, content))))
+    |> Enum.map(&length(Regex.scan(&1, content)))
     |> Enum.sum()
-    |> max(1)  # Base complexity of 1
+    # Base complexity of 1
+    |> max(1)
   end
 
   # Python extraction functions (regex-based)
 
   defp extract_python_functions(content) do
     function_regex = ~r/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/
-    
+
     Regex.scan(function_regex, content)
     |> Enum.map(fn [match, name, params] ->
       line = count_lines_to_match(content, match)
       param_list = String.split(params, ",") |> Enum.map(&String.trim/1)
-      
+
       %{
         name: name,
         type: "function",
@@ -448,40 +512,60 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_python_classes(content) do
     class_regex = ~r/class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^)]*)\))?:/
-    
+
     Regex.scan(class_regex, content)
-    |> Enum.map(fn 
-      [match, name, ""] ->
-        line = count_lines_to_match(content, match)
-        %{
-          name: name,
-          line: line,
-          end_line: nil,
-          methods: [],
-          properties: [],
-          inheritance: []
-        }
-      
-      [match, name, inheritance] ->
-        line = count_lines_to_match(content, match)
-        inherited_classes = String.split(inheritance, ",") |> Enum.map(&String.trim/1)
-        
-        %{
-          name: name,
-          line: line,
-          end_line: nil,
-          methods: [],
-          properties: [],
-          inheritance: inherited_classes
-        }
+    |> Enum.map(fn result ->
+      case result do
+        [match, name] ->
+          line = count_lines_to_match(content, match)
+
+          %{
+            name: name,
+            line: line,
+            end_line: nil,
+            methods: [],
+            properties: [],
+            inheritance: []
+          }
+
+        [match, name, ""] ->
+          line = count_lines_to_match(content, match)
+
+          %{
+            name: name,
+            line: line,
+            end_line: nil,
+            methods: [],
+            properties: [],
+            inheritance: []
+          }
+
+        [match, name, inheritance] ->
+          line = count_lines_to_match(content, match)
+          inherited_classes = String.split(inheritance, ",") |> Enum.map(&String.trim/1)
+
+          %{
+            name: name,
+            line: line,
+            end_line: nil,
+            methods: [],
+            properties: [],
+            inheritance: inherited_classes
+          }
+
+        _ ->
+          nil
+      end
     end)
+    |> Enum.reject(&is_nil/1)
   end
 
   defp extract_python_imports(content) do
-    import_regex = ~r/(?:import\s+([a-zA-Z_][a-zA-Z0-9_.]*)|from\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+import)/
-    
+    import_regex =
+      ~r/(?:import\s+([a-zA-Z_][a-zA-Z0-9_.]*)|from\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+import)/
+
     Regex.scan(import_regex, content)
-    |> Enum.map(fn 
+    |> Enum.map(fn
       [_, module, ""] -> module
       [_, "", module] -> module
       _ -> nil
@@ -498,18 +582,24 @@ defmodule Pipeline.Codebase.ASTParser do
   defp extract_python_comments(content) do
     # Match Python comments and docstrings
     comment_regex = ~r/#.*|"""[\s\S]*?"""|'''[\s\S]*?'''/
-    
+
     Regex.scan(comment_regex, content, return: :index)
     |> Enum.map(fn [{start, length}] ->
       line = count_lines_to_position(content, start)
       comment_text = String.slice(content, start, length)
-      
-      type = cond do
-        String.starts_with?(comment_text, "#") -> "line_comment"
-        String.starts_with?(comment_text, "\"\"\"") or String.starts_with?(comment_text, "'''") -> "docstring"
-        true -> "comment"
-      end
-      
+
+      type =
+        cond do
+          String.starts_with?(comment_text, "#") ->
+            "line_comment"
+
+          String.starts_with?(comment_text, "\"\"\"") or String.starts_with?(comment_text, "'''") ->
+            "docstring"
+
+          true ->
+            "comment"
+        end
+
       %{
         line: line,
         type: type,
@@ -531,9 +621,9 @@ defmodule Pipeline.Codebase.ASTParser do
       ~r/\bfinally\b/,
       ~r/\bwith\b/
     ]
-    
+
     complexity_patterns
-    |> Enum.map(&(length(Regex.scan(&1, content))))
+    |> Enum.map(&length(Regex.scan(&1, content)))
     |> Enum.sum()
     |> max(1)
   end
@@ -542,11 +632,11 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_rust_functions(content) do
     function_regex = ~r/fn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/
-    
+
     Regex.scan(function_regex, content)
     |> Enum.map(fn [match, name, params] ->
       line = count_lines_to_match(content, match)
-      
+
       %{
         name: name,
         type: "function",
@@ -561,11 +651,11 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_rust_structs(content) do
     struct_regex = ~r/struct\s+([a-zA-Z_][a-zA-Z0-9_]*)/
-    
+
     Regex.scan(struct_regex, content)
     |> Enum.map(fn [match, name] ->
       line = count_lines_to_match(content, match)
-      
+
       %{
         name: name,
         line: line,
@@ -579,7 +669,7 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_rust_imports(content) do
     use_regex = ~r/use\s+([a-zA-Z_][a-zA-Z0-9_:]*)/
-    
+
     Regex.scan(use_regex, content)
     |> Enum.map(fn [_, module] -> module end)
     |> Enum.uniq()
@@ -589,14 +679,14 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_rust_comments(content) do
     comment_regex = ~r/\/\/.*|\/\*[\s\S]*?\*\//
-    
+
     Regex.scan(comment_regex, content, return: :index)
     |> Enum.map(fn [{start, length}] ->
       line = count_lines_to_position(content, start)
       comment_text = String.slice(content, start, length)
-      
+
       type = if String.starts_with?(comment_text, "//"), do: "line_comment", else: "block_comment"
-      
+
       %{
         line: line,
         type: type,
@@ -613,11 +703,12 @@ defmodule Pipeline.Codebase.ASTParser do
       ~r/\bwhile\b/,
       ~r/\bloop\b/,
       ~r/\bmatch\b/,
-      ~r/\=>/  # match arms
+      # match arms
+      ~r/\=>/
     ]
-    
+
     complexity_patterns
-    |> Enum.map(&(length(Regex.scan(&1, content))))
+    |> Enum.map(&length(Regex.scan(&1, content)))
     |> Enum.sum()
     |> max(1)
   end
@@ -626,11 +717,11 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_go_functions(content) do
     function_regex = ~r/func\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/
-    
+
     Regex.scan(function_regex, content)
     |> Enum.map(fn [match, name, params] ->
       line = count_lines_to_match(content, match)
-      
+
       %{
         name: name,
         type: "function",
@@ -645,11 +736,11 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_go_structs(content) do
     struct_regex = ~r/type\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+struct/
-    
+
     Regex.scan(struct_regex, content)
     |> Enum.map(fn [match, name] ->
       line = count_lines_to_match(content, match)
-      
+
       %{
         name: name,
         line: line,
@@ -662,11 +753,25 @@ defmodule Pipeline.Codebase.ASTParser do
   end
 
   defp extract_go_imports(content) do
-    import_regex = ~r/import\s+(?:\([\s\S]*?\)|"([^"]+)")/
-    
-    Regex.scan(import_regex, content)
-    |> Enum.map(fn [_, module] -> module end)
-    |> Enum.reject(&is_nil/1)
+    # Handle both single imports and block imports
+    single_import_regex = ~r/import\s+"([^"]+)"/
+    block_import_regex = ~r/import\s+\(([\s\S]*?)\)/
+
+    # Extract single imports
+    single_imports =
+      Regex.scan(single_import_regex, content)
+      |> Enum.map(fn [_, module] -> module end)
+
+    # Extract block imports
+    block_imports =
+      Regex.scan(block_import_regex, content)
+      |> Enum.flat_map(fn [_, block] ->
+        # Extract individual imports from the block
+        Regex.scan(~r/"([^"]+)"/, block)
+        |> Enum.map(fn [_, module] -> module end)
+      end)
+
+    (single_imports ++ block_imports)
     |> Enum.uniq()
   end
 
@@ -674,14 +779,14 @@ defmodule Pipeline.Codebase.ASTParser do
 
   defp extract_go_comments(content) do
     comment_regex = ~r/\/\/.*|\/\*[\s\S]*?\*\//
-    
+
     Regex.scan(comment_regex, content, return: :index)
     |> Enum.map(fn [{start, length}] ->
       line = count_lines_to_position(content, start)
       comment_text = String.slice(content, start, length)
-      
+
       type = if String.starts_with?(comment_text, "//"), do: "line_comment", else: "block_comment"
-      
+
       %{
         line: line,
         type: type,
@@ -698,11 +803,12 @@ defmodule Pipeline.Codebase.ASTParser do
       ~r/\bswitch\b/,
       ~r/\bcase\b/,
       ~r/\bselect\b/,
-      ~r/\bgo\b/  # goroutines add complexity
+      # goroutines add complexity
+      ~r/\bgo\b/
     ]
-    
+
     complexity_patterns
-    |> Enum.map(&(length(Regex.scan(&1, content))))
+    |> Enum.map(&length(Regex.scan(&1, content)))
     |> Enum.sum()
     |> max(1)
   end
@@ -724,26 +830,20 @@ defmodule Pipeline.Codebase.ASTParser do
   end
 
   # Elixir AST traversal helpers (simplified)
-
-  defp extract_function_defs(_ast) do
-    # This is a simplified implementation
-    # In practice, you'd need proper AST traversal
-    []
-  end
+  # These are placeholder functions for future proper AST implementation
 
   defp extract_module_defs(_ast) do
-    # This is a simplified implementation
-    []
-  end
-
-  defp extract_import_statements(_ast) do
-    # This is a simplified implementation
+    # TODO: Implement proper AST traversal for module definitions
+    # This would involve walking the AST tree to find defmodule statements
     []
   end
 
   defp count_complexity_nodes(_ast) do
-    # This is a simplified implementation
-    # Would count if, case, cond, for, etc.
+    # TODO: Implement proper complexity calculation by counting:
+    # - if/unless statements
+    # - case/cond statements  
+    # - for/while loops
+    # - function definitions
     1
   end
 end

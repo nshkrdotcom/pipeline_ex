@@ -162,7 +162,7 @@ defmodule Pipeline.Step.DataTransform do
   defp apply_transformations(input_data, step, context) do
     operations = step["operations"] || []
 
-    if length(operations) == 0 do
+    if Enum.empty?(operations) do
       Logger.warning("⚠️  No operations specified, returning input data unchanged")
       {:ok, input_data}
     else

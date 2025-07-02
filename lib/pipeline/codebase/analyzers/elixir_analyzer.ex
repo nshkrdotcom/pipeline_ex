@@ -37,7 +37,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     case analyze_file(file_path) do
       {:ok, info} ->
         (info[:imports] ++ info[:aliases] ++ info[:uses])
-        |> Enum.filter(&is_project_module?(&1, project_root))
+        |> Enum.filter(&project_module?(&1, project_root))
 
       {:error, _} ->
         []
@@ -243,7 +243,7 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     inspect(module)
   end
 
-  defp is_project_module?(module_name, _project_root) when is_binary(module_name) do
+  defp project_module?(module_name, _project_root) when is_binary(module_name) do
     # Check if this looks like a project module (starts with capitalized name)
     # This is a heuristic - in practice you'd want more sophisticated detection
     case String.split(module_name, ".") do
@@ -258,5 +258,5 @@ defmodule Pipeline.Codebase.Analyzers.ElixirAnalyzer do
     end
   end
 
-  defp is_project_module?(_, _), do: false
+  defp project_module?(_, _), do: false
 end

@@ -340,6 +340,10 @@ Create a codebase discovery system that automatically analyzes project structure
 
 ---
 
+3a done
+
+---
+
 ## Phase 3B: Codebase Query Step Type
 
 ### Context Files to Read:
@@ -383,6 +387,9 @@ Create a `codebase_query` step type that allows intelligent querying of project 
         - for_file: "lib/user.ex"
         - include_transitive: false
 ```
+---
+
+3b done
 
 ---
 
@@ -429,6 +436,9 @@ Enhance the loop system with nested loops, parallel execution, and advanced cont
           break_on_error: false
           prompt: "Analyze {{loop.file.path}} in {{loop.parent.category.name}}"
 ```
+
+---
+4a done
 
 ---
 

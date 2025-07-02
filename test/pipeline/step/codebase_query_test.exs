@@ -1,6 +1,6 @@
 defmodule Pipeline.Step.CodebaseQueryTest do
   use ExUnit.Case, async: true
-  
+
   alias Pipeline.Step.CodebaseQuery
   alias Pipeline.Codebase.Context
 
@@ -45,7 +45,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       assert Map.has_key?(result, "main_files")
       assert Map.has_key?(result["main_files"], :files)
       assert Map.has_key?(result["main_files"], :count)
@@ -67,7 +67,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       assert Map.has_key?(result, "project_deps")
       assert Map.has_key?(result["project_deps"], :dependencies)
       assert Map.has_key?(result["project_deps"][:dependencies], :direct)
@@ -88,7 +88,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       assert Map.has_key?(result, "all_functions")
       assert Map.has_key?(result["all_functions"], :functions)
       assert is_list(result["all_functions"][:functions])
@@ -109,7 +109,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       assert Map.has_key?(result, "related_to_user")
       assert Map.has_key?(result["related_to_user"], :related_files)
       assert is_list(result["related_to_user"][:related_files])
@@ -130,10 +130,10 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       assert Map.has_key?(result, "user_impact")
       impact = result["user_impact"][:impact_analysis]
-      
+
       assert Map.has_key?(impact, :directly_affected)
       assert Map.has_key?(impact, :potentially_affected)
       assert Map.has_key?(impact, :test_files)
@@ -156,16 +156,17 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       assert Map.has_key?(result, "files")
       assert Map.has_key?(result, "functions")
     end
 
     test "handles template variable resolution", %{context: context} do
-      context_with_vars = Map.merge(context, %{
-        target_file: "lib/user.ex",
-        previous_response: %{"target_file" => "lib/account.ex"}
-      })
+      context_with_vars =
+        Map.merge(context, %{
+          target_file: "lib/user.ex",
+          previous_response: %{"target_file" => "lib/account.ex"}
+        })
 
       step = %{
         "name" => "template_test",
@@ -185,7 +186,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context_with_vars)
-      
+
       assert Map.has_key?(result, "related")
       assert Map.has_key?(result, "prev_related")
     end
@@ -235,7 +236,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       files = result["test_files"][:files]
       assert Enum.all?(files, &String.contains?(&1, "test"))
     end
@@ -252,7 +253,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       files = result["lib_files"][:files]
       assert Enum.all?(files, &String.starts_with?(&1, "lib/"))
     end
@@ -269,7 +270,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       files = result["ex_files"][:files]
       assert Enum.all?(files, &String.ends_with?(&1, ".ex"))
     end
@@ -289,7 +290,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       files = result["no_tests"][:files]
       assert Enum.all?(files, &(not String.contains?(&1, "test")))
     end
@@ -310,7 +311,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       deps = result["user_deps"][:dependencies]
       assert Map.has_key?(deps, :file_specific)
       assert Map.has_key?(deps[:file_specific], "lib/user.ex")
@@ -330,7 +331,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       deps = result["all_deps"][:dependencies]
       assert Map.has_key?(deps, :direct)
       assert Map.has_key?(deps, :transitive)
@@ -352,7 +353,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       functions = result["create_user"][:functions]
       assert Enum.all?(functions, &(&1.name == "create_user"))
     end
@@ -371,7 +372,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       functions = result["user_funcs"][:functions]
       assert Enum.all?(functions, &(&1.file == "lib/user.ex"))
     end
@@ -393,7 +394,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       impact = result["user_impact"][:impact_analysis]
       assert is_integer(impact[:impact_score])
       assert impact[:impact_score] >= 0
@@ -414,7 +415,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       }
 
       assert {:ok, result} = CodebaseQuery.execute(step, context)
-      
+
       impact = result["with_tests"][:impact_analysis]
       assert is_list(impact[:test_files])
     end
@@ -482,6 +483,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       end
     end
     """
+
     File.write!(Path.join(@test_workspace_dir, "mix.exs"), mix_content)
 
     # Create lib/user.ex
@@ -508,6 +510,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       end
     end
     """
+
     File.write!(Path.join([@test_workspace_dir, "lib", "user.ex"]), user_content)
 
     # Create lib/account.ex
@@ -518,6 +521,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       end
     end
     """
+
     File.write!(Path.join([@test_workspace_dir, "lib", "account.ex"]), account_content)
 
     # Create test/user_test.exs
@@ -536,6 +540,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       end
     end
     """
+
     File.write!(Path.join([@test_workspace_dir, "test", "user_test.exs"]), test_content)
 
     # Create config/config.exs
@@ -545,6 +550,7 @@ defmodule Pipeline.Step.CodebaseQueryTest do
     config :test_project,
       env: :test
     """
+
     File.write!(Path.join([@test_workspace_dir, "config", "config.exs"]), config_content)
   end
 end

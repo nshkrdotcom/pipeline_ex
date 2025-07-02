@@ -214,7 +214,7 @@ defmodule Pipeline.Step.LoopTest do
         "type" => "while_loop",
         "condition" => "false",
         # Exceeds system limit
-        "max_iterations" => 99999,
+        "max_iterations" => 99_999,
         "steps" => []
       }
 
