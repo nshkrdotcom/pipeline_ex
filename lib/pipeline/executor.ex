@@ -10,7 +10,7 @@ defmodule Pipeline.Executor do
   alias Pipeline.CheckpointManager
   alias Pipeline.Condition.Engine, as: ConditionEngine
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
-  alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart}
+  alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart, Loop}
 
   @type workflow :: map()
   @type execution_result :: {:ok, map()} | {:error, String.t()}
@@ -345,6 +345,13 @@ defmodule Pipeline.Executor do
       "claude_robust" ->
         ClaudeRobust.execute(step, context)
 
+      # Loop step types
+      "for_loop" ->
+        Loop.execute(step, context)
+
+      "while_loop" ->
+        Loop.execute(step, context)
+
       unknown_type ->
         supported_types = [
           "claude",
@@ -355,7 +362,9 @@ defmodule Pipeline.Executor do
           "claude_session",
           "claude_extract",
           "claude_batch",
-          "claude_robust"
+          "claude_robust",
+          "for_loop",
+          "while_loop"
         ]
 
         {:error,

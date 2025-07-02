@@ -36,7 +36,7 @@ defmodule Pipeline.Condition.EngineTest do
   describe "simple conditions (backward compatibility)" do
     test "evaluates step existence" do
       context = test_context()
-      
+
       assert Engine.evaluate("analysis", context) == true
       assert Engine.evaluate("validation", context) == true
       assert Engine.evaluate("nonexistent", context) == false
@@ -44,16 +44,17 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "evaluates field access" do
       context = test_context()
-      
+
       assert Engine.evaluate("analysis.score", context) == true
       assert Engine.evaluate("analysis.status", context) == true
-      assert Engine.evaluate("analysis.errors", context) == false  # empty list
+      # empty list
+      assert Engine.evaluate("analysis.errors", context) == false
       assert Engine.evaluate("analysis.nonexistent", context) == false
     end
 
     test "evaluates nested field access" do
       context = test_context()
-      
+
       assert Engine.evaluate("analysis.metadata.complexity", context) == true
       assert Engine.evaluate("analysis.metadata.coverage", context) == true
       assert Engine.evaluate("analysis.metadata.nonexistent", context) == false
@@ -61,18 +62,19 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "evaluates falsy values" do
       context = test_context()
-      
+
       assert Engine.evaluate("false_step", context) == false
       assert Engine.evaluate("nil_step", context) == false
       assert Engine.evaluate("empty_step", context) == false
-      assert Engine.evaluate("analysis.errors", context) == false  # empty list
+      # empty list
+      assert Engine.evaluate("analysis.errors", context) == false
     end
   end
 
   describe "comparison operators" do
     test "evaluates numeric comparisons" do
       context = test_context()
-      
+
       assert Engine.evaluate("analysis.score > 7", context) == true
       assert Engine.evaluate("analysis.score > 10", context) == false
       assert Engine.evaluate("analysis.score < 10", context) == true
@@ -85,7 +87,7 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "evaluates equality comparisons" do
       context = test_context()
-      
+
       assert Engine.evaluate("analysis.status == 'passed'", context) == true
       assert Engine.evaluate("analysis.status == 'failed'", context) == false
       assert Engine.evaluate("analysis.status != 'failed'", context) == true
@@ -95,16 +97,17 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "evaluates string comparisons" do
       context = test_context()
-      
+
       assert Engine.evaluate("string_step > 'hello'", context) == true
       assert Engine.evaluate("string_step < 'world'", context) == true
-      assert Engine.evaluate("analysis.status > 'p'", context) == true  # "passed" > "p" is true
+      # "passed" > "p" is true
+      assert Engine.evaluate("analysis.status > 'p'", context) == true
       assert Engine.evaluate("analysis.status < 'z'", context) == true
     end
 
     test "evaluates contains operator" do
       context = test_context()
-      
+
       assert Engine.evaluate("string_step contains 'hello'", context) == true
       assert Engine.evaluate("string_step contains 'goodbye'", context) == false
       assert Engine.evaluate("list_step contains 3", context) == true
@@ -113,7 +116,7 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "evaluates matches operator" do
       context = test_context()
-      
+
       assert Engine.evaluate("string_step matches '^hello'", context) == true
       assert Engine.evaluate("string_step matches 'world$'", context) == true
       assert Engine.evaluate("string_step matches '^goodbye'", context) == false
@@ -122,7 +125,7 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "evaluates length property" do
       context = test_context()
-      
+
       assert Engine.evaluate("analysis.warnings.length > 1", context) == true
       assert Engine.evaluate("analysis.warnings.length < 5", context) == true
       assert Engine.evaluate("analysis.errors.length == 0", context) == true
@@ -134,13 +137,14 @@ defmodule Pipeline.Condition.EngineTest do
   describe "boolean operators" do
     test "evaluates AND conditions" do
       context = test_context()
-      
+
       condition = %{
         "and" => [
           "analysis.score > 7",
           "analysis.status == 'passed'"
         ]
       }
+
       assert Engine.evaluate(condition, context) == true
 
       condition = %{
@@ -149,18 +153,20 @@ defmodule Pipeline.Condition.EngineTest do
           "analysis.status == 'passed'"
         ]
       }
+
       assert Engine.evaluate(condition, context) == false
     end
 
     test "evaluates OR conditions" do
       context = test_context()
-      
+
       condition = %{
         "or" => [
           "analysis.score > 10",
           "analysis.status == 'passed'"
         ]
       }
+
       assert Engine.evaluate(condition, context) == true
 
       condition = %{
@@ -169,12 +175,13 @@ defmodule Pipeline.Condition.EngineTest do
           "analysis.status == 'failed'"
         ]
       }
+
       assert Engine.evaluate(condition, context) == false
     end
 
     test "evaluates NOT conditions" do
       context = test_context()
-      
+
       condition = %{"not" => "analysis.errors.length > 0"}
       assert Engine.evaluate(condition, context) == true
 
@@ -184,7 +191,7 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "evaluates nested boolean conditions" do
       context = test_context()
-      
+
       condition = %{
         "and" => [
           "analysis.score > 7",
@@ -197,11 +204,13 @@ defmodule Pipeline.Condition.EngineTest do
           %{"not" => "analysis.errors.length > 0"}
         ]
       }
+
       assert Engine.evaluate(condition, context) == true
 
       condition = %{
         "and" => [
-          "analysis.score > 10",  # This will fail
+          # This will fail
+          "analysis.score > 10",
           %{
             "or" => [
               "analysis.status == 'passed'",
@@ -210,6 +219,7 @@ defmodule Pipeline.Condition.EngineTest do
           }
         ]
       }
+
       assert Engine.evaluate(condition, context) == false
     end
   end
@@ -217,18 +227,21 @@ defmodule Pipeline.Condition.EngineTest do
   describe "list conditions" do
     test "evaluates list as implicit AND" do
       context = test_context()
-      
+
       conditions = [
         "analysis.score > 7",
         "analysis.status == 'passed'",
         "analysis.errors.length == 0"
       ]
+
       assert Engine.evaluate(conditions, context) == true
 
       conditions = [
-        "analysis.score > 10",  # This will fail
+        # This will fail
+        "analysis.score > 10",
         "analysis.status == 'passed'"
       ]
+
       assert Engine.evaluate(conditions, context) == false
     end
   end
@@ -265,19 +278,19 @@ defmodule Pipeline.Condition.EngineTest do
 
     test "handles various literal types" do
       context = test_context()
-      
+
       # String literals
       assert Engine.evaluate("analysis.status == \"passed\"", context) == true
       assert Engine.evaluate("analysis.status == 'passed'", context) == true
-      
+
       # Number literals
       assert Engine.evaluate("number_step == 42", context) == true
       assert Engine.evaluate("analysis.score == 8.5", context) == true
-      
+
       # Boolean literals
       assert Engine.evaluate("validation.success == true", context) == true
       assert Engine.evaluate("false_step == false", context) == true
-      
+
       # Null literal
       assert Engine.evaluate("nil_step == null", context) == true
     end
@@ -286,7 +299,7 @@ defmodule Pipeline.Condition.EngineTest do
   describe "complex real-world scenarios" do
     test "evaluates code quality gate condition" do
       context = test_context()
-      
+
       # Quality gate: Score > 7 AND (no errors OR warnings < 3) AND coverage > 80
       condition = %{
         "and" => [
@@ -300,12 +313,13 @@ defmodule Pipeline.Condition.EngineTest do
           "analysis.metadata.coverage > 80"
         ]
       }
+
       assert Engine.evaluate(condition, context) == true
     end
 
     test "evaluates deployment condition" do
       context = test_context()
-      
+
       # Deploy if: validation passed AND no errors AND (high score OR low complexity)
       condition = %{
         "and" => [
@@ -319,12 +333,13 @@ defmodule Pipeline.Condition.EngineTest do
           }
         ]
       }
+
       assert Engine.evaluate(condition, context) == true
     end
 
     test "evaluates notification condition" do
       context = test_context()
-      
+
       # Notify if: has warnings AND (low score OR high complexity)
       condition = %{
         "and" => [
@@ -337,7 +352,9 @@ defmodule Pipeline.Condition.EngineTest do
           }
         ]
       }
-      assert Engine.evaluate(condition, context) == false  # Score is 8.5, complexity is 3
+
+      # Score is 8.5, complexity is 3
+      assert Engine.evaluate(condition, context) == false
     end
   end
 end
