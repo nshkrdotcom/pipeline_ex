@@ -142,6 +142,8 @@ Application.put_env(:pipeline, :test_mode, true)
 
 📖 **Complete Library Guide**: See [LIBRARY_build.md](LIBRARY_build.md) for detailed usage instructions, configuration options, and integration patterns.
 
+🚀 **Advanced Features**: See [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for comprehensive documentation on loops, complex conditions, file operations, data transformation, codebase intelligence, and state management.
+
 ## Features
 
 ### 📦 Library-Ready
@@ -164,6 +166,14 @@ Application.put_env(:pipeline, :test_mode, true)
 - **Genesis Pipeline**: Self-improving AI system that generates other pipelines
 - **Session Management**: Persistent conversations with automatic checkpointing
 - **Fault Tolerance**: Retry mechanisms, circuit breakers, graceful degradation
+- **Loop Constructs**: For/while loops with parallel execution and nested support
+- **Complex Conditions**: Boolean logic, comparisons, mathematical expressions
+- **File Operations**: Copy, move, validate, convert with format transformations
+- **Data Transformation**: Filter, aggregate, join with schema validation
+- **Codebase Intelligence**: Project discovery, code analysis, dependency mapping
+- **State Management**: Variables, interpolation, checkpoints with persistence
+
+📚 **See [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for detailed documentation and examples of all advanced capabilities.**
 
 ## Quick Start
 
@@ -551,7 +561,10 @@ export TEST_MODE="live"                          # live, mock, mixed
 ### Creating Your Own Workflows
 
 1. **Start with the example**: Copy `examples/comprehensive_config_example.yaml`
-2. **Read the guide**: See [Pipeline Configuration Guide](PIPELINE_CONFIG_GUIDE.md) for all options
+2. **Read the guides**: 
+   - [Pipeline Configuration Guide](PIPELINE_CONFIG_GUIDE.md) for basic configuration
+   - [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for loops, conditions, file operations, and more
+   - [TESTING_STRATEGY.md](TESTING_STRATEGY.md) for comprehensive testing approaches
 3. **Test in mock mode**: Validate your workflow logic without API costs
 4. **Run live**: Execute with real AI providers when ready
 
