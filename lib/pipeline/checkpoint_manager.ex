@@ -11,7 +11,8 @@ defmodule Pipeline.CheckpointManager do
           step_index: non_neg_integer(),
           results: map(),
           execution_log: list(),
-          timestamp: DateTime.t()
+          timestamp: DateTime.t(),
+          variable_state: map()
         }
 
   @doc """
@@ -23,13 +24,21 @@ defmodule Pipeline.CheckpointManager do
     filename = generate_checkpoint_filename(workflow_name, timestamp)
     filepath = Path.join(checkpoint_dir, filename)
 
+    # Serialize variable state if present
+    variable_state = 
+      case Map.get(context, :variable_state) do
+        nil -> %{}
+        state -> Pipeline.State.VariableEngine.serialize_state(state)
+      end
+
     checkpoint_data = %{
       workflow_name: workflow_name,
       step_index: context.step_index,
       results: context.results,
       execution_log: context.execution_log,
       timestamp: timestamp,
-      version: "1.0"
+      variable_state: variable_state,
+      version: "1.1"
     }
 
     case Jason.encode(checkpoint_data, pretty: true) do
@@ -65,12 +74,16 @@ defmodule Pipeline.CheckpointManager do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, data} ->
+            # Deserialize variable state
+            variable_state = Pipeline.State.VariableEngine.deserialize_state(data["variable_state"])
+
             checkpoint = %{
               workflow_name: data["workflow_name"],
               step_index: data["step_index"] || 0,
               results: data["results"] || %{},
               execution_log: data["execution_log"] || [],
-              timestamp: parse_timestamp(data["timestamp"])
+              timestamp: parse_timestamp(data["timestamp"]),
+              variable_state: variable_state
             }
 
             {:ok, checkpoint}
@@ -98,12 +111,16 @@ defmodule Pipeline.CheckpointManager do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, data} ->
+            # Deserialize variable state
+            variable_state = Pipeline.State.VariableEngine.deserialize_state(data["variable_state"])
+
             checkpoint = %{
               workflow_name: data["workflow_name"],
               step_index: data["step_index"] || 0,
               results: data["results"] || %{},
               execution_log: data["execution_log"] || [],
-              timestamp: parse_timestamp(data["timestamp"])
+              timestamp: parse_timestamp(data["timestamp"]),
+              variable_state: variable_state
             }
 
             {:ok, checkpoint}

@@ -189,7 +189,7 @@ defmodule Pipeline.Config do
 
       is_nil(step["type"]) ->
         {:error,
-         "Step '#{step["name"]}' missing required 'type' field. Supported types: claude, gemini, parallel_claude, gemini_instructor, claude_smart, claude_session, claude_extract, claude_batch, claude_robust"}
+         "Step '#{step["name"]}' missing required 'type' field. Supported types: set_variable, claude, gemini, parallel_claude, gemini_instructor, claude_smart, claude_session, claude_extract, claude_batch, claude_robust"}
 
       true ->
         :ok
@@ -198,6 +198,7 @@ defmodule Pipeline.Config do
 
   defp validate_step_type(step) do
     supported_types = [
+      "set_variable",
       "claude",
       "gemini",
       "parallel_claude",
@@ -239,6 +240,10 @@ defmodule Pipeline.Config do
         else
           :ok
         end
+
+      # set_variable doesn't require a prompt
+      step["type"] == "set_variable" ->
+        :ok
 
       is_nil(step["prompt"]) ->
         {:error,

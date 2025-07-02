@@ -11,7 +11,8 @@ defmodule Pipeline.Executor do
   alias Pipeline.Condition.Engine, as: ConditionEngine
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
   alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart, Loop}
-  alias Pipeline.Step.{DataTransform, FileOps}
+  alias Pipeline.Step.{DataTransform, FileOps, SetVariable}
+  alias Pipeline.State.VariableEngine
 
   @type workflow :: map()
   @type execution_result :: {:ok, map()} | {:error, String.t()}
@@ -117,6 +118,7 @@ defmodule Pipeline.Executor do
       workspace_dir: workspace_dir,
       output_dir: output_dir,
       checkpoint_dir: checkpoint_dir,
+      variable_state: VariableEngine.new_state(),
       checkpoint_enabled: config["checkpoint_enabled"] || false,
       results: %{},
       execution_log: [],
@@ -138,7 +140,8 @@ defmodule Pipeline.Executor do
             context
             | results: checkpoint_data.results,
               step_index: checkpoint_data.step_index,
-              execution_log: checkpoint_data.execution_log
+              execution_log: checkpoint_data.execution_log,
+              variable_state: checkpoint_data.variable_state
           }
 
         {:error, _reason} ->
@@ -181,10 +184,16 @@ defmodule Pipeline.Executor do
   defp execute_step_with_checkpoint(step, index, context) do
     Logger.info("🎯 Executing step #{index + 1}: #{step["name"]} (#{step["type"]})")
 
+    # Interpolate variables in step configuration
+    interpolated_step = interpolate_step_variables(step, context)
+    
+    # Update variable state with current step info
+    updated_context = update_variable_step_info(context, step["name"], index)
+
     # Check if step should be executed based on condition
-    if should_execute_step?(step, context) do
+    if should_execute_step?(interpolated_step, updated_context) do
       Logger.info("✅ Condition met, executing step: #{step["name"]}")
-      execute_step_unconditionally(step, index, context)
+      execute_step_unconditionally(interpolated_step, index, updated_context)
     else
       Logger.info("⏭️  Condition not met, skipping step: #{step["name"]}")
 
@@ -222,12 +231,28 @@ defmodule Pipeline.Executor do
       {:ok, result} ->
         handle_step_success(step, index, context, result, step_start)
 
+      {:ok, result, updated_context} ->
+        handle_step_success_with_context(step, index, updated_context, result, step_start)
+
       {:error, reason} ->
         handle_step_failure(step, context, reason, step_start)
     end
   end
 
   defp handle_step_success(step, index, context, result, step_start) do
+    optimized_result = optimize_result_for_memory(result)
+
+    updated_context =
+      update_context_with_success(step, index, context, optimized_result, step_start)
+
+    save_checkpoint_if_enabled(context, updated_context)
+    save_step_output_if_needed(step, result, context.output_dir)
+
+    Logger.info("✅ Step completed: #{step["name"]}")
+    {:ok, updated_context}
+  end
+
+  defp handle_step_success_with_context(step, index, context, result, step_start) do
     optimized_result = optimize_result_for_memory(result)
 
     updated_context =
@@ -318,6 +343,9 @@ defmodule Pipeline.Executor do
 
   defp do_execute_step(step, context) do
     case step["type"] do
+      "set_variable" ->
+        SetVariable.execute(step, context)
+        
       "claude" ->
         Claude.execute(step, context)
 
@@ -362,6 +390,7 @@ defmodule Pipeline.Executor do
 
       unknown_type ->
         supported_types = [
+          "set_variable",
           "claude",
           "gemini",
           "parallel_claude",
@@ -468,5 +497,24 @@ defmodule Pipeline.Executor do
     # Log completion with consolidated messages
     Logger.info("🏁 Pipeline execution completed in #{duration}ms")
     Logger.info("🧹 Cleaned up temporary resources and caches")
+  end
+
+  # Variable interpolation helpers
+
+  defp interpolate_step_variables(step, context) do
+    case Map.get(context, :variable_state) do
+      nil -> step
+      variable_state ->
+        VariableEngine.interpolate_data(step, variable_state)
+    end
+  end
+
+  defp update_variable_step_info(context, step_name, step_index) do
+    case Map.get(context, :variable_state) do
+      nil -> context
+      variable_state ->
+        updated_state = VariableEngine.update_step_info(variable_state, step_name, step_index)
+        %{context | variable_state: updated_state}
+    end
   end
 end

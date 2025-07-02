@@ -12,6 +12,7 @@ defmodule Pipeline.EnhancedConfig do
   alias Pipeline.Config
 
   @enhanced_step_types [
+    "set_variable",
     "claude",
     "gemini",
     "parallel_claude",
