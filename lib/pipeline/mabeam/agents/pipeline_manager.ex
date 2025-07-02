@@ -23,4 +23,20 @@ defmodule Pipeline.MABEAM.Agents.PipelineManager do
   # - Error handling and recovery
   # - Instruction processing
   # - OTP supervision integration
+
+  @doc """
+  Gets the current state of the pipeline manager for monitoring purposes.
+  """
+  def get_state(pid) when is_pid(pid) do
+    try do
+      GenServer.call(pid, :get_state, 5000)
+    catch
+      :exit, _ -> {:error, :process_not_available}
+    end
+  end
+
+  @impl true
+  def handle_call(:get_state, _from, state) do
+    {:reply, {:ok, state}, state}
+  end
 end

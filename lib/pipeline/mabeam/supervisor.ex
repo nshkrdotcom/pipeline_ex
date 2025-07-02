@@ -19,6 +19,20 @@ defmodule Pipeline.MABEAM.Supervisor do
       Supervisor.child_spec(
         {Pipeline.MABEAM.Agents.PipelineWorker, worker_id: "worker_2"},
         id: :worker_2
+      ),
+
+      # Sensors for monitoring
+      Supervisor.child_spec(
+        {Pipeline.MABEAM.Sensors.QueueMonitor, 
+         id: "queue_monitor", 
+         target: {:pid, target: self()}},
+        id: :queue_monitor
+      ),
+      Supervisor.child_spec(
+        {Pipeline.MABEAM.Sensors.PerformanceMonitor,
+         id: "performance_monitor",
+         target: {:pid, target: self()}},
+        id: :performance_monitor
       )
     ]
 
