@@ -8,6 +8,7 @@ defmodule Pipeline.Executor do
 
   require Logger
   alias Pipeline.CheckpointManager
+  alias Pipeline.Condition.Engine, as: ConditionEngine
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
   alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart}
 
@@ -379,28 +380,9 @@ defmodule Pipeline.Executor do
   defp should_execute_step?(step, context) do
     case step["condition"] do
       nil -> true
-      condition_expr -> evaluate_condition(condition_expr, context)
+      condition_expr -> ConditionEngine.evaluate(condition_expr, context)
     end
   end
-
-  defp evaluate_condition(condition_expr, context) do
-    case String.split(condition_expr, ".") do
-      [step_name] ->
-        get_in(context.results, [step_name]) |> truthy?()
-
-      [step_name, field] ->
-        get_in(context.results, [step_name, field]) |> truthy?()
-
-      parts when length(parts) > 2 ->
-        get_in(context.results, parts) |> truthy?()
-    end
-  end
-
-  defp truthy?(nil), do: false
-  defp truthy?(false), do: false
-  defp truthy?(""), do: false
-  defp truthy?([]), do: false
-  defp truthy?(_), do: true
 
   defp optimize_result_for_memory(result) when is_struct(result) do
     # Convert struct to map first to enable enumeration
