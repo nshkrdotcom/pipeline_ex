@@ -28,19 +28,25 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
   end
 
   describe "AwaitPipelineResult action" do
+    # Set shorter timeout for this test
+    @tag timeout: 5_000
     test "awaits async pipeline completion" do
       # First start an async execution
       start_params = %{
         pipeline_file: "test/fixtures/simple_test.yaml",
-        timeout: 10_000
+        # Shorter pipeline timeout
+        timeout: 2_000
       }
 
-      {:ok, start_result} = Jido.Exec.run(Pipeline.MABEAM.Actions.ExecutePipelineAsync, start_params, %{})
+      {:ok, start_result} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.ExecutePipelineAsync, start_params, %{})
 
-      # Now await the result
+      # Give the pipeline a small moment to start, then await immediately
+      # Since the test pipeline is very fast (12ms), we need to await quickly
       await_params = %{
         async_ref: start_result.async_ref,
-        timeout: 30_000  # Increase timeout to prevent false failures
+        # 1 second timeout - if pipeline doesn't finish by then, it's a timeout scenario
+        timeout: 1_000
       }
 
       # The test should handle both success and timeout scenarios
@@ -49,23 +55,34 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
           assert await_result.status == :completed
           assert Map.has_key?(await_result, :result)
           assert %DateTime{} = await_result.completed_at
+
         {:error, %Jido.Error{message: error_message}} ->
-          # If it times out in test environment, that's also valid
+          # If it times out in test environment, that's also valid - the test pipeline might be too fast
           assert error_message =~ "timed out" or error_message =~ "timeout"
       end
     end
 
     test "handles timeout correctly" do
-      # Create a mock async_ref that will timeout (using proper structure)
-      fake_async_ref = %{pid: self(), ref: make_ref()}
-
-      await_params = %{
-        async_ref: fake_async_ref,
-        # Very short timeout
-        timeout: 100
+      # Start a real async execution and give it a very short timeout to force timeout
+      start_params = %{
+        pipeline_file: "test/fixtures/simple_test.yaml",
+        # Long enough for pipeline to start
+        timeout: 30_000
       }
 
-      {:error, reason} = Jido.Exec.run(Pipeline.MABEAM.Actions.AwaitPipelineResult, await_params, %{})
+      {:ok, start_result} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.ExecutePipelineAsync, start_params, %{})
+
+      await_params = %{
+        async_ref: start_result.async_ref,
+        # Very short timeout to force timeout
+        # 1 millisecond - will definitely timeout
+        timeout: 1
+      }
+
+      {:error, reason} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.AwaitPipelineResult, await_params, %{})
+
       # Jido.Exec returns a Jido.Error struct on failure
       assert %Jido.Error{message: error_message} = reason
       assert error_message =~ "timed out" or error_message =~ "timeout"
@@ -80,7 +97,8 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
         timeout: 30_000
       }
 
-      {:ok, start_result} = Jido.Exec.run(Pipeline.MABEAM.Actions.ExecutePipelineAsync, start_params, %{})
+      {:ok, start_result} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.ExecutePipelineAsync, start_params, %{})
 
       # Cancel it
       cancel_params = %{async_ref: start_result.async_ref}
@@ -96,7 +114,9 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
       fake_async_ref = make_ref()
       cancel_params = %{async_ref: fake_async_ref}
 
-      {:error, reason} = Jido.Exec.run(Pipeline.MABEAM.Actions.CancelPipelineExecution, cancel_params, %{})
+      {:error, reason} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.CancelPipelineExecution, cancel_params, %{})
+
       # Jido.Exec returns a Jido.Error struct on failure
       assert %Jido.Error{message: error_message} = reason
       assert error_message =~ "invalid" or error_message =~ "Invalid"
@@ -111,12 +131,14 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
         timeout: 30_000
       }
 
-      {:ok, start_result} = Jido.Exec.run(Pipeline.MABEAM.Actions.ExecutePipelineAsync, start_params, %{})
+      {:ok, start_result} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.ExecutePipelineAsync, start_params, %{})
 
       # Get status
       status_params = %{async_ref: start_result.async_ref}
 
-      {:ok, status_result} = Jido.Exec.run(Pipeline.MABEAM.Actions.GetPipelineStatus, status_params, %{})
+      {:ok, status_result} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.GetPipelineStatus, status_params, %{})
 
       assert Map.has_key?(status_result, :status)
       assert %DateTime{} = status_result.checked_at
@@ -188,7 +210,8 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
         timeout: 5_000
       }
 
-      {:ok, batch_result} = Jido.Exec.run(Pipeline.MABEAM.Actions.BatchExecutePipelines, batch_params, %{})
+      {:ok, batch_result} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.BatchExecutePipelines, batch_params, %{})
 
       # Await batch results
       await_params = %{
@@ -196,7 +219,8 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
         timeout: 10_000
       }
 
-      {:ok, await_result} = Jido.Exec.run(Pipeline.MABEAM.Actions.AwaitBatchResults, await_params, %{})
+      {:ok, await_result} =
+        Jido.Exec.run(Pipeline.MABEAM.Actions.AwaitBatchResults, await_params, %{})
 
       assert length(await_result.results) == 2
       assert Map.has_key?(await_result, :summary)
@@ -250,9 +274,10 @@ defmodule Pipeline.MABEAM.WorkflowActionsTest do
 
       # In mock mode, pipeline executes very fast, so it might succeed
       case result do
-        {:ok, _result} -> 
+        {:ok, _result} ->
           # Pipeline succeeded within 1ms - this is valid behavior in mock mode
           assert true
+
         {:error, error} ->
           # Timeout occurred as expected
           assert error.type == :timeout

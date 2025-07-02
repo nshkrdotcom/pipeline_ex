@@ -233,8 +233,10 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
   defp dispatch_signal(signal, state) do
     # Use Jido's signal dispatch system
     case Jido.Signal.Dispatch.dispatch(signal, state.target) do
-      :ok -> :ok
-      {:error, reason} -> 
+      :ok ->
+        :ok
+
+      {:error, reason} ->
         Logger.warning("Signal dispatch failed: #{inspect(reason)}")
         {:error, reason}
     end
