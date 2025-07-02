@@ -15,7 +15,6 @@ defmodule Pipeline.Utils.FileUtils do
 
   @large_file_threshold 100_000_000  # 100MB
   @stream_chunk_size 1024 * 1024     # 1MB chunks
-  @max_memory_file_size 50_000_000   # 50MB for in-memory operations
 
   @doc """
   Resolve a path relative to the workspace directory.

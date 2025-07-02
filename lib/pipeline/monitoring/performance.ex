@@ -52,9 +52,18 @@ defmodule Pipeline.Monitoring.Performance do
     case GenServer.whereis(via_tuple(pipeline_name)) do
       nil -> {:error, :not_found}
       pid -> 
-        metrics = GenServer.call(pid, :get_final_metrics)
-        GenServer.stop(pid)
-        {:ok, metrics}
+        try do
+          metrics = GenServer.call(pid, :get_final_metrics, 1000)  # 1 second timeout
+          GenServer.stop(pid, :normal, 1000)  # 1 second timeout
+          {:ok, metrics}
+        catch
+          :exit, {:timeout, _} ->
+            # Force kill if timeout
+            Process.exit(pid, :kill)
+            {:error, :timeout}
+          :exit, {:noproc, _} ->
+            {:error, :not_found}
+        end
     end
   end
 

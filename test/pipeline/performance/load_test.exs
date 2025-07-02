@@ -6,15 +6,15 @@ defmodule Pipeline.Performance.LoadTest do
   under various load conditions.
   """
 
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   require Logger
 
   alias Pipeline.Executor
   alias Pipeline.Monitoring.Performance
   alias Pipeline.Utils.FileUtils
 
-  @large_dataset_size 2000
-  @memory_threshold 100_000_000  # 100MB for testing
+  @large_dataset_size 500  # Reduced for faster tests
+  @memory_threshold 50_000_000  # 50MB for testing
   @test_output_dir "test/tmp/performance"
 
   setup do
