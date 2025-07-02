@@ -1,8 +1,13 @@
 defmodule Pipeline.Step.Loop do
   @moduledoc """
-  Loop step executor - handles for_loop and while_loop operations.
+  Advanced loop step executor - handles for_loop and while_loop operations.
 
-  Provides iteration capabilities with sub-step execution and loop context management.
+  Provides iteration capabilities with:
+  - Nested loop support with proper variable scoping
+  - Parallel execution for independent iterations
+  - Loop control flow (break, continue, early termination)
+  - Performance optimization for large datasets
+  - Memory management for long-running loops
   """
 
   require Logger
@@ -10,6 +15,8 @@ defmodule Pipeline.Step.Loop do
 
   @max_iterations 1000
   @default_max_iterations 100
+  @default_max_parallel 5
+  @memory_check_interval 50
 
   @doc """
   Execute a loop step (for_loop or while_loop).
@@ -34,7 +41,12 @@ defmodule Pipeline.Step.Loop do
     with {:ok, iterator_name} <- get_iterator_name(step),
          {:ok, sub_steps} <- get_sub_steps(step),
          {:ok, data} <- get_loop_data(step, context) do
-      execute_for_loop_iterations(data, iterator_name, sub_steps, step, context)
+      # Check if parallel execution is requested
+      if step["parallel"] do
+        execute_parallel_for_loop(data, iterator_name, sub_steps, step, context)
+      else
+        execute_for_loop_iterations(data, iterator_name, sub_steps, step, context)
+      end
     else
       error -> error
     end
@@ -54,7 +66,7 @@ defmodule Pipeline.Step.Loop do
   end
 
   # For Loop Iteration Execution
-  defp execute_for_loop_iterations(data, iterator_name, sub_steps, _step, context)
+  defp execute_for_loop_iterations(data, iterator_name, sub_steps, step, context)
        when is_list(data) do
     Logger.info("🔄 Processing #{length(data)} items in for_loop")
 
@@ -68,11 +80,16 @@ defmodule Pipeline.Step.Loop do
     {final_results, _final_context} =
       data
       |> Enum.with_index()
-      |> Enum.reduce({initial_results, context}, fn {item, index}, {acc_results, acc_context} ->
+      |> Enum.reduce_while({initial_results, context}, fn {item, index}, {acc_results, acc_context} ->
         Logger.info("🔄 Processing item #{index + 1}/#{length(data)}")
 
-        # Create loop context
-        loop_context = create_loop_context(iterator_name, item, index, length(data))
+        # Memory check for large datasets
+        if rem(index, @memory_check_interval) == 0 do
+          check_memory_usage(index, length(data))
+        end
+
+        # Create nested loop context with parent reference
+        loop_context = create_nested_loop_context(iterator_name, item, index, length(data), acc_context)
         updated_context = add_loop_context(acc_context, loop_context)
 
         case execute_sub_steps(sub_steps, updated_context) do
@@ -90,7 +107,19 @@ defmodule Pipeline.Step.Loop do
                 "completed_items" => acc_results["completed_items"] + 1
             }
 
-            {updated_results, merge_context_results(acc_context, iteration_context)}
+            merged_context = merge_context_results(acc_context, iteration_context)
+
+            # Check for break/continue conditions
+            case check_loop_control(step, iteration_context) do
+              :break ->
+                Logger.info("🔄 Loop break condition met at iteration #{index + 1}")
+                {:halt, {updated_results, merged_context}}
+              :continue ->
+                Logger.info("🔄 Loop continue condition met at iteration #{index + 1}")
+                {:cont, {updated_results, merged_context}}
+              :normal ->
+                {:cont, {updated_results, merged_context}}
+            end
 
           {:error, reason} ->
             Logger.error("❌ For loop iteration #{index + 1} failed: #{reason}")
@@ -108,7 +137,12 @@ defmodule Pipeline.Step.Loop do
                 "success" => false
             }
 
-            {updated_results, acc_context}
+            # Check if we should halt on error
+            if step["break_on_error"] != false do
+              {:halt, {updated_results, acc_context}}
+            else
+              {:cont, {updated_results, acc_context}}
+            end
         end
       end)
 
@@ -124,6 +158,94 @@ defmodule Pipeline.Step.Loop do
 
   defp execute_for_loop_iterations(data, _iterator_name, _sub_steps, _step, _context) do
     {:error, "For loop data must be a list, got: #{inspect(data)}"}
+  end
+
+  # Parallel For Loop Execution
+  defp execute_parallel_for_loop(data, iterator_name, sub_steps, step, context) when is_list(data) do
+    Logger.info("🚀 Processing #{length(data)} items in parallel for_loop")
+    
+    max_parallel = get_max_parallel(step)
+    
+    initial_results = %{
+      "iterations" => [],
+      "success" => true,
+      "total_items" => length(data),
+      "completed_items" => 0,
+      "parallel" => true,
+      "max_parallel" => max_parallel
+    }
+
+    # Create tasks for parallel execution
+    async_tasks = 
+      data
+      |> Enum.with_index()
+      |> Enum.chunk_every(max_parallel)
+      |> Enum.map(fn chunk ->
+        Task.async(fn ->
+          process_parallel_chunk(chunk, iterator_name, sub_steps, step, context)
+        end)
+      end)
+
+    # Wait for all tasks to complete
+    chunk_results = Task.await_many(async_tasks, :infinity)
+    
+    # Combine results from all chunks
+    final_results = combine_parallel_results(chunk_results, initial_results)
+    
+    Logger.info(
+      "✅ Parallel for loop completed: #{final_results["completed_items"]}/#{final_results["total_items"]} items"
+    )
+
+    {:ok, final_results}
+  end
+
+  defp execute_parallel_for_loop(data, _iterator_name, _sub_steps, _step, _context) do
+    {:error, "Parallel for loop data must be a list, got: #{inspect(data)}"}
+  end
+
+  defp process_parallel_chunk(chunk, iterator_name, sub_steps, _step, context) do
+    chunk
+    |> Enum.map(fn {item, index} ->
+      # Create loop context for this item
+      loop_context = create_nested_loop_context(iterator_name, item, index, length(chunk), context)
+      updated_context = add_loop_context(context, loop_context)
+
+      case execute_sub_steps(sub_steps, updated_context) do
+        {:ok, iteration_context} ->
+          %{
+            "index" => index,
+            "item" => item,
+            "success" => true,
+            "results" => extract_sub_step_results(sub_steps, iteration_context)
+          }
+
+        {:error, reason} ->
+          Logger.error("❌ Parallel iteration #{index + 1} failed: #{reason}")
+          %{
+            "index" => index,
+            "item" => item,
+            "success" => false,
+            "error" => reason
+          }
+      end
+    end)
+  end
+
+  defp combine_parallel_results(chunk_results, initial_results) do
+    all_iterations = 
+      chunk_results
+      |> List.flatten()
+      |> Enum.sort_by(& &1["index"])
+    
+    completed_count = Enum.count(all_iterations, & &1["success"])
+    all_successful = Enum.all?(all_iterations, & &1["success"])
+    
+    %{
+      initial_results
+      | "iterations" => all_iterations,
+        "completed_items" => completed_count,
+        "success" => all_successful
+    }
   end
 
   # While Loop Iteration Execution
@@ -273,13 +395,24 @@ defmodule Pipeline.Step.Loop do
         end
 
       [step_name, field] ->
-        case get_in(context.results, [step_name]) do
+        # First try to get from current loop context
+        case get_in(context.results, ["loop", step_name]) do
           nil ->
-            {:error, "Step result not found: #{step_name}"}
+            # Fall back to step results
+            case get_in(context.results, [step_name]) do
+              nil ->
+                {:error, "Step result not found: #{step_name}"}
 
-          step_result ->
-            case get_nested_value(step_result, field) do
-              nil -> {:error, "Field not found in step result: #{field}"}
+              step_result ->
+                case get_nested_value(step_result, field) do
+                  nil -> {:error, "Field not found in step result: #{field}"}
+                  value -> {:ok, value}
+                end
+            end
+          
+          loop_value ->
+            case get_nested_value(loop_value, field) do
+              nil -> {:error, "Field not found in loop context: #{field}"}
               value -> {:ok, value}
             end
         end
@@ -312,6 +445,39 @@ defmodule Pipeline.Step.Loop do
         "last" => index == total - 1
       }
     }
+  end
+
+  # Enhanced loop context with nested support
+  def create_nested_loop_context(iterator_name, item, index, total, context) do
+    # Check if we're already in a loop (nested scenario)
+    case get_in(context.results, ["loop"]) do
+      nil ->
+        # First level loop
+        %{
+          "loop" => %{
+            iterator_name => item,
+            "index" => index,
+            "total" => total,
+            "first" => index == 0,
+            "last" => index == total - 1,
+            "level" => 0
+          }
+        }
+      
+      parent_loop ->
+        # Nested loop - preserve parent context
+        %{
+          "loop" => %{
+            iterator_name => item,
+            "index" => index,
+            "total" => total,
+            "first" => index == 0,
+            "last" => index == total - 1,
+            "level" => (parent_loop["level"] || 0) + 1,
+            "parent" => parent_loop
+          }
+        }
+    end
   end
 
   defp create_while_loop_context(iteration_count) do
@@ -389,6 +555,13 @@ defmodule Pipeline.Step.Loop do
       "while_loop" ->
         execute_while_loop(step, context)
 
+      # Loop control steps
+      "break" ->
+        {:break, "Loop break requested"}
+        
+      "continue" ->
+        {:continue, "Loop continue requested"}
+
       unknown_type ->
         {:error, "Unsupported step type in loop: #{unknown_type}"}
     end
@@ -417,6 +590,49 @@ defmodule Pipeline.Step.Loop do
       error ->
         Logger.error("❌ Condition evaluation error: #{inspect(error)}")
         {:error, "Condition evaluation failed: #{inspect(error)}"}
+    end
+  end
+
+  # Loop Control Functions
+  defp check_loop_control(step, context) do
+    cond do
+      step["break_condition"] && evaluate_simple_condition(step["break_condition"], context) ->
+        :break
+      
+      step["continue_condition"] && evaluate_simple_condition(step["continue_condition"], context) ->
+        :continue
+        
+      true ->
+        :normal
+    end
+  end
+
+  defp evaluate_simple_condition(condition, context) do
+    case evaluate_condition(condition, context) do
+      true -> true
+      false -> false
+      _ -> false
+    end
+  end
+
+  # Parallel Execution Helpers
+  defp get_max_parallel(step) do
+    case step["max_parallel"] do
+      nil -> @default_max_parallel
+      max when is_integer(max) and max > 0 -> min(max, 10)
+      _ -> @default_max_parallel
+    end
+  end
+
+  # Memory Management
+  defp check_memory_usage(current_index, total_items) do
+    case :erlang.memory(:total) do
+      memory when memory > 500_000_000 -> # 500MB threshold
+        Logger.warning("⚠️  High memory usage detected at iteration #{current_index}/#{total_items}: #{div(memory, 1_000_000)}MB")
+        :erlang.garbage_collect()
+        
+      _ -> 
+        :ok
     end
   end
 end
