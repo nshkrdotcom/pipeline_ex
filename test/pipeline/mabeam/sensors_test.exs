@@ -4,15 +4,17 @@ defmodule Pipeline.MABEAM.SensorsTest do
   describe "QueueMonitor sensor" do
     test "starts successfully and emits queue status signals" do
       # Start the sensor with a test target
-      {:ok, sensor} = Pipeline.MABEAM.Sensors.QueueMonitor.start_link(
-        id: "test_queue_monitor",
-        target: {:pid, target: self()},
-        check_interval: 100,  # Fast interval for testing
-        alert_threshold: 5
-      )
+      {:ok, sensor} =
+        Pipeline.MABEAM.Sensors.QueueMonitor.start_link(
+          id: "test_queue_monitor",
+          target: {:pid, [target: self()]},
+          # Fast interval for testing
+          check_interval: 100,
+          alert_threshold: 5
+        )
 
       # Should receive a signal within a reasonable time
-      assert_receive {:signal, {:ok, signal}}, 1000
+      assert_receive {:signal, signal}, 1000
 
       assert signal.type == "pipeline.queue_status"
       assert is_map(signal.data)
@@ -28,15 +30,17 @@ defmodule Pipeline.MABEAM.SensorsTest do
     test "triggers alert when queue depth exceeds threshold" do
       # This would require actual queue data to test properly
       # For now, we test the basic structure
-      {:ok, sensor} = Pipeline.MABEAM.Sensors.QueueMonitor.start_link(
-        id: "test_alert_monitor",
-        target: {:pid, target: self()},
-        check_interval: 50,
-        alert_threshold: 0  # Low threshold to trigger alert
-      )
+      {:ok, sensor} =
+        Pipeline.MABEAM.Sensors.QueueMonitor.start_link(
+          id: "test_alert_monitor",
+          target: {:pid, [target: self()]},
+          check_interval: 50,
+          # Low threshold to trigger alert
+          alert_threshold: 0
+        )
 
-      assert_receive {:signal, {:ok, signal}}, 1000
-      
+      assert_receive {:signal, signal}, 1000
+
       # Alert should be false since we have no actual queue
       assert signal.data.alert == false
 
@@ -46,24 +50,31 @@ defmodule Pipeline.MABEAM.SensorsTest do
 
   describe "PerformanceMonitor sensor" do
     test "starts successfully and emits performance metrics" do
-      {:ok, sensor} = Pipeline.MABEAM.Sensors.PerformanceMonitor.start_link(
-        id: "test_performance_monitor",
-        target: {:pid, target: self()},
-        emit_interval: 100  # Fast interval for testing
-      )
+      {:ok, sensor} =
+        Pipeline.MABEAM.Sensors.PerformanceMonitor.start_link(
+          id: "test_performance_monitor",
+          target: {:pid, [target: self()]},
+          # Fast interval for testing
+          emit_interval: 100
+        )
 
       # Should receive a signal within a reasonable time
-      assert_receive {:signal, {:ok, signal}}, 1000
+      assert_receive {:signal, signal}, 1000
 
       assert signal.type == "pipeline.performance_metrics"
       assert is_map(signal.data)
-      
+
       # Check that all expected metrics are present
       expected_fields = [
-        :avg_execution_time, :throughput_per_hour, :error_rate,
-        :active_pipelines, :memory_usage, :cpu_usage, :timestamp
+        :avg_execution_time,
+        :throughput_per_hour,
+        :error_rate,
+        :active_pipelines,
+        :memory_usage,
+        :cpu_usage,
+        :timestamp
       ]
-      
+
       for field <- expected_fields do
         assert Map.has_key?(signal.data, field), "Missing field: #{field}"
       end
@@ -77,13 +88,14 @@ defmodule Pipeline.MABEAM.SensorsTest do
     end
 
     test "collects real system metrics" do
-      {:ok, sensor} = Pipeline.MABEAM.Sensors.PerformanceMonitor.start_link(
-        id: "test_metrics_collector",
-        target: {:pid, target: self()},
-        emit_interval: 50
-      )
+      {:ok, sensor} =
+        Pipeline.MABEAM.Sensors.PerformanceMonitor.start_link(
+          id: "test_metrics_collector",
+          target: {:pid, [target: self()]},
+          emit_interval: 50
+        )
 
-      assert_receive {:signal, {:ok, signal}}, 1000
+      assert_receive {:signal, signal}, 1000
 
       # CPU usage should be a reasonable number
       assert is_number(signal.data.cpu_usage)
@@ -102,17 +114,17 @@ defmodule Pipeline.MABEAM.SensorsTest do
     test "sensors work with MABEAM supervisor" do
       # Enable MABEAM to test full integration
       Application.put_env(:pipeline, :mabeam_enabled, true)
-      
+
       # Start the MABEAM supervisor which includes sensors
       {:ok, supervisor} = Pipeline.MABEAM.Supervisor.start_link()
-      
+
       # Give sensors time to initialize and emit signals
       Process.sleep(200)
-      
+
       # Check that sensor processes are running
       children = Supervisor.which_children(supervisor)
       sensor_ids = Enum.map(children, fn {id, _, _, _} -> id end)
-      
+
       assert :queue_monitor in sensor_ids
       assert :performance_monitor in sensor_ids
 

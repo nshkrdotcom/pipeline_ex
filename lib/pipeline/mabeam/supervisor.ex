@@ -21,17 +21,15 @@ defmodule Pipeline.MABEAM.Supervisor do
         id: :worker_2
       ),
 
-      # Sensors for monitoring
+      # Sensors for monitoring - use logger target for production
       Supervisor.child_spec(
-        {Pipeline.MABEAM.Sensors.QueueMonitor, 
-         id: "queue_monitor", 
-         target: {:pid, target: self()}},
+        {Pipeline.MABEAM.Sensors.QueueMonitor,
+         id: "queue_monitor", target: {:logger, [level: :info]}},
         id: :queue_monitor
       ),
       Supervisor.child_spec(
         {Pipeline.MABEAM.Sensors.PerformanceMonitor,
-         id: "performance_monitor",
-         target: {:pid, target: self()}},
+         id: "performance_monitor", target: {:logger, [level: :info]}},
         id: :performance_monitor
       )
     ]

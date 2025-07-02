@@ -16,28 +16,28 @@ defmodule Pipeline.MABEAM.Sensors.QueueMonitor do
   def mount(opts) do
     # Schedule periodic checks using timer, not Process.sleep
     :timer.send_interval(opts.check_interval, self(), :check_queue)
-    
-    {:ok, %{
-      id: opts.id,
-      target: opts.target,
-      config: opts,
-      last_check: DateTime.utc_now(),
-      sensor: %{name: "pipeline_queue_monitor"}
-    }}
+
+    {:ok,
+     %{
+       id: opts.id,
+       target: opts.target,
+       config: opts,
+       last_check: DateTime.utc_now(),
+       sensor: %{name: "pipeline_queue_monitor"}
+     }}
   end
 
   @impl true
   def handle_info(:check_queue, state) do
     try do
       case deliver_signal(state) do
-        {:ok, signal} when not is_nil(signal) -> 
+        {:ok, signal} ->
           dispatch_signal(signal, state)
           {:noreply, %{state | last_check: DateTime.utc_now()}}
-        {:ok, nil} ->
-          {:noreply, %{state | last_check: DateTime.utc_now()}}
+
         {:error, reason} ->
-          Logger.error("Queue monitor failed: #{inspect(reason)}")
-          {:noreply, state}
+          Logger.error("Queue monitor signal creation failed: #{inspect(reason)}")
+          {:noreply, %{state | last_check: DateTime.utc_now()}}
       end
     rescue
       error ->
@@ -51,8 +51,8 @@ defmodule Pipeline.MABEAM.Sensors.QueueMonitor do
     # Get queue stats from pipeline manager agents
     queue_depth = get_total_queue_depth()
     processing_rate = calculate_processing_rate()
-    
-    {:ok, Jido.Signal.new(%{
+
+    Jido.Signal.new(%{
       source: "#{state.sensor.name}:#{state.id}",
       type: "pipeline.queue_status",
       data: %{
@@ -61,7 +61,7 @@ defmodule Pipeline.MABEAM.Sensors.QueueMonitor do
         alert: queue_depth > state.config.alert_threshold,
         timestamp: DateTime.utc_now()
       }
-    })}
+    })
   end
 
   defp get_total_queue_depth() do
@@ -78,10 +78,13 @@ defmodule Pipeline.MABEAM.Sensors.QueueMonitor do
           catch
             :exit, _ -> 0
           end
-        [] -> 0
+
+        [] ->
+          0
       end
     rescue
-      ArgumentError -> 0  # Registry doesn't exist
+      # Registry doesn't exist
+      ArgumentError -> 0
     catch
       :exit, _ -> 0
     end
@@ -92,26 +95,22 @@ defmodule Pipeline.MABEAM.Sensors.QueueMonitor do
     # This would typically be calculated from historical data
     # For now, we'll use a simple estimation based on system load
     case :erlang.statistics(:run_queue) do
-      run_queue when run_queue < 10 -> 12.0  # High processing rate
-      run_queue when run_queue < 50 -> 8.0   # Medium processing rate  
-      _ -> 4.0  # Low processing rate
+      # High processing rate
+      run_queue when run_queue < 10 -> 12.0
+      # Medium processing rate  
+      run_queue when run_queue < 50 -> 8.0
+      # Low processing rate
+      _ -> 4.0
     end
   end
 
   defp dispatch_signal(signal, state) do
     # Use Jido's signal dispatch system
-    case state.target do
-      {:bus, target: bus_name} ->
-        # Dispatch to event bus
-        Logger.debug("Dispatching queue signal to bus: #{bus_name}")
-        :ok
-      {:pid, target: pid} ->
-        # Send directly to process
-        send(pid, {:signal, {:ok, signal}})
-        :ok
-      _ ->
-        Logger.warning("Unknown signal target: #{inspect(state.target)}")
-        :ok
+    case Jido.Signal.Dispatch.dispatch(signal, state.target) do
+      :ok -> :ok
+      {:error, reason} -> 
+        Logger.warning("Signal dispatch failed: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 end

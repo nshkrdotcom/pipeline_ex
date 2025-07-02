@@ -6,8 +6,16 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
     tags: [:pipeline, :performance, :metrics],
     vsn: "1.0.0",
     schema: [
-      metric_window: [type: :pos_integer, default: 60_000, doc: "Metrics collection window in milliseconds"],
-      emit_interval: [type: :pos_integer, default: 30_000, doc: "Signal emission interval in milliseconds"]
+      metric_window: [
+        type: :pos_integer,
+        default: 60_000,
+        doc: "Metrics collection window in milliseconds"
+      ],
+      emit_interval: [
+        type: :pos_integer,
+        default: 30_000,
+        doc: "Signal emission interval in milliseconds"
+      ]
     ]
 
   require Logger
@@ -15,27 +23,27 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
   @impl true
   def mount(opts) do
     :timer.send_interval(opts.emit_interval, self(), :emit_metrics)
-    
-    {:ok, %{
-      id: opts.id,
-      target: opts.target,
-      config: opts,
-      metrics_buffer: [],
-      sensor: %{name: "performance_monitor"}
-    }}
+
+    {:ok,
+     %{
+       id: opts.id,
+       target: opts.target,
+       config: opts,
+       metrics_buffer: [],
+       sensor: %{name: "performance_monitor"}
+     }}
   end
 
   @impl true
   def handle_info(:emit_metrics, state) do
     try do
       case deliver_signal(state) do
-        {:ok, signal} when not is_nil(signal) ->
+        {:ok, signal} ->
           dispatch_signal(signal, state)
           {:noreply, %{state | metrics_buffer: []}}
-        {:ok, nil} ->
-          {:noreply, state}
+
         {:error, reason} ->
-          Logger.error("Performance monitor failed: #{inspect(reason)}")
+          Logger.error("Performance monitor signal creation failed: #{inspect(reason)}")
           {:noreply, state}
       end
     rescue
@@ -48,8 +56,8 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
   @impl true
   def deliver_signal(state) do
     metrics = collect_performance_metrics(state.config.metric_window)
-    
-    {:ok, Jido.Signal.new(%{
+
+    Jido.Signal.new(%{
       source: "performance_monitor:#{state.id}",
       type: "pipeline.performance_metrics",
       data: %{
@@ -61,7 +69,7 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
         cpu_usage: metrics.cpu_usage,
         timestamp: DateTime.utc_now()
       }
-    })}
+    })
   end
 
   defp collect_performance_metrics(_window) do
@@ -69,7 +77,7 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
     memory_info = :erlang.memory()
     system_info = get_system_metrics()
     pipeline_metrics = get_pipeline_metrics()
-    
+
     %{
       avg_execution_time: pipeline_metrics.avg_execution_time,
       throughput_per_hour: pipeline_metrics.throughput_per_hour,
@@ -92,7 +100,7 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
     # Get system-level metrics
     {reductions, _} = :erlang.statistics(:reductions)
     run_queue = :erlang.statistics(:run_queue)
-    
+
     %{
       cpu_usage: calculate_cpu_usage(reductions),
       run_queue: run_queue,
@@ -105,7 +113,7 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
     # Get pipeline-specific metrics from agents
     active_count = count_active_pipelines()
     execution_stats = get_execution_statistics()
-    
+
     %{
       active_pipelines: active_count,
       avg_execution_time: execution_stats.avg_time,
@@ -118,10 +126,11 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
     # Count active pipelines across all workers
     # Handle case where Registry might not exist
     try do
-      workers = Registry.select(Pipeline.Registry, [
-        {{:"$1", :"$2", :"$3"}, [{:==, :"$1", {:pipeline_worker, :_}}], [:"$2"]}
-      ])
-      
+      workers =
+        Registry.select(Pipeline.Registry, [
+          {{:"$1", :"$2", :"$3"}, [{:==, :"$1", {:pipeline_worker, :_}}], [:"$2"]}
+        ])
+
       Enum.count(workers, fn pid ->
         try do
           case Process.info(pid, :status) do
@@ -133,7 +142,8 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
         end
       end)
     rescue
-      ArgumentError -> 0  # Registry doesn't exist
+      # Registry doesn't exist
+      ArgumentError -> 0
     catch
       :exit, _ -> 0
     end
@@ -148,39 +158,49 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
             case Pipeline.MABEAM.Agents.PipelineManager.get_state(pid) do
               {:ok, state} ->
                 calculate_stats_from_history(state.execution_history)
+
               _ ->
                 default_stats()
             end
           catch
             :exit, _ -> default_stats()
           end
-        [] -> default_stats()
+
+        [] ->
+          default_stats()
       end
     rescue
-      ArgumentError -> default_stats()  # Registry doesn't exist
+      # Registry doesn't exist
+      ArgumentError -> default_stats()
     catch
       :exit, _ -> default_stats()
     end
   end
 
   defp calculate_stats_from_history(history) when is_list(history) and length(history) > 0 do
-    recent_history = Enum.take(history, -10)  # Last 10 executions
-    
+    # Last 10 executions
+    recent_history = Enum.take(history, -10)
+
     # Calculate average execution time
-    times = Enum.map(recent_history, fn exec -> 
-      Map.get(exec, :duration, 0)
-    end)
+    times =
+      Enum.map(recent_history, fn exec ->
+        Map.get(exec, :duration, 0)
+      end)
+
     avg_time = if length(times) > 0, do: Enum.sum(times) / length(times), else: 0.0
-    
+
     # Calculate error rate
-    errors = Enum.count(recent_history, fn exec -> 
-      Map.get(exec, :status) == :error
-    end)
+    errors =
+      Enum.count(recent_history, fn exec ->
+        Map.get(exec, :status) == :error
+      end)
+
     error_rate = if length(recent_history) > 0, do: errors / length(recent_history), else: 0.0
-    
+
     # Estimate throughput (executions per hour based on recent activity)
-    throughput = length(recent_history) * 6.0  # Rough estimate
-    
+    # Rough estimate
+    throughput = length(recent_history) * 6.0
+
     %{
       avg_time: avg_time,
       error_rate: error_rate,
@@ -212,18 +232,11 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
 
   defp dispatch_signal(signal, state) do
     # Use Jido's signal dispatch system
-    case state.target do
-      {:bus, target: bus_name} ->
-        # Dispatch to event bus
-        Logger.debug("Dispatching performance signal to bus: #{bus_name}")
-        :ok
-      {:pid, target: pid} ->
-        # Send directly to process
-        send(pid, {:signal, {:ok, signal}})
-        :ok
-      _ ->
-        Logger.warning("Unknown signal target: #{inspect(state.target)}")
-        :ok
+    case Jido.Signal.Dispatch.dispatch(signal, state.target) do
+      :ok -> :ok
+      {:error, reason} -> 
+        Logger.warning("Signal dispatch failed: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 end
