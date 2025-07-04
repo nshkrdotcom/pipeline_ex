@@ -973,6 +973,7 @@ defmodule Mix.Tasks.Pipeline.Generate do
     # Replace all template variables in the string
     Enum.reduce(replacements, value, fn {key, replacement_value}, acc ->
       template = "{{#{key}}}"
+
       if String.contains?(acc, template) do
         String.replace(acc, template, to_string(replacement_value))
       else
