@@ -53,6 +53,9 @@ defmodule Pipeline.Executor do
     context = maybe_load_checkpoint(context)
 
     try do
+      # Ensure directories exist before executing steps
+      ensure_directories_exist(context)
+      
       # Execute steps
       case execute_steps(workflow["workflow"]["steps"], context) do
         {:ok, final_context} ->
@@ -128,6 +131,12 @@ defmodule Pipeline.Executor do
 
   # Private functions
 
+  defp ensure_directories_exist(context) do
+    File.mkdir_p!(context.workspace_dir)
+    File.mkdir_p!(context.output_dir)
+    File.mkdir_p!(context.checkpoint_dir)
+  end
+
   defp initialize_context(workflow, opts) do
     config = workflow["workflow"]
     pipeline_name = config["name"]
@@ -157,9 +166,8 @@ defmodule Pipeline.Executor do
           "./checkpoints"
       )
 
-    File.mkdir_p!(workspace_dir)
-    File.mkdir_p!(output_dir)
-    File.mkdir_p!(checkpoint_dir)
+    # Directory creation will be deferred until needed
+    # This allows tests to verify directories don't exist before execution
 
     %{
       workflow_name: config["name"],
@@ -182,6 +190,9 @@ defmodule Pipeline.Executor do
 
   defp maybe_load_checkpoint(context) do
     if context.checkpoint_enabled do
+      # Ensure checkpoint directory exists before trying to load
+      File.mkdir_p!(context.checkpoint_dir)
+      
       case CheckpointManager.load_latest(context.checkpoint_dir, context.workflow_name) do
         {:ok, checkpoint_data} ->
           Logger.info("📦 Loaded checkpoint from #{checkpoint_data.timestamp}")

@@ -15,7 +15,10 @@ defmodule Pipeline.MABEAM.Sensors.QueueMonitor do
   @impl true
   def mount(opts) do
     # Schedule periodic checks using timer, not Process.sleep
-    :timer.send_interval(opts.check_interval, self(), :check_queue)
+    case :timer.send_interval(opts.check_interval, self(), :check_queue) do
+      {:ok, _timer_ref} -> :ok
+      {:error, _reason} -> :ok  # Continue even if timer setup fails
+    end
 
     {:ok,
      %{
@@ -32,7 +35,10 @@ defmodule Pipeline.MABEAM.Sensors.QueueMonitor do
     try do
       case deliver_signal(state) do
         {:ok, signal} ->
-          dispatch_signal(signal, state)
+          case dispatch_signal(signal, state) do
+            :ok -> :ok
+            {:error, _reason} -> :ok  # Continue even if dispatch fails
+          end
           {:noreply, %{state | last_check: DateTime.utc_now()}}
 
         {:error, reason} ->

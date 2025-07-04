@@ -19,27 +19,32 @@ defmodule Pipeline.MABEAM.Actions.ExecutePipelineAsync do
   @impl true
   def run(params, context) do
     # Use Jido Exec for advanced execution
-    async_ref =
-      Jido.Exec.run_async(
-        Pipeline.MABEAM.Actions.ExecutePipelineYaml,
-        %{
-          pipeline_file: params.pipeline_file,
-          workspace_dir: params.workspace_dir,
-          output_dir: params.output_dir,
-          debug: params.debug
-        },
-        context,
-        timeout: params.timeout,
-        max_retries: params.max_retries
-      )
+    try do
+      async_ref =
+        Jido.Exec.run_async(
+          Pipeline.MABEAM.Actions.ExecutePipelineYaml,
+          %{
+            pipeline_file: params.pipeline_file,
+            workspace_dir: params.workspace_dir,
+            output_dir: params.output_dir,
+            debug: params.debug
+          },
+          context,
+          timeout: params.timeout,
+          max_retries: params.max_retries
+        )
 
-    {:ok,
-     %{
-       async_ref: async_ref,
-       status: :started,
-       pipeline_file: params.pipeline_file,
-       started_at: DateTime.utc_now()
-     }}
+      {:ok,
+       %{
+         async_ref: async_ref,
+         status: :started,
+         pipeline_file: params.pipeline_file,
+         started_at: DateTime.utc_now()
+       }}
+    rescue
+      error ->
+        {:error, "Failed to start async pipeline execution: #{inspect(error)}"}
+    end
   end
 end
 
@@ -63,11 +68,11 @@ defmodule Pipeline.MABEAM.Actions.AwaitPipelineResult do
            completed_at: DateTime.utc_now()
          }}
 
-      {:error, :timeout} ->
-        {:error, "Pipeline execution timed out"}
+      {:error, %Jido.Error{type: :timeout} = error} ->
+        {:error, "Pipeline execution timed out: #{error.message}"}
 
-      {:error, reason} ->
-        {:error, "Pipeline execution failed: #{inspect(reason)}"}
+      {:error, %Jido.Error{} = error} ->
+        {:error, "Pipeline execution failed: #{error.message}"}
     end
   end
 end
@@ -90,11 +95,11 @@ defmodule Pipeline.MABEAM.Actions.CancelPipelineExecution do
            cancelled_at: DateTime.utc_now()
          }}
 
-      {:error, :not_found} ->
-        {:error, "Pipeline execution not found or already completed"}
+      {:error, %Jido.Error{type: :not_found} = error} ->
+        {:error, "Pipeline execution not found or already completed: #{error.message}"}
 
-      {:error, reason} ->
-        {:error, "Failed to cancel pipeline execution: #{inspect(reason)}"}
+      {:error, %Jido.Error{} = error} ->
+        {:error, "Failed to cancel pipeline execution: #{error.message}"}
     end
   end
 end
@@ -153,35 +158,40 @@ defmodule Pipeline.MABEAM.Actions.BatchExecutePipelines do
   @impl true
   def run(params, context) do
     # Start all pipelines asynchronously
-    async_refs =
-      params.pipeline_files
-      # Limit concurrency
-      |> Enum.take(params.concurrent_limit)
-      |> Enum.map(fn pipeline_file ->
-        async_ref =
-          Jido.Exec.run_async(
-            Pipeline.MABEAM.Actions.ExecutePipelineYaml,
-            %{
-              pipeline_file: pipeline_file,
-              workspace_dir: params.workspace_dir,
-              output_dir: params.output_dir,
-              debug: params.debug
-            },
-            context,
-            timeout: params.timeout,
-            max_retries: params.max_retries
-          )
+    try do
+      async_refs =
+        params.pipeline_files
+        # Limit concurrency
+        |> Enum.take(params.concurrent_limit)
+        |> Enum.map(fn pipeline_file ->
+          async_ref =
+            Jido.Exec.run_async(
+              Pipeline.MABEAM.Actions.ExecutePipelineYaml,
+              %{
+                pipeline_file: pipeline_file,
+                workspace_dir: params.workspace_dir,
+                output_dir: params.output_dir,
+                debug: params.debug
+              },
+              context,
+              timeout: params.timeout,
+              max_retries: params.max_retries
+            )
 
-        {pipeline_file, async_ref}
-      end)
+          {pipeline_file, async_ref}
+        end)
 
-    {:ok,
-     %{
-       batch_id: generate_batch_id(),
-       pipeline_refs: async_refs,
-       total_pipelines: length(params.pipeline_files),
-       started_at: DateTime.utc_now()
-     }}
+      {:ok,
+       %{
+         batch_id: generate_batch_id(),
+         pipeline_refs: async_refs,
+         total_pipelines: length(params.pipeline_files),
+         started_at: DateTime.utc_now()
+       }}
+    rescue
+      error ->
+        {:error, "Failed to start batch pipeline execution: #{inspect(error)}"}
+    end
   end
 
   defp generate_batch_id do

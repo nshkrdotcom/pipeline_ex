@@ -22,7 +22,10 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
 
   @impl true
   def mount(opts) do
-    :timer.send_interval(opts.emit_interval, self(), :emit_metrics)
+    case :timer.send_interval(opts.emit_interval, self(), :emit_metrics) do
+      {:ok, _timer_ref} -> :ok
+      {:error, _reason} -> :ok  # Continue even if timer setup fails
+    end
 
     {:ok,
      %{
@@ -39,7 +42,10 @@ defmodule Pipeline.MABEAM.Sensors.PerformanceMonitor do
     try do
       case deliver_signal(state) do
         {:ok, signal} ->
-          dispatch_signal(signal, state)
+          case dispatch_signal(signal, state) do
+            :ok -> :ok
+            {:error, _reason} -> :ok  # Continue even if dispatch fails
+          end
           {:noreply, %{state | metrics_buffer: []}}
 
         {:error, reason} ->
