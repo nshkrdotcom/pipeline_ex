@@ -965,19 +965,34 @@ defmodule Mix.Tasks.Pipeline.Generate do
   end
 
   defp replace_template_variables(config, input) do
-    # Manually replace template variables in the config
-    config_json = Jason.encode!(config)
+    # Deep replace template variables in the config structure
+    deep_replace_templates(config, input)
+  end
 
-    # Replace each input variable
-    updated_json =
-      Enum.reduce(input, config_json, fn {key, value}, acc ->
-        String.replace(acc, "{{#{key}}}", to_string(value))
-      end)
+  defp deep_replace_templates(value, replacements) when is_binary(value) do
+    # Replace all template variables in the string
+    Enum.reduce(replacements, value, fn {key, replacement_value}, acc ->
+      template = "{{#{key}}}"
+      if String.contains?(acc, template) do
+        String.replace(acc, template, to_string(replacement_value))
+      else
+        acc
+      end
+    end)
+  end
 
-    case Jason.decode(updated_json) do
-      {:ok, updated_config} -> updated_config
-      # Return original if replacement failed
-      {:error, _} -> config
-    end
+  defp deep_replace_templates(value, replacements) when is_list(value) do
+    Enum.map(value, &deep_replace_templates(&1, replacements))
+  end
+
+  defp deep_replace_templates(value, replacements) when is_map(value) do
+    Map.new(value, fn {k, v} ->
+      {k, deep_replace_templates(v, replacements)}
+    end)
+  end
+
+  defp deep_replace_templates(value, _replacements) do
+    # For any other type (numbers, booleans, atoms, etc.), return as-is
+    value
   end
 end

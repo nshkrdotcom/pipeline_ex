@@ -122,16 +122,17 @@ defmodule Pipeline.Meta.Generator do
 
   defp select_claude_model(dna) do
     case dna.optimization_chromosome.performance_profile do
-      "speed_optimized" -> "claude-3-haiku-20240307"
-      "accuracy_optimized" -> "claude-3-opus-20240229"
-      _ -> "claude-3-sonnet-20240229"
+      "speed_optimized" -> "claude-opus-4-20250514"
+      "accuracy_optimized" -> "claude-opus-4-20250514"
+      _ -> "claude-opus-4-20250514"
     end
   end
 
   defp select_gemini_model(dna) do
     case dna.optimization_chromosome.performance_profile do
-      "speed_optimized" -> "gemini-1.5-flash"
-      _ -> "gemini-1.5-pro"
+      "speed_optimized" -> "gemini-2.5-flash"
+      "accuracy_optimized" -> "gemini-2.5-pro"
+      _ -> "gemini-2.5-flash-lite-preview-06-17"
     end
   end
 

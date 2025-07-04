@@ -16,18 +16,58 @@ workflow:
         content: |
           Request: {{pipeline_request}}
           
-          Respond with YAML pipeline configuration only. No explanations, no descriptions, no questions - just the YAML code block.
+          ANALYZE THE REQUEST:
+          - If it mentions reading files from specific directories, use claude with cwd
+          - If it mentions "claude code" working in a directory, use claude with cwd
+          - If it mentions analyzing code in a specific path, use claude with cwd
+          - If it needs to modify or create files in specific locations, use claude with cwd
+          
+          Generate a pipeline in the EXACT format shown below. DO NOT include providers section, DO NOT include api_key fields, DO NOT include inputs/outputs sections at the root level.
+          
+          Use this exact structure:
           
           ```yaml
-          workflow:
-            name: descriptive_name
-            description: clear purpose
-            version: "1.0.0"
-            
-            steps:
-            - name: meaningful_step_name
+          name: descriptive_pipeline_name
+          description: Clear description of what this pipeline does
+          
+          steps:
+            - name: first_step
+              type: prompt
+              provider: gemini
+              model: gemini-2.5-flash-lite-preview-06-17
+              prompt: |
+                Your detailed prompt here
+                
+            - name: second_step
+              type: prompt
+              provider: claude
+              model: claude-opus-4-20250514
+              prompt: |
+                Another detailed prompt
+                Can reference previous steps: {{first_step.output}}
+          ```
+          
+          For Claude steps that need to work with files in specific directories, use:
+          ```yaml
+            - name: claude_with_directory
               type: claude
+              claude_options:
+                max_turns: 10
+                allowed_tools: ["Read", "Write", "Edit", "LS", "Glob"]
+                cwd: "/path/to/working/directory"  # Sets working directory for Claude tools
+                output_format: "text"
               prompt:
                 - type: "static"
-                  content: "Detailed, specific prompt"
+                  content: |
+                    Your instructions here
           ```
+          
+          IMPORTANT:
+          - Use gemini-2.5-flash-lite-preview-06-17, gemini-2.5-pro, or gemini-2.5-flash for Gemini models
+          - Use claude-opus-4-20250514 for Claude models
+          - For Claude steps that need file access, use type: claude with claude_options
+          - Set cwd in claude_options to specify working directory
+          - Include allowed_tools for file operations: ["Read", "Write", "Edit", "LS", "Glob", "Grep"]
+          - NO providers section with API keys
+          - NO workflow wrapper
+          - Regular prompts use type: prompt with provider and model fields
