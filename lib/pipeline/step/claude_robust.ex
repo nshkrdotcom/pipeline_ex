@@ -21,6 +21,14 @@ defmodule Pipeline.Step.ClaudeRobust do
     "fallback_action" => "graceful_degradation"
   }
 
+  # Environment-specific defaults
+  defp get_environment_defaults do
+    %{
+      "max_retries" => Application.get_env(:pipeline, :claude_robust_max_retries, 3),
+      "base_delay_ms" => Application.get_env(:pipeline, :claude_robust_base_delay_ms, 1000)
+    }
+  end
+
   def execute(step, context) do
     Logger.info("🛡️ Executing Claude Robust step: #{step["name"]}")
 
@@ -324,7 +332,9 @@ defmodule Pipeline.Step.ClaudeRobust do
   end
 
   defp build_retry_config(step) do
-    retry_config = Map.merge(@default_retry_config, step["retry_config"] || %{})
+    # Apply environment defaults first, then user config
+    base_config = Map.merge(@default_retry_config, get_environment_defaults())
+    retry_config = Map.merge(base_config, step["retry_config"] || %{})
 
     # Validate retry configuration
     case validate_retry_config(retry_config) do

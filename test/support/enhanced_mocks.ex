@@ -19,8 +19,9 @@ defmodule Pipeline.Test.EnhancedMocks do
         # Get mock responses based on step type
         responses = get_mock_responses_for_step_type(step_type)
 
-        # Simulate processing time
-        :timer.sleep(10)
+        # Simulate processing time (reduced in test mode)
+        sleep_time = if Mix.env() == :test, do: 1, else: 10
+        :timer.sleep(sleep_time)
 
         # Process mock response based on step type
         case step_type do
@@ -323,8 +324,9 @@ defmodule Pipeline.Test.EnhancedMocks do
 
       defp simulate_retry_scenario(prompt, options, responses, max_retries) do
         # Simulate a retry that succeeds on the second attempt
-        # Simulate retry delay
-        :timer.sleep(50)
+        # Simulate retry delay (reduced in test mode)
+        retry_sleep_time = if Mix.env() == :test, do: 5, else: 50
+        :timer.sleep(retry_sleep_time)
 
         {:ok,
          %{

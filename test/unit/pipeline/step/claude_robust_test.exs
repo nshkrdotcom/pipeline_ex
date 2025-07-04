@@ -76,8 +76,11 @@ defmodule Pipeline.Step.ClaudeRobustTest do
       assert {:ok, result} = ClaudeRobust.execute(step, context)
 
       assert_success_result(result)
-      # Should use default retry config
-      assert result["claude_robust_metadata"]["retry_config_used"]["max_retries"] == 3
+      # Should use environment default retry config (test env uses 2)
+      expected_retries = Application.get_env(:pipeline, :claude_robust_max_retries, 3)
+
+      assert result["claude_robust_metadata"]["retry_config_used"]["max_retries"] ==
+               expected_retries
     end
 
     test "handles different backoff strategies", %{workspace_dir: workspace_dir} do

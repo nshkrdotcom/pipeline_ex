@@ -13,4 +13,8 @@ config :pipeline,
   cleanup_on_error: false,
 
   # Test-specific logging
-  log_level: :warning
+  log_level: :warning,
+
+  # Fast retry configuration for tests (reduces delays from seconds to milliseconds)
+  claude_robust_base_delay_ms: 10,
+  claude_robust_max_retries: 2
