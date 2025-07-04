@@ -144,6 +144,8 @@ Application.put_env(:pipeline, :test_mode, true)
 
 🚀 **Advanced Features**: See [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for comprehensive documentation on loops, complex conditions, file operations, data transformation, codebase intelligence, and state management.
 
+📋 **YAML Format v2 Documentation**: See [docs/20250704_yaml_format_v2/](docs/20250704_yaml_format_v2/) for complete reference documentation on the Pipeline YAML format, including all step types, prompt systems, control flow, and best practices.
+
 ## Features
 
 ### 📦 Library-Ready
