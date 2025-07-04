@@ -872,7 +872,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       ]
     })
 
-    Mocks.GeminiProvider.set_response_pattern("review", %{
+    Mocks.GeminiProvider.set_response_pattern("Review the complete solution", %{
       "success" => true,
       "content" => "Final review: All issues addressed, quality improved"
     })

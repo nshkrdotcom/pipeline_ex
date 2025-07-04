@@ -27,7 +27,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
 
   describe "workspace_dir configuration" do
     test "creates workspace directory automatically" do
-      workspace_dir = "/tmp/test_workspace_#{System.unique_integer()}"
+      workspace_dir = "/tmp/test_workspace_#{System.unique_integer([:positive])}"
 
       workflow = %{
         "workflow" => %{
@@ -45,6 +45,7 @@ defmodule Pipeline.WorkspaceIntegrationTest do
       }
 
       # Ensure directory doesn't exist before test
+      File.rm_rf(workspace_dir)
       refute File.exists?(workspace_dir)
 
       # Mock responses are handled automatically by pattern matching

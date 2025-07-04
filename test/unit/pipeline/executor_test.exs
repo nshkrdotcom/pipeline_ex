@@ -98,8 +98,8 @@ defmodule Pipeline.ExecutorTest do
     end
 
     test "creates required directories" do
-      workspace_dir = "/tmp/test_workspace_#{System.unique_integer()}"
-      output_dir = "/tmp/test_outputs_#{System.unique_integer()}"
+      workspace_dir = "/tmp/test_workspace_#{System.unique_integer([:positive])}"
+      output_dir = "/tmp/test_outputs_#{System.unique_integer([:positive])}"
 
       workflow = %{
         "workflow" => %{
