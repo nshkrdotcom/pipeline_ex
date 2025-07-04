@@ -151,12 +151,12 @@ defmodule Pipeline.Debug.NestedExecutionTest do
         pipeline_id: "slow_pipeline",
         spans: [
           # 10 seconds - slow
-          %{depth: 0, duration_ms: 10000, status: :completed},
+          %{depth: 0, duration_ms: 10_000, status: :completed},
           # 8 seconds - slow
-          %{depth: 1, duration_ms: 8000, status: :completed}
+          %{depth: 1, duration_ms: 8_000, status: :completed}
         ],
         children: [],
-        total_duration_ms: 18000,
+        total_duration_ms: 18_000,
         step_count: 2,
         max_depth: 1
       }

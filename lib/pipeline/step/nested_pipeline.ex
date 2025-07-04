@@ -262,10 +262,29 @@ defmodule Pipeline.Step.NestedPipeline do
             {:error, formatted_error}
         end
 
-      parent when not is_nil(parent) ->
+      _parent ->
         # For nested pipelines, check circular dependency against parent context,
         # then check other limits against current context
-        with :ok <- check_circular_dependency_with_parent(pipeline_name, parent),
+
+        # Inline circular dependency check to avoid dialyzer warning
+        circular_check_result =
+          case safety_context.parent_context do
+            nil ->
+              :ok
+
+            parent_ctx ->
+              # Ensure parent_context has the right structure for RecursionGuard
+              safe_parent = %{
+                nesting_depth: Map.get(parent_ctx, :nesting_depth, 0),
+                pipeline_id: Map.get(parent_ctx, :pipeline_id, "unknown"),
+                parent_context: Map.get(parent_ctx, :parent_context),
+                step_count: Map.get(parent_ctx, :step_count, 0)
+              }
+
+              Pipeline.Safety.RecursionGuard.check_circular_dependency(pipeline_name, safe_parent)
+          end
+
+        with :ok <- circular_check_result,
              :ok <- check_limits_for_current(safety_context, safety_config) do
           :ok
         else
@@ -364,16 +383,6 @@ defmodule Pipeline.Step.NestedPipeline do
   defp put_if_present(map, _key, nil), do: map
   defp put_if_present(map, key, value), do: Map.put(map, key, value)
 
-  # Check circular dependency using parent context
-  defp check_circular_dependency_with_parent(pipeline_name, parent_context) do
-    alias Pipeline.Safety.RecursionGuard
-
-    case RecursionGuard.check_circular_dependency(pipeline_name, parent_context) do
-      :ok -> :ok
-      {:error, message} -> {:error, message}
-    end
-  end
-
   # Check resource limits for current context only
   defp check_limits_for_current(safety_context, safety_config) do
     alias Pipeline.Safety.RecursionGuard
@@ -383,7 +392,15 @@ defmodule Pipeline.Step.NestedPipeline do
       max_total_steps: Map.get(safety_config, :max_total_steps, 1000)
     }
 
-    case RecursionGuard.check_limits(safety_context, recursion_limits) do
+    # Ensure safety_context has the right structure for RecursionGuard
+    safe_context = %{
+      nesting_depth: Map.get(safety_context, :nesting_depth, 0),
+      pipeline_id: Map.get(safety_context, :pipeline_id, "unknown"),
+      parent_context: Map.get(safety_context, :parent_context),
+      step_count: Map.get(safety_context, :step_count, 0)
+    }
+
+    case RecursionGuard.check_limits(safe_context, recursion_limits) do
       :ok -> :ok
       {:error, message} -> {:error, message}
     end

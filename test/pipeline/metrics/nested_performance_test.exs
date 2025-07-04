@@ -319,8 +319,8 @@ defmodule Pipeline.Metrics.NestedPerformanceTest do
       performance_metrics = %{
         summary: %{overall_success_rate: 100.0, total_pipelines: 1, max_depth: 1},
         # Over 1 minute
-        pipeline_metrics: [%{duration_ms: 70000, step_count: 3}],
-        total_duration_ms: 70000,
+        pipeline_metrics: [%{duration_ms: 70_000, step_count: 3}],
+        total_duration_ms: 70_000,
         resource_metrics: %{peak_memory_mb: 100.0}
       }
 
@@ -451,7 +451,7 @@ defmodule Pipeline.Metrics.NestedPerformanceTest do
         # Very low success, deep nesting
         summary: %{overall_success_rate: 40.0, max_depth: 12, total_pipelines: 20},
         # Very slow
-        total_duration_ms: 45000,
+        total_duration_ms: 45_000,
         # High resource usage
         resource_metrics: %{peak_memory_mb: 2000.0, gc_collections: 50, process_count_peak: 200},
         pipeline_metrics: []
@@ -525,7 +525,7 @@ defmodule Pipeline.Metrics.NestedPerformanceTest do
       trace_id: "test_trace",
       start_time: DateTime.utc_now() |> DateTime.add(-10, :second),
       end_time: DateTime.utc_now(),
-      total_duration_ms: 10000,
+      total_duration_ms: 10_000,
       pipeline_metrics: [
         %{pipeline_id: "slow_pipeline", duration_ms: 8000, step_count: 5, success: true},
         %{pipeline_id: "fast_pipeline", duration_ms: 500, step_count: 2, success: true},

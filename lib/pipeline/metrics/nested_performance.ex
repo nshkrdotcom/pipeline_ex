@@ -663,9 +663,9 @@ defmodule Pipeline.Metrics.NestedPerformance do
         # < 1s
         d when d < 1000 -> 4
         # < 5s  
-        d when d < 5000 -> 3
+        d when d < 5_000 -> 3
         # < 30s
-        d when d < 30000 -> 2
+        d when d < 30_000 -> 2
         # > 30s
         _ -> 1
       end
@@ -684,7 +684,6 @@ defmodule Pipeline.Metrics.NestedPerformance do
         :good -> 3
         :fair -> 2
         :poor -> 1
-        _ -> 2
       end
 
     avg_score = (success_rate_score + duration_score + depth_score + resource_score) / 4

@@ -519,7 +519,7 @@ defmodule Pipeline.Integration.NestedPipelinePhase4Test do
         parent_context: %{pipeline_id: "parent", nesting_depth: 0, parent_context: nil}
       }
 
-      timeout_formatted = ErrorHandler.format_timeout_error(30, timeout_context, 35000)
+      timeout_formatted = ErrorHandler.format_timeout_error(30, timeout_context, 35_000)
       assert timeout_formatted =~ "timeout"
       assert timeout_formatted =~ "30s"
       assert timeout_formatted =~ "35.0s"

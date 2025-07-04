@@ -30,6 +30,29 @@ defmodule Pipeline.Error.NestedPipeline do
           debug_info: map()
         }
 
+  @type error_type ::
+          :circular_dependency | :not_found | :resource_limit | :timeout | :unknown | :validation
+
+  @type debug_log_entry :: %{
+          timestamp: DateTime.t(),
+          error_type: error_type(),
+          error_message: String.t(),
+          pipeline_id: String.t(),
+          nesting_depth: non_neg_integer(),
+          step_name: String.t() | nil,
+          step_type: String.t() | nil,
+          execution_chain: [String.t(), ...],
+          total_steps: non_neg_integer(),
+          elapsed_ms: integer(),
+          context_summary: %{
+            context_size: non_neg_integer(),
+            has_parent: boolean(),
+            key_count: non_neg_integer(),
+            nesting_depth: non_neg_integer()
+          },
+          step_config: map() | nil
+        }
+
   @doc """
   Format a nested pipeline error with comprehensive context information.
 
@@ -253,8 +276,13 @@ defmodule Pipeline.Error.NestedPipeline do
   ## Returns
   - Structured log entry map
   """
-  @spec create_debug_log_entry(any(), map(), map() | nil) :: map()
-  def create_debug_log_entry(error, context, step \\ nil) do
+  @spec create_debug_log_entry(any(), map()) :: debug_log_entry()
+  def create_debug_log_entry(error, context) do
+    create_debug_log_entry(error, context, nil)
+  end
+
+  @spec create_debug_log_entry(any(), map(), map() | nil) :: debug_log_entry()
+  def create_debug_log_entry(error, context, step) do
     safe_context = ensure_safe_context(context)
 
     %{

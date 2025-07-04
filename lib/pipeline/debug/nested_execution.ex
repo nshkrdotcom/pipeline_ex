@@ -11,6 +11,9 @@ defmodule Pipeline.Debug.NestedExecution do
   alias Pipeline.Tracing.NestedExecution
   alias Pipeline.Error.NestedPipeline
 
+  # Import types from tracing module
+  @type trace_context :: Pipeline.Tracing.NestedExecution.trace_context()
+
   @type debug_session :: %{
           trace_context: map(),
           execution_tree: map(),
@@ -38,8 +41,13 @@ defmodule Pipeline.Debug.NestedExecution do
   ## Returns
   - Debug session context
   """
-  @spec start_debug_session(map(), map()) :: debug_session()
-  def start_debug_session(trace_context, options \\ %{}) do
+  @spec start_debug_session(trace_context()) :: debug_session()
+  def start_debug_session(trace_context) do
+    start_debug_session(trace_context, %{})
+  end
+
+  @spec start_debug_session(trace_context(), map()) :: debug_session()
+  def start_debug_session(trace_context, options) do
     session_id = generate_session_id()
     execution_tree = NestedExecution.build_execution_tree(trace_context)
 
@@ -152,8 +160,18 @@ defmodule Pipeline.Debug.NestedExecution do
   ## Returns
   - Comprehensive debugging report
   """
-  @spec generate_debug_report(map(), any(), map()) :: String.t()
-  def generate_debug_report(trace_context, error \\ nil, options \\ %{}) do
+  @spec generate_debug_report(trace_context()) :: String.t()
+  def generate_debug_report(trace_context) do
+    generate_debug_report(trace_context, nil, %{})
+  end
+
+  @spec generate_debug_report(trace_context(), any()) :: String.t()
+  def generate_debug_report(trace_context, error) do
+    generate_debug_report(trace_context, error, %{})
+  end
+
+  @spec generate_debug_report(trace_context(), any(), map()) :: String.t()
+  def generate_debug_report(trace_context, error, options) do
     execution_tree = NestedExecution.build_execution_tree(trace_context)
     analysis = analyze_execution(execution_tree, options)
 
@@ -179,8 +197,13 @@ defmodule Pipeline.Debug.NestedExecution do
   ## Returns
   - Formatted context information
   """
-  @spec inspect_context(map(), map()) :: String.t()
-  def inspect_context(context, step \\ nil) do
+  @spec inspect_context(map()) :: String.t()
+  def inspect_context(context) do
+    inspect_context(context, nil)
+  end
+
+  @spec inspect_context(map(), map() | nil) :: String.t()
+  def inspect_context(context, step) do
     """
     Context Inspection:
     ==================
@@ -202,8 +225,18 @@ defmodule Pipeline.Debug.NestedExecution do
     Execution Chain:
     #{format_execution_chain(context)}
 
-    Memory Usage: #{format_memory_usage()}
+    Memory Usage: #{format_memory_usage_inline()}
     """
+  end
+
+  defp format_memory_usage_inline do
+    try do
+      memory_bytes = :erlang.memory(:total)
+      memory_mb = Float.round(memory_bytes / 1_048_576, 1)
+      "#{memory_mb} MB"
+    rescue
+      _ -> "Unknown"
+    end
   end
 
   @doc """
@@ -851,18 +884,9 @@ defmodule Pipeline.Debug.NestedExecution do
     %{
       pipeline_id: Map.get(context, :pipeline_id, "unknown"),
       nesting_depth: Map.get(context, :nesting_depth, 0),
-      parent_context: Map.get(context, :parent_context)
+      parent_context: Map.get(context, :parent_context),
+      step_count: Map.get(context, :step_count, 0)
     }
-  end
-
-  defp format_memory_usage do
-    try do
-      memory_bytes = :erlang.memory(:total)
-      memory_mb = Float.round(memory_bytes / 1_048_576, 1)
-      "#{memory_mb} MB"
-    rescue
-      _ -> "Unknown"
-    end
   end
 
   defp format_comparison_table(summaries) do

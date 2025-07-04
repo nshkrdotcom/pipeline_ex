@@ -96,7 +96,7 @@ defmodule Pipeline.Error.NestedPipelineTest do
         parent_context: %{pipeline_id: "parent", nesting_depth: 0, parent_context: nil}
       }
 
-      result = NestedPipeline.format_timeout_error(30, context, 45000)
+      result = NestedPipeline.format_timeout_error(30, context, 45_000)
 
       assert result =~ "Pipeline execution timeout"
       assert result =~ "Limit: 30s"
@@ -109,7 +109,7 @@ defmodule Pipeline.Error.NestedPipelineTest do
     test "provides timeout troubleshooting guidance" do
       context = %{pipeline_id: "test", nesting_depth: 0, parent_context: nil}
 
-      result = NestedPipeline.format_timeout_error(10, context, 15000)
+      result = NestedPipeline.format_timeout_error(10, context, 15_000)
 
       assert result =~ "Long-running AI model calls"
       assert result =~ "Network connectivity issues"

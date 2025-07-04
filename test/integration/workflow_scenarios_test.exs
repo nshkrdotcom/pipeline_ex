@@ -174,7 +174,6 @@ defmodule Pipeline.WorkflowScenariosTest do
 
       case result do
         {:ok, results} ->
-          IO.inspect(results, label: "Workflow results")
           # Verify all steps completed successfully
           assert results["code_analysis"]["success"] == true
           assert results["generate_improvements"]["success"] == true
