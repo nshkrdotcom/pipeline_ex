@@ -11,7 +11,7 @@ defmodule Pipeline.Executor do
   alias Pipeline.Condition.Engine, as: ConditionEngine
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
   alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart, Loop}
-  alias Pipeline.Step.{DataTransform, FileOps, SetVariable}
+  alias Pipeline.Step.{DataTransform, FileOps, SetVariable, NestedPipeline, TestEcho}
   alias Pipeline.Streaming.ResultStream
   alias Pipeline.Monitoring.Performance
   alias Pipeline.State.VariableEngine
@@ -520,6 +520,18 @@ defmodule Pipeline.Executor do
       "file_ops" ->
         FileOps.execute(step, context)
 
+      # Nested pipeline step type
+      "pipeline" ->
+        NestedPipeline.execute(step, context)
+
+      # Test-only step type
+      "test_echo" ->
+        if Mix.env() == :test do
+          TestEcho.execute(step, context)
+        else
+          {:error, "test_echo step is only available in test environment"}
+        end
+
       unknown_type ->
         supported_types = [
           "set_variable",
@@ -535,7 +547,8 @@ defmodule Pipeline.Executor do
           "for_loop",
           "while_loop",
           "data_transform",
-          "file_ops"
+          "file_ops",
+          "pipeline"
         ]
 
         {:error,

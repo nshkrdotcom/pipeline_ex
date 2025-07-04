@@ -1,0 +1,16 @@
+workflow:
+  name: "nested_with_error_fixture"
+  description: "Nested pipeline that will fail for testing error propagation"
+  
+  steps:
+    - name: "good_step"
+      type: "test_echo"
+      value: "this_works"
+    
+    - name: "bad_step"
+      type: "invalid_step_type"  # This will cause an error
+      value: "this_will_fail"
+    
+    - name: "unreachable_step"
+      type: "test_echo"
+      value: "should_not_execute"

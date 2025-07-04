@@ -1,0 +1,21 @@
+workflow:
+  name: "test_nested_basic"
+  description: "Basic test pipeline with nested execution"
+  
+  steps:
+    - name: "set_data"
+      type: "test_echo"
+      value: "test_data"
+    
+    - name: "nested_step"
+      type: "pipeline"
+      pipeline:
+        name: "inline_test"
+        steps:
+          - name: "echo"
+            type: "test_echo"
+            value: "nested_result"
+    
+    - name: "verify"
+      type: "test_echo"
+      value: "verification_complete"

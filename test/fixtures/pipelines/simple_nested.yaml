@@ -1,0 +1,16 @@
+workflow:
+  name: "simple_nested_fixture"
+  description: "Simple nested pipeline for testing"
+  
+  steps:
+    - name: "nested_step1"
+      type: "test_echo"
+      value: "nested_value_1"
+    
+    - name: "nested_step2"
+      type: "test_echo"
+      value: "nested_value_2"
+    
+    - name: "nested_final"
+      type: "test_echo"
+      value: "nested_complete"

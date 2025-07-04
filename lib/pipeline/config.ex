@@ -189,11 +189,40 @@ defmodule Pipeline.Config do
 
       is_nil(step["type"]) ->
         {:error,
-         "Step '#{step["name"]}' missing required 'type' field. Supported types: set_variable, claude, gemini, parallel_claude, gemini_instructor, claude_smart, claude_session, claude_extract, claude_batch, claude_robust"}
+         "Step '#{step["name"]}' missing required 'type' field. Supported types: #{get_supported_types_string()}"}
 
       true ->
         :ok
     end
+  end
+
+  defp get_supported_types_string do
+    types = [
+      "set_variable",
+      "claude",
+      "gemini",
+      "parallel_claude",
+      "gemini_instructor",
+      "claude_smart",
+      "claude_session",
+      "claude_extract",
+      "claude_batch",
+      "claude_robust",
+      "for_loop",
+      "while_loop",
+      "data_transform",
+      "file_ops",
+      "pipeline"
+    ]
+
+    types =
+      if Mix.env() == :test do
+        ["test_echo" | types]
+      else
+        types
+      end
+
+    Enum.join(types, ", ")
   end
 
   defp validate_step_type(step) do
@@ -207,8 +236,21 @@ defmodule Pipeline.Config do
       "claude_session",
       "claude_extract",
       "claude_batch",
-      "claude_robust"
+      "claude_robust",
+      "for_loop",
+      "while_loop",
+      "data_transform",
+      "file_ops",
+      "pipeline"
     ]
+
+    # Add test_echo for test environment
+    supported_types =
+      if Mix.env() == :test do
+        ["test_echo" | supported_types]
+      else
+        supported_types
+      end
 
     if step["type"] in supported_types do
       :ok
@@ -243,6 +285,30 @@ defmodule Pipeline.Config do
 
       # set_variable doesn't require a prompt
       step["type"] == "set_variable" ->
+        :ok
+
+      # pipeline doesn't require a prompt
+      step["type"] == "pipeline" ->
+        :ok
+
+      # test_echo doesn't require a prompt
+      step["type"] == "test_echo" ->
+        :ok
+
+      # for_loop doesn't require a prompt
+      step["type"] == "for_loop" ->
+        :ok
+
+      # while_loop doesn't require a prompt
+      step["type"] == "while_loop" ->
+        :ok
+
+      # data_transform doesn't require a prompt
+      step["type"] == "data_transform" ->
+        :ok
+
+      # file_ops doesn't require a prompt
+      step["type"] == "file_ops" ->
         :ok
 
       is_nil(step["prompt"]) ->

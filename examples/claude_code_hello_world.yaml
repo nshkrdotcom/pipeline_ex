@@ -1,0 +1,19 @@
+workflow:
+  name: "claude_code_hello_world"
+  description: "Simple pipeline that starts Claude Code and writes a hello world text file"
+  
+  steps:
+    - name: "create_hello_world"
+      type: "claude_smart"
+      preset: "development"
+      claude_options:
+        max_turns: 3
+        allowed_tools: ["Write"]
+        cwd: "/home/home/p/g/n/deploy_testing"
+        output_format: "text"
+      prompt:
+        - type: "static"
+          content: |
+            Please write a simple hello world text file in the current working directory.
+            Create a file called "hello_world.txt" with the content "Hello, THE World!"
+            Use the Write tool to create this file.
