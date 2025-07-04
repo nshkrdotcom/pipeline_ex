@@ -1,1 +1,0 @@
-{"workflow":{"name":"recursive_fixture","steps":[{"config":{"max_depth":3},"name":"recurse","pipeline_file":"./test/fixtures/pipelines/recursive_pipeline.yaml","type":"pipeline"}]}}

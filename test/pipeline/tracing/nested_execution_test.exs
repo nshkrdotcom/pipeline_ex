@@ -1,6 +1,6 @@
 defmodule Pipeline.Tracing.NestedExecutionTest do
   use ExUnit.Case, async: true
-  
+
   alias Pipeline.Tracing.NestedExecution
 
   describe "start_nested_trace/4" do
@@ -9,16 +9,16 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         pipeline_id: "test_pipeline",
         nesting_depth: 0
       }
-      
+
       step = %{"name" => "test_step", "type" => "claude"}
-      
+
       trace_context = NestedExecution.start_nested_trace("test_pipeline", context, step)
-      
+
       assert is_binary(trace_context.trace_id)
       assert is_binary(trace_context.current_span)
       assert map_size(trace_context.spans) == 1
       assert is_struct(trace_context.start_time, DateTime)
-      
+
       span = Map.values(trace_context.spans) |> List.first()
       assert span.pipeline_id == "test_pipeline"
       assert span.step_name == "test_step"
@@ -41,18 +41,19 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         },
         start_time: DateTime.utc_now()
       }
-      
+
       context = %{
         pipeline_id: "child_pipeline",
         nesting_depth: 1
       }
-      
-      trace_context = NestedExecution.start_nested_trace("child_pipeline", context, nil, parent_trace)
-      
+
+      trace_context =
+        NestedExecution.start_nested_trace("child_pipeline", context, nil, parent_trace)
+
       assert trace_context.trace_id == "parent_trace_id"
       assert map_size(trace_context.spans) == 2
       assert trace_context.start_time == parent_trace.start_time
-      
+
       # Find the new span
       new_span = Enum.find(Map.values(trace_context.spans), &(&1.pipeline_id == "child_pipeline"))
       assert new_span.parent_span == "parent_span_id"
@@ -66,21 +67,22 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         step_index: 5,
         parent_context: %{pipeline_id: "parent"}
       }
-      
+
       step = %{"name" => "metadata_step", "type" => "gemini", "config" => %{"timeout" => 30}}
-      
+
       trace_context = NestedExecution.start_nested_trace("test_pipeline", context, step)
-      
+
       span = Map.values(trace_context.spans) |> List.first()
       metadata = span.metadata
-      
+
       assert metadata.nesting_depth == 2
       assert metadata.pipeline_id == "test_pipeline"
       assert metadata.step_index == 5
       assert metadata.has_parent == true
       assert metadata.step_config["name"] == "metadata_step"
       assert metadata.step_config["type"] == "gemini"
-      refute Map.has_key?(metadata.step_config, "config")  # Sanitized
+      # Sanitized
+      refute Map.has_key?(metadata.step_config, "config")
       assert metadata.context_size == 4
     end
   end
@@ -99,18 +101,19 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
           }
         }
       }
-      
+
       result = {:ok, "success_value"}
-      
+
       updated_context = NestedExecution.complete_span(trace_context, result)
-      
+
       span = updated_context.spans["test_span"]
       assert span.status == :completed
       assert span.error == nil
       assert is_struct(span.end_time, DateTime)
       assert is_number(span.duration_ms)
       assert span.duration_ms > 0
-      assert updated_context.current_span == nil  # No parent
+      # No parent
+      assert updated_context.current_span == nil
     end
 
     test "completes span with error result" do
@@ -126,16 +129,17 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
           }
         }
       }
-      
+
       result = {:error, "Something went wrong"}
-      
+
       updated_context = NestedExecution.complete_span(trace_context, result)
-      
+
       span = updated_context.spans["test_span"]
       assert span.status == :failed
       assert span.error == "Something went wrong"
       assert is_number(span.duration_ms)
-      assert updated_context.current_span == "parent_span"  # Returns to parent
+      # Returns to parent
+      assert updated_context.current_span == "parent_span"
     end
 
     test "handles missing span gracefully" do
@@ -144,9 +148,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         current_span: "nonexistent_span",
         spans: %{}
       }
-      
+
       result = NestedExecution.complete_span(trace_context, :ok)
-      
+
       # Should return unchanged context
       assert result == trace_context
     end
@@ -157,9 +161,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         current_span: nil,
         spans: %{}
       }
-      
+
       result = NestedExecution.complete_span(trace_context, :ok)
-      
+
       # Should return unchanged context
       assert result == trace_context
     end
@@ -178,9 +182,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
           }
         }
       }
-      
+
       tree = NestedExecution.build_execution_tree(trace_context)
-      
+
       assert tree.pipeline_id == "root_pipeline"
       assert length(tree.spans) == 1
       assert tree.children == []
@@ -222,20 +226,21 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
           }
         }
       }
-      
+
       tree = NestedExecution.build_execution_tree(trace_context)
-      
+
       assert tree.pipeline_id == "root_pipeline"
       assert length(tree.children) == 2
-      assert tree.step_count == 4  # 1 root + 3 descendants
+      # 1 root + 3 descendants
+      assert tree.step_count == 4
       assert tree.max_depth == 2
-      
+
       # Check first child
       child1 = Enum.find(tree.children, &(&1.pipeline_id == "child_pipeline_1"))
       assert child1 != nil
       assert length(child1.children) == 1
       assert child1.children |> List.first() |> Map.get(:pipeline_id) == "grandchild_pipeline"
-      
+
       # Check second child
       child2 = Enum.find(tree.children, &(&1.pipeline_id == "child_pipeline_2"))
       assert child2 != nil
@@ -261,9 +266,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
           }
         }
       }
-      
+
       tree = NestedExecution.build_execution_tree(trace_context)
-      
+
       assert tree.pipeline_id == "multiple_roots"
       assert length(tree.spans) == 2
       assert length(tree.children) == 2
@@ -275,19 +280,21 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
     test "visualizes simple tree" do
       execution_tree = %{
         pipeline_id: "root_pipeline",
-        spans: [%{
-          status: :completed,
-          step_name: nil,
-          duration_ms: 1000
-        }],
+        spans: [
+          %{
+            status: :completed,
+            step_name: nil,
+            duration_ms: 1000
+          }
+        ],
         children: [],
         total_duration_ms: 1000,
         step_count: 1,
         max_depth: 0
       }
-      
+
       visualization = NestedExecution.visualize_execution_tree(execution_tree)
-      
+
       assert visualization =~ "Execution Tree:"
       assert visualization =~ "Pipeline: root_pipeline"
       assert visualization =~ "Total Duration: 1000ms"
@@ -300,19 +307,23 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
     test "visualizes nested tree with options" do
       execution_tree = %{
         pipeline_id: "root_pipeline",
-        spans: [%{
-          status: :completed,
-          step_name: "root_step",
-          duration_ms: 2000
-        }],
+        spans: [
+          %{
+            status: :completed,
+            step_name: "root_step",
+            duration_ms: 2000
+          }
+        ],
         children: [
           %{
             pipeline_id: "child_pipeline",
-            spans: [%{
-              status: :failed,
-              step_name: "child_step",
-              duration_ms: 500
-            }],
+            spans: [
+              %{
+                status: :failed,
+                step_name: "child_step",
+                duration_ms: 500
+              }
+            ],
             children: [],
             total_duration_ms: 500,
             step_count: 1,
@@ -323,10 +334,10 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         step_count: 2,
         max_depth: 1
       }
-      
+
       options = %{show_timings: true, show_status: true, max_depth: 10}
       visualization = NestedExecution.visualize_execution_tree(execution_tree, options)
-      
+
       assert visualization =~ "├─ ✅ root_pipeline → root_step (2000ms)"
       assert visualization =~ "  ├─ ❌ child_pipeline → child_step (500ms)"
     end
@@ -358,9 +369,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         step_count: 1,
         max_depth: 2
       }
-      
+
       visualization = NestedExecution.visualize_execution_tree(deep_tree, %{max_depth: 1})
-      
+
       assert visualization =~ "├─ ✅ root"
       assert visualization =~ "... (max depth reached)"
       refute visualization =~ "level2"
@@ -371,21 +382,25 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
     test "generates comprehensive performance summary" do
       execution_tree = %{
         pipeline_id: "root_pipeline",
-        spans: [%{
-          depth: 0,
-          duration_ms: 2000,
-          status: :completed,
-          pipeline_id: "root_pipeline"
-        }],
+        spans: [
+          %{
+            depth: 0,
+            duration_ms: 2000,
+            status: :completed,
+            pipeline_id: "root_pipeline"
+          }
+        ],
         children: [
           %{
             pipeline_id: "child_pipeline_1",
-            spans: [%{
-              depth: 1,
-              duration_ms: 800,
-              status: :completed,
-              pipeline_id: "child_pipeline_1"
-            }],
+            spans: [
+              %{
+                depth: 1,
+                duration_ms: 800,
+                status: :completed,
+                pipeline_id: "child_pipeline_1"
+              }
+            ],
             children: [],
             total_duration_ms: 800,
             step_count: 1,
@@ -393,12 +408,14 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
           },
           %{
             pipeline_id: "child_pipeline_2",
-            spans: [%{
-              depth: 1,
-              duration_ms: 500,
-              status: :failed,
-              pipeline_id: "child_pipeline_2"
-            }],
+            spans: [
+              %{
+                depth: 1,
+                duration_ms: 500,
+                status: :failed,
+                pipeline_id: "child_pipeline_2"
+              }
+            ],
             children: [],
             total_duration_ms: 500,
             step_count: 1,
@@ -409,31 +426,32 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         step_count: 3,
         max_depth: 1
       }
-      
+
       summary = NestedExecution.generate_performance_summary(execution_tree)
-      
+
       assert summary.total_duration_ms == 2000
       assert summary.total_spans == 3
       assert summary.completed_spans == 3
       assert summary.failed_spans == 1
       assert summary.max_depth == 1
       assert summary.pipeline_count == 3
-      
+
       # Check depth metrics
       assert Map.has_key?(summary.depth_metrics, 0)
       assert Map.has_key?(summary.depth_metrics, 1)
-      
+
       depth_0_metrics = summary.depth_metrics[0]
       assert depth_0_metrics.span_count == 1
       assert depth_0_metrics.total_duration_ms == 2000
-      
+
       depth_1_metrics = summary.depth_metrics[1]
       assert depth_1_metrics.span_count == 2
-      assert depth_1_metrics.total_duration_ms == 1300  # 800 + 500
+      # 800 + 500
+      assert depth_1_metrics.total_duration_ms == 1300
       assert depth_1_metrics.avg_duration_ms == 650.0
       assert depth_1_metrics.min_duration_ms == 500
       assert depth_1_metrics.max_duration_ms == 800
-      
+
       # Success rate calculation (2 out of 3 successful)
       assert abs(summary.success_rate - 66.67) < 0.1
     end
@@ -447,9 +465,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         step_count: 0,
         max_depth: 0
       }
-      
+
       summary = NestedExecution.generate_performance_summary(execution_tree)
-      
+
       assert summary.total_spans == 0
       assert summary.success_rate == 0.0
       assert summary.depth_metrics == %{}
@@ -471,11 +489,11 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
           }
         }
       }
-      
+
       error = "Debug test error"
-      
+
       debug_info = NestedExecution.create_debug_info(trace_context, error)
-      
+
       assert debug_info.trace_id == "debug_trace_id"
       assert debug_info.total_spans == 1
       assert debug_info.error_context == "Debug test error"
@@ -490,9 +508,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         trace_id: "trace_id",
         spans: %{}
       }
-      
+
       debug_info = NestedExecution.create_debug_info(trace_context, nil)
-      
+
       assert debug_info.error_context == nil
       assert debug_info.total_spans == 0
     end
@@ -502,9 +520,9 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
     test "collects all spans from complex tree" do
       # This tests the private collect_all_spans function indirectly through generate_performance_summary
       complex_tree = create_complex_execution_tree()
-      
+
       summary = NestedExecution.generate_performance_summary(complex_tree)
-      
+
       # Should collect spans from all levels
       assert summary.total_spans > 1
       assert summary.max_depth > 0
@@ -515,30 +533,36 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
   defp create_complex_execution_tree do
     %{
       pipeline_id: "root",
-      spans: [%{
-        depth: 0,
-        duration_ms: 1000,
-        status: :completed,
-        pipeline_id: "root"
-      }],
+      spans: [
+        %{
+          depth: 0,
+          duration_ms: 1000,
+          status: :completed,
+          pipeline_id: "root"
+        }
+      ],
       children: [
         %{
           pipeline_id: "child1",
-          spans: [%{
-            depth: 1,
-            duration_ms: 400,
-            status: :completed,
-            pipeline_id: "child1"
-          }],
+          spans: [
+            %{
+              depth: 1,
+              duration_ms: 400,
+              status: :completed,
+              pipeline_id: "child1"
+            }
+          ],
           children: [
             %{
               pipeline_id: "grandchild1",
-              spans: [%{
-                depth: 2,
-                duration_ms: 200,
-                status: :completed,
-                pipeline_id: "grandchild1"
-              }],
+              spans: [
+                %{
+                  depth: 2,
+                  duration_ms: 200,
+                  status: :completed,
+                  pipeline_id: "grandchild1"
+                }
+              ],
               children: [],
               total_duration_ms: 200,
               step_count: 1,
@@ -551,12 +575,14 @@ defmodule Pipeline.Tracing.NestedExecutionTest do
         },
         %{
           pipeline_id: "child2",
-          spans: [%{
-            depth: 1,
-            duration_ms: 300,
-            status: :failed,
-            pipeline_id: "child2"
-          }],
+          spans: [
+            %{
+              depth: 1,
+              duration_ms: 300,
+              status: :failed,
+              pipeline_id: "child2"
+            }
+          ],
           children: [],
           total_duration_ms: 300,
           step_count: 1,

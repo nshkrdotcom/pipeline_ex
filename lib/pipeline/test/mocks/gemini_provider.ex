@@ -4,11 +4,19 @@ defmodule Pipeline.Test.Mocks.GeminiProvider do
   """
 
   def query(prompt, options \\ %{}) do
-    with :not_found <- find_matching_pattern(prompt),
-         :not_found <- find_function_response(prompt) do
-      handle_prompt_pattern(prompt, options)
-    else
-      {:ok, response} -> {:ok, response}
+    # If tools/functions are provided, check for function responses first
+    case find_function_response_by_tools(options) do
+      {:ok, response} ->
+        {:ok, response}
+
+      _ ->
+        # Fall back to pattern matching
+        with :not_found <- find_matching_pattern(prompt),
+             :not_found <- find_function_response(prompt) do
+          handle_prompt_pattern(prompt, options)
+        else
+          {:ok, response} -> {:ok, response}
+        end
     end
   end
 
@@ -183,6 +191,32 @@ defmodule Pipeline.Test.Mocks.GeminiProvider do
     |> case do
       [{_, function_name}] -> {:ok, Process.get({:mock_function, function_name})}
       [] -> :not_found
+    end
+  end
+
+  defp find_function_response_by_tools(options) do
+    tools = options[:tools] || []
+
+    if length(tools) > 0 do
+      # Get the first tool name
+      tool_name =
+        case hd(tools) do
+          %{"name" => name} -> name
+          %{name: name} -> name
+          _ -> nil
+        end
+
+      if tool_name do
+        # Check if we have a mock response for this function
+        case Process.get({:mock_function, tool_name}) do
+          nil -> :not_found
+          response -> {:ok, response}
+        end
+      else
+        :not_found
+      end
+    else
+      :not_found
     end
   end
 end

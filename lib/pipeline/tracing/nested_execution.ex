@@ -8,7 +8,6 @@ defmodule Pipeline.Tracing.NestedExecution do
   """
 
   require Logger
-  alias Pipeline.Safety.RecursionGuard
 
   @type span_id :: String.t()
   @type trace_id :: String.t()
@@ -118,26 +117,26 @@ defmodule Pipeline.Tracing.NestedExecution do
   @spec complete_span(trace_context(), any()) :: trace_context()
   def complete_span(trace_context, result) do
     span_id = trace_context.current_span
-    
+
     if span_id && Map.has_key?(trace_context.spans, span_id) do
       span = trace_context.spans[span_id]
       end_time = DateTime.utc_now()
       duration_ms = DateTime.diff(end_time, span.start_time, :millisecond)
 
-      {status, error} = case result do
-        :ok -> {:completed, nil}
-        {:ok, _value} -> {:completed, nil}
-        {:error, reason} -> {:failed, format_error(reason)}
-        _ -> {:completed, nil}
-      end
+      {status, error_msg} =
+        case result do
+          :ok -> {:completed, nil}
+          {:ok, _value} -> {:completed, nil}
+          {:error, reason} -> {:failed, format_error(reason)}
+          _ -> {:completed, nil}
+        end
 
-      updated_span = %{
+      updated_span =
         span
-        | end_time: end_time,
-          duration_ms: duration_ms,
-          status: status,
-          error: error
-      }
+        |> Map.put(:end_time, end_time)
+        |> Map.put(:duration_ms, duration_ms)
+        |> Map.put(:status, status)
+        |> Map.put(:error, error_msg)
 
       # Log span completion
       log_span_event(:complete, updated_span)
@@ -219,7 +218,8 @@ defmodule Pipeline.Tracing.NestedExecution do
 
     """
 
-    tree_visualization = visualize_tree_recursive(execution_tree, 0, show_timings, show_status, max_depth)
+    tree_visualization =
+      visualize_tree_recursive(execution_tree, 0, show_timings, show_status, max_depth)
 
     header <> tree_visualization
   end
@@ -244,16 +244,18 @@ defmodule Pipeline.Tracing.NestedExecution do
       spans_by_depth
       |> Enum.map(fn {depth, spans} ->
         durations = Enum.map(spans, & &1.duration_ms) |> Enum.reject(&is_nil/1)
-        
-        {depth, %{
-          span_count: length(spans),
-          total_duration_ms: Enum.sum(durations),
-          avg_duration_ms: (if length(durations) > 0, do: Enum.sum(durations) / length(durations), else: 0),
-          min_duration_ms: Enum.min(durations, fn -> 0 end),
-          max_duration_ms: Enum.max(durations, fn -> 0 end),
-          failed_spans: Enum.count(spans, &(&1.status == :failed)),
-          success_rate: calculate_success_rate(spans)
-        }}
+
+        {depth,
+         %{
+           span_count: length(spans),
+           total_duration_ms: Enum.sum(durations),
+           avg_duration_ms:
+             if(length(durations) > 0, do: Enum.sum(durations) / length(durations), else: 0),
+           min_duration_ms: Enum.min(durations, fn -> 0 end),
+           max_duration_ms: Enum.max(durations, fn -> 0 end),
+           failed_spans: Enum.count(spans, &(&1.status == :failed)),
+           success_rate: calculate_success_rate(spans)
+         }}
       end)
       |> Map.new()
 
@@ -288,7 +290,7 @@ defmodule Pipeline.Tracing.NestedExecution do
   def create_debug_info(trace_context, error \\ nil) do
     execution_tree = build_execution_tree(trace_context)
     performance_summary = generate_performance_summary(execution_tree)
-    
+
     %{
       trace_id: trace_context.trace_id,
       total_spans: map_size(trace_context.spans),
@@ -328,6 +330,7 @@ defmodule Pipeline.Tracing.NestedExecution do
   end
 
   defp sanitize_step_config(nil), do: nil
+
   defp sanitize_step_config(step) do
     Map.take(step, ["name", "type", "condition"])
   end
@@ -339,14 +342,18 @@ defmodule Pipeline.Tracing.NestedExecution do
   end
 
   defp log_span_event(:complete, span) do
-    status_emoji = case span.status do
-      :completed -> "✅"
-      :failed -> "❌"
-      _ -> "🔄"
-    end
+    status_emoji =
+      case span.status do
+        :completed -> "✅"
+        :failed -> "❌"
+        _ -> "🔄"
+      end
+
+    pipeline_id = Map.get(span, :pipeline_id, "unknown")
+    duration_ms = Map.get(span, :duration_ms, 0)
 
     Logger.debug(
-      "#{status_emoji} Completed span [#{span.id}] for pipeline '#{span.pipeline_id}' in #{span.duration_ms}ms"
+      "#{status_emoji} Completed span [#{span.id}] for pipeline '#{pipeline_id}' in #{duration_ms}ms"
     )
   end
 
@@ -354,7 +361,8 @@ defmodule Pipeline.Tracing.NestedExecution do
     try do
       :telemetry.execute(event, measurements, metadata)
     rescue
-      _ -> :ok  # Silently fail if telemetry is not available
+      # Silently fail if telemetry is not available
+      _ -> :ok
     end
   end
 
@@ -367,14 +375,16 @@ defmodule Pipeline.Tracing.NestedExecution do
     children_trees = Enum.map(children_spans, &build_tree_from_span(&1, all_spans))
 
     # Calculate metrics for this subtree
-    all_child_spans = collect_spans_from_trees(children_trees) ++ children_spans
     total_duration = span.duration_ms || 0
-    step_count = 1 + length(all_child_spans)
-    max_depth = if Enum.empty?(children_trees) do
-      span.depth
-    else
-      Enum.map(children_trees, & &1.max_depth) |> Enum.max()
-    end
+    # Step count should be 1 (this span) + sum of children's step counts
+    step_count = 1 + Enum.sum(Enum.map(children_trees, & &1.step_count))
+
+    max_depth =
+      if Enum.empty?(children_trees) do
+        span.depth
+      else
+        Enum.map(children_trees, & &1.max_depth) |> Enum.max()
+      end
 
     %{
       pipeline_id: span.pipeline_id,
@@ -393,46 +403,52 @@ defmodule Pipeline.Tracing.NestedExecution do
     |> Enum.sum()
   end
 
-  defp visualize_tree_recursive(tree, current_depth, show_timings, show_status, max_depth) when current_depth >= max_depth do
+  defp visualize_tree_recursive(_tree, current_depth, _show_timings, _show_status, max_depth)
+       when current_depth >= max_depth do
     indent = String.duplicate("  ", current_depth)
     "#{indent}... (max depth reached)\n"
   end
 
   defp visualize_tree_recursive(tree, current_depth, show_timings, show_status, max_depth) do
     indent = String.duplicate("  ", current_depth)
-    
+
     # Format root span
     root_span = List.first(tree.spans)
-    
-    status_indicator = if show_status do
-      case root_span.status do
-        :completed -> "✅"
-        :failed -> "❌"
-        :running -> "🔄"
-        _ -> "❓"
+
+    status_indicator =
+      if show_status && root_span do
+        case Map.get(root_span, :status, :unknown) do
+          :completed -> "✅"
+          :failed -> "❌"
+          :running -> "🔄"
+          _ -> "❓"
+        end
+      else
+        ""
       end
-    else
-      ""
-    end
 
-    timing_info = if show_timings && root_span.duration_ms do
-      " (#{root_span.duration_ms}ms)"
-    else
-      ""
-    end
+    timing_info =
+      if show_timings && root_span && Map.get(root_span, :duration_ms) do
+        " (#{root_span.duration_ms}ms)"
+      else
+        ""
+      end
 
-    step_info = if root_span.step_name do
-      " → #{root_span.step_name}"
-    else
-      ""
-    end
+    step_info =
+      if root_span && Map.get(root_span, :step_name) do
+        " → #{root_span.step_name}"
+      else
+        ""
+      end
 
     line = "#{indent}├─ #{status_indicator} #{tree.pipeline_id}#{step_info}#{timing_info}\n"
 
     # Format children
-    children_output = 
+    children_output =
       tree.children
-      |> Enum.map(&visualize_tree_recursive(&1, current_depth + 1, show_timings, show_status, max_depth))
+      |> Enum.map(
+        &visualize_tree_recursive(&1, current_depth + 1, show_timings, show_status, max_depth)
+      )
       |> Enum.join("")
 
     line <> children_output
@@ -442,12 +458,9 @@ defmodule Pipeline.Tracing.NestedExecution do
     tree.spans ++ Enum.flat_map(tree.children, &collect_all_spans/1)
   end
 
-  defp collect_spans_from_trees(trees) do
-    Enum.flat_map(trees, &collect_all_spans/1)
-  end
-
   defp calculate_success_rate(spans) do
     total = length(spans)
+
     if total == 0 do
       0.0
     else
@@ -458,7 +471,7 @@ defmodule Pipeline.Tracing.NestedExecution do
 
   defp count_unique_pipelines(spans) do
     spans
-    |> Enum.map(& &1.pipeline_id)
+    |> Enum.map(&Map.get(&1, :pipeline_id, "unknown"))
     |> Enum.uniq()
     |> length()
   end

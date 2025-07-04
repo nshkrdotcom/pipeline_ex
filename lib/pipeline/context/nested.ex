@@ -64,8 +64,24 @@ defmodule Pipeline.Context.Nested do
     extracted
   end
 
-  def extract_outputs(results, nil), do: {:ok, results}
-  def extract_outputs(results, []), do: {:ok, results}
+  def extract_outputs(results, nil), do: {:ok, extract_smart_output(results)}
+  def extract_outputs(results, []), do: {:ok, extract_smart_output(results)}
+
+  # Smart output extraction: return a map with step names as keys and unwrapped results as values
+  # This provides consistent access patterns for nested pipeline results
+  defp extract_smart_output(results) when is_map(results) do
+    # Always return a map with step names as keys, unwrapping "result" wrappers if present
+    results
+    |> Enum.map(fn {step_name, step_result} ->
+      case step_result do
+        %{"result" => actual_result} -> {step_name, actual_result}
+        _ -> {step_name, step_result}
+      end
+    end)
+    |> Map.new()
+  end
+
+  defp extract_smart_output(results), do: results
 
   @doc """
   Resolve templates in a string using the provided context.
@@ -205,21 +221,33 @@ defmodule Pipeline.Context.Nested do
 
   # Resolve individual expressions
   defp resolve_expression(expression, context) do
-    case expression do
+    cond do
+      # Handle function calls
+      String.match?(expression, ~r/^[a-zA-Z_][a-zA-Z0-9_]*\s*\(/) ->
+        evaluate_function_call_in_nested(expression, context)
+
       # Handle steps.stepname.result patterns
-      "steps." <> path ->
+      String.starts_with?(expression, "steps.") ->
+        path = String.replace_leading(expression, "steps.", "")
         resolve_step_path(path, context) || "{{steps.#{path}}}"
 
+      # Handle inputs patterns
+      String.starts_with?(expression, "inputs.") ->
+        var_name = String.replace_leading(expression, "inputs.", "")
+        get_in(context, [:inputs, var_name]) || "{{inputs.#{var_name}}}"
+
       # Handle global_vars patterns  
-      "global_vars." <> var_name ->
+      String.starts_with?(expression, "global_vars.") ->
+        var_name = String.replace_leading(expression, "global_vars.", "")
         get_in(context, [:global_vars, var_name]) || "{{global_vars.#{var_name}}}"
 
       # Handle workflow patterns
-      "workflow." <> path ->
+      String.starts_with?(expression, "workflow.") ->
+        path = String.replace_leading(expression, "workflow.", "")
         resolve_workflow_path(path, context) || "{{workflow.#{path}}}"
 
       # Unknown pattern, return as-is
-      _ ->
+      true ->
         "{{#{expression}}}"
     end
   end
@@ -330,4 +358,109 @@ defmodule Pipeline.Context.Nested do
       true -> :unknown
     end
   end
+
+  # Evaluate function calls in nested context
+  defp evaluate_function_call_in_nested(expression, context) do
+    # Parse function call: function_name(arg1, arg2, ...)
+    case Regex.run(~r/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)\)$/, String.trim(expression)) do
+      [_, function_name, args_str] ->
+        # Parse arguments
+        args = parse_nested_function_arguments(args_str, context)
+
+        # Call the function
+        call_nested_function(function_name, args)
+
+      nil ->
+        # Not a valid function call, return original expression
+        "{{#{expression}}}"
+    end
+  end
+
+  defp parse_nested_function_arguments(args_str, context) do
+    # Split arguments by comma (simplified)
+    args_str
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.map(fn arg ->
+      # Resolve each argument as a variable or literal
+      cond do
+        # Check if it's an inputs variable
+        String.starts_with?(arg, "inputs.") ->
+          var_name = String.replace_leading(arg, "inputs.", "")
+          get_in(context, [:inputs, var_name])
+
+        String.starts_with?(arg, "steps.") ->
+          path = String.replace_leading(arg, "steps.", "")
+          resolve_step_path(path, context)
+
+        String.starts_with?(arg, "global_vars.") ->
+          var_name = String.replace_leading(arg, "global_vars.", "")
+          get_in(context, [:global_vars, var_name])
+
+        # Check if it's a number
+        String.match?(arg, ~r/^\d+(\.\d+)?$/) ->
+          case Float.parse(arg) do
+            {float_val, ""} ->
+              if String.contains?(arg, "."), do: float_val, else: trunc(float_val)
+
+            _ ->
+              arg
+          end
+
+        # Otherwise treat as literal string
+        true ->
+          arg
+      end
+    end)
+  end
+
+  defp call_nested_function(function_name, args) do
+    case function_name do
+      "multiply" when length(args) == 2 ->
+        [a, b] = args
+        ensure_nested_number(a) * ensure_nested_number(b)
+
+      "add" when length(args) == 2 ->
+        [a, b] = args
+        ensure_nested_number(a) + ensure_nested_number(b)
+
+      "subtract" when length(args) == 2 ->
+        [a, b] = args
+        ensure_nested_number(a) - ensure_nested_number(b)
+
+      "divide" when length(args) == 2 ->
+        [a, b] = args
+
+        if ensure_nested_number(b) == 0 do
+          0
+        else
+          ensure_nested_number(a) / ensure_nested_number(b)
+        end
+
+      "max" when length(args) >= 1 ->
+        args |> Enum.map(&ensure_nested_number/1) |> Enum.max()
+
+      "min" when length(args) >= 1 ->
+        args |> Enum.map(&ensure_nested_number/1) |> Enum.min()
+
+      "round" when length(args) == 1 ->
+        [a] = args
+        round(ensure_nested_number(a))
+
+      _ ->
+        # Unknown function, return original expression
+        "#{function_name}(#{Enum.join(args, ", ")})"
+    end
+  end
+
+  defp ensure_nested_number(value) when is_number(value), do: value
+
+  defp ensure_nested_number(value) when is_binary(value) do
+    case Float.parse(value) do
+      {num, ""} -> if String.contains?(value, "."), do: num, else: trunc(num)
+      _ -> 0
+    end
+  end
+
+  defp ensure_nested_number(_), do: 0
 end

@@ -23,8 +23,8 @@ defmodule Pipeline.Integration.NestedPipelinePhase2Test do
               "type" => "pipeline",
               "pipeline_file" => "./test/fixtures/pipelines/nested_processor.yaml",
               "inputs" => %{
-                "item_name" => "{{steps.prepare_data.result.name}}",
-                "item_count" => "{{steps.prepare_data.result.count}}",
+                "item_name" => "{{steps.prepare_data.name}}",
+                "item_count" => "{{steps.prepare_data.count}}",
                 "multiplier" => 2
               }
             }
@@ -36,10 +36,10 @@ defmodule Pipeline.Integration.NestedPipelinePhase2Test do
       assert results["prepare_data"]["name"] == "test_item"
       assert results["prepare_data"]["count"] == 42
 
-      # The nested pipeline should have processed the inputs
-      assert results["process"]["process_input"] == "Processing test_item with count 42"
-      assert results["process"]["multiply_count"] == 84
-      assert results["process"]["final_count"] == 84
+      # The nested pipeline should have processed the inputs (unwrapped by smart extraction)
+      assert results["process"]["result"]["process_input"] == "Processing test_item with count 42"
+      assert results["process"]["result"]["multiply_count"] == 84
+      assert results["process"]["result"]["final_count"] == 84
     end
 
     test "extracts multiple outputs from nested pipeline" do
@@ -99,12 +99,13 @@ defmodule Pipeline.Integration.NestedPipelinePhase2Test do
       assert {:ok, results} = Executor.execute(pipeline)
 
       # Should be able to access parent variables
-      assert results["nested_with_inheritance"]["use_parent_var"] ==
+      assert results["nested_with_inheritance"]["result"]["use_parent_var"] ==
                "Using parent variable: parent_value"
 
-      assert results["nested_with_inheritance"]["use_input"] == "Using input: input_value"
+      assert results["nested_with_inheritance"]["result"]["use_input"] ==
+               "Using input: input_value"
 
-      assert results["nested_with_inheritance"]["combined_result"] ==
+      assert results["nested_with_inheritance"]["result"]["combined_result"] ==
                "Using parent variable: parent_value and Using input: input_value"
     end
 
@@ -134,10 +135,11 @@ defmodule Pipeline.Integration.NestedPipelinePhase2Test do
       assert {:ok, results} = Executor.execute(pipeline)
 
       # Should not be able to access parent variables
-      assert results["nested_without_inheritance"]["use_parent_var"] ==
+      assert results["nested_without_inheritance"]["result"]["use_parent_var"] ==
                "Using parent variable: {{global_vars.parent_var}}"
 
-      assert results["nested_without_inheritance"]["use_input"] == "Using input: input_value"
+      assert results["nested_without_inheritance"]["result"]["use_input"] ==
+               "Using input: input_value"
     end
 
     test "complex variable resolution with nested structures" do
@@ -181,9 +183,9 @@ defmodule Pipeline.Integration.NestedPipelinePhase2Test do
                 ]
               },
               "inputs" => %{
-                "db_host" => "{{steps.setup.result.config.database.host}}",
-                "db_port" => "{{steps.setup.result.config.database.port}}",
-                "user" => "{{steps.setup.result.credentials.username}}"
+                "db_host" => "{{steps.setup.config.database.host}}",
+                "db_port" => "{{steps.setup.config.database.port}}",
+                "user" => "{{steps.setup.credentials.username}}"
               },
               "outputs" => [
                 "connect",
@@ -196,8 +198,8 @@ defmodule Pipeline.Integration.NestedPipelinePhase2Test do
 
       assert {:ok, results} = Executor.execute(pipeline)
 
-      assert results["process"]["connect"] == "Connecting to localhost:5432 as admin"
-      assert results["process"]["result"] == "Connected successfully"
+      assert results["process"]["result"]["connect"] == "Connecting to localhost:5432 as admin"
+      assert results["process"]["result"]["result"] == "Connected successfully"
     end
 
     test "handles missing inputs gracefully" do
@@ -229,7 +231,7 @@ defmodule Pipeline.Integration.NestedPipelinePhase2Test do
       assert {:ok, results} = Executor.execute(pipeline)
 
       # Should use template string when variable not found
-      assert results["process"]["result"] == "Input: {{steps.nonexistent.result}}"
+      assert results["process"]["result"]["result"] == "Input: {{steps.nonexistent.result}}"
     end
 
     test "error handling in output extraction" do

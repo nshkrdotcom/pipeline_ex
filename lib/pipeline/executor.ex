@@ -161,7 +161,8 @@ defmodule Pipeline.Executor do
     File.mkdir_p!(output_dir)
     File.mkdir_p!(checkpoint_dir)
 
-    %{
+    # Add inputs to context if provided
+    base_context = %{
       workflow_name: config["name"],
       workspace_dir: workspace_dir,
       output_dir: output_dir,
@@ -178,6 +179,25 @@ defmodule Pipeline.Executor do
       # Add pipeline name for performance monitoring
       pipeline_name: pipeline_name
     }
+
+    # Add global vars from workflow config
+    context_with_global_vars =
+      case config["global_vars"] do
+        nil ->
+          base_context
+
+        global_vars ->
+          Map.put(base_context, :global_vars, global_vars)
+      end
+
+    # Add inputs to context if provided (for nested pipeline execution)
+    case Keyword.get(opts, :inputs) do
+      nil ->
+        context_with_global_vars
+
+      inputs ->
+        Map.put(context_with_global_vars, :inputs, inputs)
+    end
   end
 
   defp maybe_load_checkpoint(context) do
@@ -252,15 +272,25 @@ defmodule Pipeline.Executor do
       Logger.info("⏭️  Condition not met, skipping step: #{step["name"]}")
 
       # Create a skipped result
-      skipped_result = %{
+      skipped_result_content = %{
         "success" => true,
         "skipped" => true,
         "reason" => "Condition not met: #{step["condition"] || "N/A"}"
       }
 
+      # Wrap in result structure for consistency for nested pipeline steps with inputs
+      final_skipped_result =
+        if step["type"] == "pipeline" && has_inputs?(step) do
+          # Nested pipeline step with inputs: wrap in "result" key for template support
+          %{"result" => skipped_result_content}
+        else
+          # Regular step or nested pipeline without inputs: use result directly for backward compatibility
+          skipped_result_content
+        end
+
       updated_context = %{
         context
-        | results: Map.put(context.results, step["name"], skipped_result),
+        | results: Map.put(context.results, step["name"], final_skipped_result),
           step_index: index + 1,
           execution_log: [
             %{
@@ -408,9 +438,20 @@ defmodule Pipeline.Executor do
   end
 
   defp update_context_with_success(step, index, context, result, step_start) do
+    # Wrap result in a structure that supports template access patterns for nested pipeline steps with inputs
+    # For regular steps and nested pipelines without inputs, maintain backward compatibility
+    final_result =
+      if step["type"] == "pipeline" && has_inputs?(step) do
+        # Nested pipeline step with inputs: wrap in "result" key to support template patterns like {{steps.step_name.result.field}}
+        %{"result" => result}
+      else
+        # Regular step or nested pipeline without inputs: use result directly for backward compatibility
+        result
+      end
+
     %{
       context
-      | results: Map.put(context.results, step["name"], result),
+      | results: Map.put(context.results, step["name"], final_result),
         step_index: index + 1,
         execution_log: [create_success_log_entry(step, step_start) | context.execution_log]
     }
@@ -726,7 +767,14 @@ defmodule Pipeline.Executor do
         step
 
       variable_state ->
-        VariableEngine.interpolate_data(step, variable_state)
+        # Check if we're in a nested pipeline context (has inputs)
+        # Use type preservation for nested pipelines to preserve arithmetic results
+        if Map.has_key?(context, :inputs) do
+          VariableEngine.interpolate_data_with_type_preservation(step, variable_state, context)
+        else
+          # Pass both variable state and execution context for step result resolution
+          VariableEngine.interpolate_data_with_context(step, variable_state, context)
+        end
     end
   end
 
@@ -739,5 +787,11 @@ defmodule Pipeline.Executor do
         updated_state = VariableEngine.update_step_info(variable_state, step_name, step_index)
         %{context | variable_state: updated_state}
     end
+  end
+
+  # Helper to check if a nested pipeline step has inputs
+  defp has_inputs?(step) do
+    inputs = step["inputs"]
+    is_map(inputs) && map_size(inputs) > 0
   end
 end

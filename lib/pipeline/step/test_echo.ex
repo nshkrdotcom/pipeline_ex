@@ -9,7 +9,14 @@ defmodule Pipeline.Step.TestEcho do
       {:error, "test_echo step is only available in test environment"}
     else
       value = step["value"] || "default_echo"
-      {:ok, value}
+
+      # Support failure mode for testing error handling
+      if step["fail"] == true || value == "__FAIL__" do
+        error_message = step["error_message"] || "Test step intentionally failed"
+        {:error, error_message}
+      else
+        {:ok, value}
+      end
     end
   end
 end

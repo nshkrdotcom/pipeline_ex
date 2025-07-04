@@ -122,6 +122,48 @@ defmodule Pipeline.State.VariableEngine do
   def interpolate_string(value, _state), do: value
 
   @doc """
+  Interpolate variables in a string with execution context access.
+  This handles both variable state and step result patterns.
+  """
+  def interpolate_string_with_context(text, state, context) when is_binary(text) do
+    # Find all {{...}} patterns
+    Regex.replace(~r/\{\{([^}]+)\}\}/, text, fn _, expression ->
+      expression
+      |> String.trim()
+      |> evaluate_expression_with_context(state, context)
+      |> to_string()
+    end)
+  end
+
+  def interpolate_string_with_context(value, _state, _context), do: value
+
+  @doc """
+  Interpolate variables with type preservation for single templates.
+  This is used for nested pipeline execution where types should be preserved.
+  """
+  def interpolate_with_type_preservation(text, state, context) when is_binary(text) do
+    # Check if the entire string is a single template
+    case Regex.run(~r/^\{\{([^}]+)\}\}$/, String.trim(text)) do
+      [_, expression] ->
+        # Single template, return the actual value (preserve type)
+        expression
+        |> String.trim()
+        |> evaluate_expression_with_context(state, context)
+
+      nil ->
+        # Multiple templates or mixed content, do string replacement
+        Regex.replace(~r/\{\{([^}]+)\}\}/, text, fn _, expression ->
+          expression
+          |> String.trim()
+          |> evaluate_expression_with_context(state, context)
+          |> to_string()
+        end)
+    end
+  end
+
+  def interpolate_with_type_preservation(value, _state, _context), do: value
+
+  @doc """
   Interpolate variables in any data structure recursively.
   """
   def interpolate_data(data, state) when is_map(data) do
@@ -139,6 +181,45 @@ defmodule Pipeline.State.VariableEngine do
   end
 
   def interpolate_data(data, _state), do: data
+
+  @doc """
+  Interpolate variables in any data structure with execution context access.
+  This allows resolving step results and other execution-time data.
+  """
+  def interpolate_data_with_context(data, state, context) when is_map(data) do
+    data
+    |> Enum.map(fn {k, v} -> {k, interpolate_data_with_context(v, state, context)} end)
+    |> Map.new()
+  end
+
+  def interpolate_data_with_context(data, state, context) when is_list(data) do
+    Enum.map(data, &interpolate_data_with_context(&1, state, context))
+  end
+
+  def interpolate_data_with_context(data, state, context) when is_binary(data) do
+    interpolate_string_with_context(data, state, context)
+  end
+
+  def interpolate_data_with_context(data, _state, _context), do: data
+
+  @doc """
+  Interpolate variables in any data structure with type preservation for single templates.
+  """
+  def interpolate_data_with_type_preservation(data, state, context) when is_map(data) do
+    data
+    |> Enum.map(fn {k, v} -> {k, interpolate_data_with_type_preservation(v, state, context)} end)
+    |> Map.new()
+  end
+
+  def interpolate_data_with_type_preservation(data, state, context) when is_list(data) do
+    Enum.map(data, &interpolate_data_with_type_preservation(&1, state, context))
+  end
+
+  def interpolate_data_with_type_preservation(data, state, context) when is_binary(data) do
+    interpolate_with_type_preservation(data, state, context)
+  end
+
+  def interpolate_data_with_type_preservation(data, _state, _context), do: data
 
   @doc """
   Serialize state for checkpoint persistence.
@@ -195,7 +276,11 @@ defmodule Pipeline.State.VariableEngine do
   defp evaluate_expression(expression, state) do
     # Handle expressions in priority order
     cond do
-      # Handle arithmetic expressions first (basic support)
+      # Handle function calls first
+      String.match?(expression, ~r/^[a-zA-Z_][a-zA-Z0-9_]*\s*\(/) ->
+        evaluate_function_call(expression, state)
+
+      # Handle arithmetic expressions (basic support)
       String.contains?(expression, ["+", "-", "*", "/"]) ->
         evaluate_arithmetic(expression, state)
 
@@ -208,6 +293,126 @@ defmodule Pipeline.State.VariableEngine do
       true ->
         get_variable(state, expression)
     end
+  end
+
+  defp evaluate_expression_with_context(expression, state, context) do
+    # Handle expressions in priority order, including step results
+    cond do
+      # Handle function calls first
+      String.match?(expression, ~r/^[a-zA-Z_][a-zA-Z0-9_]*\s*\(/) ->
+        evaluate_function_call_with_context(expression, state, context)
+
+      # Handle inputs patterns (for nested pipeline execution)
+      String.starts_with?(expression, "inputs.") ->
+        resolve_inputs_variable(expression, context)
+
+      # Handle global_vars patterns (for nested pipeline execution)
+      String.starts_with?(expression, "global_vars.") ->
+        resolve_global_vars_variable(expression, context)
+
+      # Handle step result patterns
+      String.starts_with?(expression, "steps.") ->
+        resolve_step_result(expression, context)
+
+      # Handle arithmetic expressions
+      String.contains?(expression, ["+", "-", "*", "/"]) ->
+        evaluate_arithmetic_with_context(expression, state, context)
+
+      # Handle state references
+      String.starts_with?(expression, "state.") ->
+        var_path = String.replace_leading(expression, "state.", "")
+        get_nested_variable(state, var_path)
+
+      # Simple variable lookup
+      true ->
+        get_variable(state, expression)
+    end
+  end
+
+  defp resolve_step_result(expression, context) do
+    # Remove "steps." prefix and parse the path
+    path = String.replace_leading(expression, "steps.", "")
+    path_parts = String.split(path, ".")
+
+    case path_parts do
+      [step_name | rest] ->
+        # Get the step result from execution context
+        step_result = get_in(context, [:results, step_name])
+
+        cond do
+          # Step not found - preserve template
+          step_result == nil ->
+            "{{#{expression}}}"
+
+          # Step found and has more path parts
+          length(rest) > 0 ->
+            # Smart template resolution: try both new format (with "result" key) and old format
+            result =
+              case get_nested_value_from_map(step_result, rest) do
+                nil ->
+                  # If not found, try looking inside "result" key for new format (only if step_result is a map)
+                  case step_result do
+                    %{} = map_result ->
+                      case Map.get(map_result, "result") do
+                        nil ->
+                          # Final fallback: if looking for "result" specifically and step_result is not wrapped,
+                          # return the step_result itself (for nested pipeline compatibility)
+                          if rest == ["result"] do
+                            step_result
+                          else
+                            nil
+                          end
+
+                        result_data ->
+                          get_nested_value_from_map(result_data, rest)
+                      end
+
+                    _ ->
+                      # step_result is not a map, but if looking for "result" specifically,
+                      # return the step_result itself (for nested pipeline compatibility)
+                      if rest == ["result"] do
+                        step_result
+                      else
+                        nil
+                      end
+                  end
+
+                value ->
+                  value
+              end
+
+            # If we still couldn't find the value, preserve the template
+            if result == nil do
+              "{{#{expression}}}"
+            else
+              result
+            end
+
+          # Step found with no more path parts - return the step result
+          true ->
+            step_result
+        end
+
+      [] ->
+        nil
+    end
+  end
+
+  defp get_nested_value_from_map(data, []), do: data
+
+  defp get_nested_value_from_map(data, [key | rest]) when is_map(data) do
+    case Map.get(data, key) do
+      nil -> nil
+      value -> get_nested_value_from_map(value, rest)
+    end
+  end
+
+  defp get_nested_value_from_map(_data, _path), do: nil
+
+  defp evaluate_arithmetic_with_context(expression, state, _context) do
+    # For now, fall back to the original arithmetic evaluation
+    # TODO: Could be enhanced to support step results in arithmetic
+    evaluate_arithmetic(expression, state)
   end
 
   defp get_nested_variable(state, path) do
@@ -351,4 +556,178 @@ defmodule Pipeline.State.VariableEngine do
         end
     end
   end
+
+  # Function call evaluation
+
+  defp evaluate_function_call(expression, state) do
+    evaluate_function_call_with_context(expression, state, %{})
+  end
+
+  defp evaluate_function_call_with_context(expression, state, context) do
+    # Parse function call: function_name(arg1, arg2, ...)
+    case Regex.run(~r/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)\)$/, String.trim(expression)) do
+      [_, function_name, args_str] ->
+        # Parse arguments
+        args = parse_function_arguments(args_str, state, context)
+
+        # Call the function
+        call_function(function_name, args)
+
+      nil ->
+        # Not a valid function call, return original expression
+        expression
+    end
+  end
+
+  defp parse_function_arguments(args_str, state, context) do
+    # Split arguments by comma (simplified - doesn't handle nested commas)
+    args_str
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.map(fn arg ->
+      # Resolve each argument as a variable or literal
+      cond do
+        # Check if it's a template variable
+        String.starts_with?(arg, "inputs.") ->
+          resolve_input_variable(arg, context)
+
+        String.starts_with?(arg, "steps.") ->
+          resolve_step_result(arg, context)
+
+        String.starts_with?(arg, "global_vars.") ->
+          var_name = String.replace_leading(arg, "global_vars.", "")
+          get_in(context, [:global_vars, var_name])
+
+        String.starts_with?(arg, "state.") ->
+          var_path = String.replace_leading(arg, "state.", "")
+          get_nested_variable(state, var_path)
+
+        # Check if it's a number
+        String.match?(arg, ~r/^\d+(\.\d+)?$/) ->
+          case Float.parse(arg) do
+            {float_val, ""} ->
+              if String.contains?(arg, "."), do: float_val, else: trunc(float_val)
+
+            _ ->
+              arg
+          end
+
+        # Check if it's a variable name
+        String.match?(arg, ~r/^[a-zA-Z_][a-zA-Z0-9_]*$/) ->
+          get_variable(state, arg) || arg
+
+        # Otherwise treat as literal string
+        true ->
+          arg
+      end
+    end)
+  end
+
+  defp resolve_input_variable(arg, context) do
+    # Remove "inputs." prefix and get from context
+    var_name = String.replace_leading(arg, "inputs.", "")
+    get_in(context, [:inputs, var_name])
+  end
+
+  defp resolve_inputs_variable(expression, context) do
+    # Remove "inputs." prefix and parse the path
+    path = String.replace_leading(expression, "inputs.", "")
+    path_parts = String.split(path, ".")
+
+    case path_parts do
+      [var_name | rest] ->
+        # Get the input variable from execution context
+        input_value = get_in(context, [:inputs, var_name])
+
+        cond do
+          # If we found the input and need to navigate deeper
+          input_value && length(rest) > 0 ->
+            get_nested_value_from_map(input_value, rest) || "{{#{expression}}}"
+
+          # If we found the input, return it
+          input_value != nil ->
+            input_value
+
+          # If input not found, preserve the template for nested pipeline resolution
+          true ->
+            "{{#{expression}}}"
+        end
+
+      [] ->
+        "{{#{expression}}}"
+    end
+  end
+
+  defp resolve_global_vars_variable(expression, context) do
+    # Remove "global_vars." prefix
+    var_name = String.replace_leading(expression, "global_vars.", "")
+
+    # Get the global variable from execution context
+    case get_in(context, [:global_vars, var_name]) do
+      nil ->
+        # If not found, preserve the template for nested pipeline resolution
+        "{{#{expression}}}"
+
+      value ->
+        value
+    end
+  end
+
+  defp call_function(function_name, args) do
+    case function_name do
+      "multiply" when length(args) == 2 ->
+        [a, b] = args
+        ensure_number(a) * ensure_number(b)
+
+      "add" when length(args) == 2 ->
+        [a, b] = args
+        ensure_number(a) + ensure_number(b)
+
+      "subtract" when length(args) == 2 ->
+        [a, b] = args
+        ensure_number(a) - ensure_number(b)
+
+      "divide" when length(args) == 2 ->
+        [a, b] = args
+
+        if ensure_number(b) == 0 do
+          0
+        else
+          ensure_number(a) / ensure_number(b)
+        end
+
+      "max" when length(args) >= 1 ->
+        args |> Enum.map(&ensure_number/1) |> Enum.max()
+
+      "min" when length(args) >= 1 ->
+        args |> Enum.map(&ensure_number/1) |> Enum.min()
+
+      "round" when length(args) == 1 ->
+        [a] = args
+        round(ensure_number(a))
+
+      "floor" when length(args) == 1 ->
+        [a] = args
+        floor(ensure_number(a))
+
+      "ceil" when length(args) == 1 ->
+        [a] = args
+        ceil(ensure_number(a))
+
+      _ ->
+        # Unknown function, return original expression
+        "#{function_name}(#{Enum.join(args, ", ")})"
+    end
+  end
+
+  defp ensure_number(value) when is_number(value), do: value
+
+  defp ensure_number(value) when is_binary(value) do
+    case Float.parse(value) do
+      {num, ""} -> if String.contains?(value, "."), do: num, else: trunc(num)
+      _ -> 0
+    end
+  end
+
+  defp ensure_number(_), do: 0
 end

@@ -1,1 +1,0 @@
-{"workflow":{"name":"pipeline_a","steps":[{"name":"call_b","pipeline_file":"./test/fixtures/pipelines/pipeline_b.yaml","type":"pipeline"}]}}

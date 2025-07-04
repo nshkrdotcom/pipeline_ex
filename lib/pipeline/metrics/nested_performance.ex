@@ -71,9 +71,9 @@ defmodule Pipeline.Metrics.NestedPerformance do
   - Performance tracking context
   """
   @spec start_performance_tracking(String.t(), String.t()) :: performance_metrics()
-  def start_performance_tracking(trace_id, pipeline_id) do
+  def start_performance_tracking(trace_id, _pipeline_id) do
     execution_id = generate_execution_id()
-    
+
     Logger.debug("📊 Started performance tracking [#{execution_id}] for trace #{trace_id}")
 
     %{
@@ -145,7 +145,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
     }
 
     updated_pipeline_metrics = [pipeline_metric | performance_context.pipeline_metrics]
-    
+
     performance_context
     |> Map.put(:pipeline_metrics, updated_pipeline_metrics)
     |> update_depth_metrics(pipeline_metric)
@@ -165,18 +165,20 @@ defmodule Pipeline.Metrics.NestedPerformance do
   def complete_performance_tracking(performance_context) do
     end_time = DateTime.utc_now()
     total_duration_ms = DateTime.diff(end_time, performance_context.start_time, :millisecond)
-    
+
     final_resource_metrics = collect_final_resource_metrics(performance_context.resource_metrics)
-    
-    completed_context = 
+
+    completed_context =
       performance_context
       |> Map.put(:end_time, end_time)
       |> Map.put(:total_duration_ms, total_duration_ms)
       |> Map.put(:resource_metrics, final_resource_metrics)
       |> finalize_summary_metrics()
 
-    Logger.info("📊 Completed performance tracking [#{completed_context.execution_id}] - #{total_duration_ms}ms total")
-    
+    Logger.info(
+      "📊 Completed performance tracking [#{completed_context.execution_id}] - #{total_duration_ms}ms total"
+    )
+
     completed_context
   end
 
@@ -194,8 +196,10 @@ defmodule Pipeline.Metrics.NestedPerformance do
     bottlenecks = identify_bottlenecks(performance_metrics)
     performance_issues = detect_performance_issues(performance_metrics)
     resource_analysis = analyze_resource_usage(performance_metrics)
-    recommendations = generate_performance_recommendations(performance_metrics, bottlenecks, performance_issues)
-    
+
+    recommendations =
+      generate_performance_recommendations(performance_metrics, bottlenecks, performance_issues)
+
     %{
       performance_grade: calculate_performance_grade(performance_metrics),
       bottlenecks: bottlenecks,
@@ -222,7 +226,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
     analysis = analyze_performance(performance_metrics)
     include_details = Map.get(options, :include_details, true)
     include_recommendations = Map.get(options, :include_recommendations, true)
-    
+
     sections = [
       format_report_header(performance_metrics),
       format_execution_overview(performance_metrics),
@@ -230,19 +234,21 @@ defmodule Pipeline.Metrics.NestedPerformance do
       format_resource_analysis(performance_metrics),
       format_performance_analysis(analysis)
     ]
-    
-    sections = if include_details do
-      sections ++ [format_detailed_metrics(performance_metrics)]
-    else
-      sections
-    end
-    
-    sections = if include_recommendations do
-      sections ++ [format_recommendations(analysis)]
-    else
-      sections
-    end
-    
+
+    sections =
+      if include_details do
+        sections ++ [format_detailed_metrics(performance_metrics)]
+      else
+        sections
+      end
+
+    sections =
+      if include_recommendations do
+        sections ++ [format_recommendations(analysis)]
+      else
+        sections
+      end
+
     Enum.join(sections, "\n\n" <> String.duplicate("=", 80) <> "\n\n")
   end
 
@@ -282,18 +288,19 @@ defmodule Pipeline.Metrics.NestedPerformance do
       max_depth: performance_metrics.summary.max_depth,
       success_rate: performance_metrics.summary.overall_success_rate
     }
-    
+
     metadata = %{
       execution_id: performance_metrics.execution_id,
       trace_id: performance_metrics.trace_id,
       performance_grade: performance_metrics.summary.performance_grade,
       event_type: event_type
     }
-    
+
     try do
       :telemetry.execute([:pipeline, :nested, :performance], measurements, metadata)
     rescue
-      _ -> :ok  # Silently fail if telemetry is not available
+      # Silently fail if telemetry is not available
+      _ -> :ok
     end
   end
 
@@ -332,17 +339,23 @@ defmodule Pipeline.Metrics.NestedPerformance do
 
   defp update_depth_metrics(performance_context, pipeline_metric) do
     depth = pipeline_metric.depth
-    current_depth_metrics = Map.get(performance_context.depth_metrics, depth, create_initial_depth_metric(depth))
-    
-    updated_depth_metric = 
+
+    current_depth_metrics =
+      Map.get(performance_context.depth_metrics, depth, create_initial_depth_metric(depth))
+
+    updated_depth_metric =
       current_depth_metrics
       |> Map.update!(:pipeline_count, &(&1 + 1))
       |> Map.update!(:total_duration_ms, &(&1 + pipeline_metric.duration_ms))
       |> Map.update!(:step_count, &(&1 + pipeline_metric.step_count))
       |> update_depth_duration_stats(pipeline_metric.duration_ms)
       |> update_depth_success_rate(pipeline_metric.success)
-    
-    Map.put(performance_context, :depth_metrics, Map.put(performance_context.depth_metrics, depth, updated_depth_metric))
+
+    Map.put(
+      performance_context,
+      :depth_metrics,
+      Map.put(performance_context.depth_metrics, depth, updated_depth_metric)
+    )
   end
 
   defp create_initial_depth_metric(depth) do
@@ -360,7 +373,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
 
   defp update_depth_duration_stats(depth_metric, duration_ms) do
     new_avg = depth_metric.total_duration_ms / depth_metric.pipeline_count
-    
+
     depth_metric
     |> Map.put(:avg_duration_ms, new_avg)
     |> Map.update!(:min_duration_ms, &min(&1, duration_ms))
@@ -373,30 +386,34 @@ defmodule Pipeline.Metrics.NestedPerformance do
     current_success_count = depth_metric.pipeline_count * depth_metric.success_rate / 100
     new_success_count = if success, do: current_success_count + 1, else: current_success_count
     new_success_rate = new_success_count / (depth_metric.pipeline_count + 1) * 100
-    
+
     Map.put(depth_metric, :success_rate, new_success_rate)
   end
 
   defp update_summary_metrics(performance_context) do
     total_pipelines = length(performance_context.pipeline_metrics)
     total_steps = Enum.sum(Enum.map(performance_context.pipeline_metrics, & &1.step_count))
-    max_depth = if total_pipelines > 0 do
-      Enum.map(performance_context.pipeline_metrics, & &1.depth) |> Enum.max()
-    else
-      0
-    end
-    
+
+    max_depth =
+      if total_pipelines > 0 do
+        Enum.map(performance_context.pipeline_metrics, & &1.depth) |> Enum.max()
+      else
+        0
+      end
+
     successful_pipelines = Enum.count(performance_context.pipeline_metrics, & &1.success)
-    success_rate = if total_pipelines > 0, do: successful_pipelines / total_pipelines * 100, else: 100.0
-    
+
+    success_rate =
+      if total_pipelines > 0, do: successful_pipelines / total_pipelines * 100, else: 100.0
+
     updated_summary = %{
-      performance_context.summary |
-      total_pipelines: total_pipelines,
-      total_steps: total_steps,
-      max_depth: max_depth,
-      overall_success_rate: success_rate
+      performance_context.summary
+      | total_pipelines: total_pipelines,
+        total_steps: total_steps,
+        max_depth: max_depth,
+        overall_success_rate: success_rate
     }
-    
+
     Map.put(performance_context, :summary, updated_summary)
   end
 
@@ -404,111 +421,152 @@ defmodule Pipeline.Metrics.NestedPerformance do
     current_memory = get_current_memory_mb()
     current_gc_count = get_gc_count()
     current_process_count = length(Process.list())
-    
+
+    peak_memory = max(initial_metrics.peak_memory_mb, current_memory)
+    avg_memory = (initial_metrics.avg_memory_mb + current_memory) / 2
+
     %{
-      initial_metrics |
-      peak_memory_mb: max(initial_metrics.peak_memory_mb, current_memory),
-      avg_memory_mb: (initial_metrics.avg_memory_mb + current_memory) / 2,
-      total_memory_allocated_mb: max(current_memory - initial_metrics.avg_memory_mb, 0),
-      gc_collections: current_gc_count - initial_metrics.gc_collections,
-      process_count_peak: max(initial_metrics.process_count_peak, current_process_count)
+      initial_metrics
+      | peak_memory_mb: peak_memory,
+        # Ensure avg <= peak
+        avg_memory_mb: min(avg_memory, peak_memory),
+        total_memory_allocated_mb: max(current_memory - initial_metrics.avg_memory_mb, 0),
+        gc_collections: current_gc_count - initial_metrics.gc_collections,
+        process_count_peak: max(initial_metrics.process_count_peak, current_process_count)
     }
   end
 
   defp finalize_summary_metrics(performance_context) do
     analysis = analyze_performance(performance_context)
-    
+
     updated_summary = %{
-      performance_context.summary |
-      performance_grade: analysis.performance_grade,
-      bottlenecks: analysis.bottlenecks,
-      recommendations: analysis.recommendations
+      performance_context.summary
+      | performance_grade: analysis.performance_grade,
+        bottlenecks: analysis.bottlenecks,
+        recommendations: analysis.recommendations
     }
-    
+
     Map.put(performance_context, :summary, updated_summary)
   end
 
   defp identify_bottlenecks(performance_metrics) do
     bottlenecks = []
-    
+
     # Identify slow pipelines
-    avg_duration = if performance_metrics.summary.total_pipelines > 0 do
-      (performance_metrics.total_duration_ms || 0) / performance_metrics.summary.total_pipelines
-    else
-      0
-    end
-    
-    slow_pipelines = Enum.filter(performance_metrics.pipeline_metrics, fn metric ->
-      metric.duration_ms > avg_duration * 2
-    end)
-    
-    bottlenecks = if Enum.any?(slow_pipelines) do
-      slow_pipeline_ids = Enum.map(slow_pipelines, & &1.pipeline_id)
-      ["Slow pipelines: #{Enum.join(slow_pipeline_ids, ", ")}" | bottlenecks]
-    else
-      bottlenecks
-    end
-    
+    summary = Map.get(performance_metrics, :summary, %{})
+    total_pipelines = Map.get(summary, :total_pipelines, 0)
+
+    avg_duration =
+      if total_pipelines > 0 do
+        (Map.get(performance_metrics, :total_duration_ms, 0) || 0) / total_pipelines
+      else
+        0
+      end
+
+    slow_pipelines =
+      Enum.filter(performance_metrics.pipeline_metrics, fn metric ->
+        Map.get(metric, :duration_ms, 0) > avg_duration * 2
+      end)
+
+    bottlenecks =
+      if Enum.any?(slow_pipelines) do
+        slow_pipeline_ids = Enum.map(slow_pipelines, &Map.get(&1, :pipeline_id, "unknown"))
+        ["Slow pipelines: #{Enum.join(slow_pipeline_ids, ", ")}" | bottlenecks]
+      else
+        bottlenecks
+      end
+
     # Identify depth-related bottlenecks
-    if performance_metrics.summary.max_depth > 5 do
-      bottlenecks = ["Deep nesting (depth: #{performance_metrics.summary.max_depth})" | bottlenecks]
-    else
-      bottlenecks
-    end
-    
+    max_depth = Map.get(performance_metrics.summary, :max_depth, 0)
+
+    bottlenecks =
+      if max_depth > 5 do
+        ["Deep nesting (depth: #{max_depth})" | bottlenecks]
+      else
+        bottlenecks
+      end
+
     # Identify memory bottlenecks
-    if performance_metrics.resource_metrics.peak_memory_mb > 1000 do
-      bottlenecks = ["High memory usage (#{Float.round(performance_metrics.resource_metrics.peak_memory_mb, 1)} MB)" | bottlenecks]
-    else
-      bottlenecks
-    end
-    
+    resource_metrics = Map.get(performance_metrics, :resource_metrics, %{})
+    peak_memory = Map.get(resource_metrics, :peak_memory_mb, 0)
+
+    bottlenecks =
+      if peak_memory > 1000 do
+        [
+          "High memory usage (#{:erlang.float_to_binary(peak_memory, [{:decimals, 1}])} MB)"
+          | bottlenecks
+        ]
+      else
+        bottlenecks
+      end
+
     bottlenecks
   end
 
   defp detect_performance_issues(performance_metrics) do
     issues = []
-    
-    # Low success rate
-    if performance_metrics.summary.overall_success_rate < 95 do
-      issues = [%{
-        type: :low_success_rate,
-        severity: :error,
-        description: "Success rate is #{Float.round(performance_metrics.summary.overall_success_rate, 1)}%"
-      } | issues]
-    else
-      issues
-    end
-    
+
+    # Low success rate - handle different structures
+    success_rate =
+      case performance_metrics do
+        %{summary: %{overall_success_rate: rate}} -> rate
+        %{overall_success_rate: rate} -> rate
+        _ -> 100.0
+      end
+
+    issues =
+      if success_rate < 95 do
+        [
+          %{
+            type: :low_success_rate,
+            severity: :error,
+            description: "Success rate is #{Float.round(success_rate, 1)}%"
+          }
+          | issues
+        ]
+      else
+        issues
+      end
+
     # Long execution time
-    if (performance_metrics.total_duration_ms || 0) > 60_000 do  # 1 minute
-      issues = [%{
-        type: :long_execution,
-        severity: :warning,
-        description: "Total execution time exceeds 1 minute"
-      } | issues]
-    else
-      issues
-    end
-    
+    duration = Map.get(performance_metrics, :total_duration_ms, 0) || 0
+    # 1 minute
+    issues =
+      if duration > 60_000 do
+        [
+          %{
+            type: :long_execution,
+            severity: :warning,
+            description: "Total execution time exceeds 1 minute"
+          }
+          | issues
+        ]
+      else
+        issues
+      end
+
     issues
   end
 
   defp analyze_resource_usage(performance_metrics) do
+    resource_metrics = Map.get(performance_metrics, :resource_metrics, %{})
+
     %{
       memory_efficiency: calculate_memory_efficiency(performance_metrics),
-      process_overhead: performance_metrics.resource_metrics.process_count_peak,
-      gc_pressure: performance_metrics.resource_metrics.gc_collections,
+      process_overhead: Map.get(resource_metrics, :process_count_peak, 0),
+      gc_pressure: Map.get(resource_metrics, :gc_collections, 0),
       resource_grade: calculate_resource_grade(performance_metrics)
     }
   end
 
   defp calculate_memory_efficiency(performance_metrics) do
-    peak_memory = performance_metrics.resource_metrics.peak_memory_mb
+    resource_metrics = Map.get(performance_metrics, :resource_metrics, %{})
+    peak_memory = Map.get(resource_metrics, :peak_memory_mb, 0)
     pipeline_count = performance_metrics.summary.total_pipelines
-    
+
     if pipeline_count > 0 do
       memory_per_pipeline = peak_memory / pipeline_count
+
       cond do
         memory_per_pipeline < 10 -> :excellent
         memory_per_pipeline < 50 -> :good
@@ -521,19 +579,21 @@ defmodule Pipeline.Metrics.NestedPerformance do
   end
 
   defp calculate_resource_grade(performance_metrics) do
-    memory_score = case calculate_memory_efficiency(performance_metrics) do
-      :excellent -> 4
-      :good -> 3
-      :fair -> 2
-      :poor -> 1
-      _ -> 2
-    end
-    
-    gc_score = if performance_metrics.resource_metrics.gc_collections < 10, do: 4, else: 2
-    process_score = if performance_metrics.resource_metrics.process_count_peak < 100, do: 4, else: 2
-    
+    memory_score =
+      case calculate_memory_efficiency(performance_metrics) do
+        :excellent -> 4
+        :good -> 3
+        :fair -> 2
+        :poor -> 1
+        _ -> 2
+      end
+
+    resource_metrics = Map.get(performance_metrics, :resource_metrics, %{})
+    gc_score = if Map.get(resource_metrics, :gc_collections, 0) < 10, do: 4, else: 2
+    process_score = if Map.get(resource_metrics, :process_count_peak, 0) < 100, do: 4, else: 2
+
     avg_score = (memory_score + gc_score + process_score) / 3
-    
+
     cond do
       avg_score >= 3.5 -> :excellent
       avg_score >= 2.5 -> :good
@@ -544,30 +604,47 @@ defmodule Pipeline.Metrics.NestedPerformance do
 
   defp generate_performance_recommendations(performance_metrics, bottlenecks, performance_issues) do
     recommendations = []
-    
+
     # Recommendations based on bottlenecks
-    if Enum.any?(bottlenecks, &String.contains?(&1, "Deep nesting")) do
-      recommendations = ["Consider flattening deeply nested pipeline structures" | recommendations]
-    end
-    
-    if Enum.any?(bottlenecks, &String.contains?(&1, "memory")) do
-      recommendations = ["Optimize memory usage in pipeline steps" | recommendations]
-    end
-    
+    recommendations =
+      if Enum.any?(bottlenecks, &String.contains?(&1, "Deep nesting")) do
+        ["Consider flattening deeply nested pipeline structures" | recommendations]
+      else
+        recommendations
+      end
+
+    recommendations =
+      if Enum.any?(bottlenecks, &String.contains?(&1, "memory")) do
+        ["Optimize memory usage in pipeline steps" | recommendations]
+      else
+        recommendations
+      end
+
     # Recommendations based on performance issues
-    if Enum.any?(performance_issues, &(&1.type == :low_success_rate)) do
-      recommendations = ["Implement retry logic for failed pipeline steps" | recommendations]
-    end
-    
-    if Enum.any?(performance_issues, &(&1.type == :long_execution)) do
-      recommendations = ["Consider parallel execution for independent operations" | recommendations]
-    end
-    
+    recommendations =
+      if Enum.any?(performance_issues, &(&1.type == :low_success_rate)) do
+        ["Implement retry logic for failed pipeline steps" | recommendations]
+      else
+        recommendations
+      end
+
+    recommendations =
+      if Enum.any?(performance_issues, &(&1.type == :long_execution)) do
+        ["Consider parallel execution for independent operations" | recommendations]
+      else
+        recommendations
+      end
+
     # General recommendations
-    if performance_metrics.summary.total_steps > 100 do
-      recommendations = ["Consider breaking large pipelines into smaller, reusable components" | recommendations]
-    end
-    
+    total_steps = Map.get(performance_metrics.summary, :total_steps, 0)
+
+    recommendations =
+      if total_steps > 100 do
+        ["Consider breaking large pipelines into smaller, reusable components" | recommendations]
+      else
+        recommendations
+      end
+
     if Enum.empty?(recommendations) do
       ["Performance appears optimal for current workload"]
     else
@@ -576,32 +653,42 @@ defmodule Pipeline.Metrics.NestedPerformance do
   end
 
   defp calculate_performance_grade(performance_metrics) do
-    success_rate_score = performance_metrics.summary.overall_success_rate / 100 * 4
-    
-    duration_score = case performance_metrics.total_duration_ms || 0 do
-      d when d < 1000 -> 4     # < 1s
-      d when d < 5000 -> 3     # < 5s  
-      d when d < 30000 -> 2    # < 30s
-      _ -> 1                   # > 30s
-    end
-    
-    depth_score = case performance_metrics.summary.max_depth do
-      d when d <= 2 -> 4
-      d when d <= 5 -> 3
-      d when d <= 8 -> 2
-      _ -> 1
-    end
-    
-    resource_score = case calculate_resource_grade(performance_metrics) do
-      :excellent -> 4
-      :good -> 3
-      :fair -> 2
-      :poor -> 1
-      _ -> 2
-    end
-    
+    success_rate =
+      Map.get(performance_metrics.summary || performance_metrics, :overall_success_rate, 100.0)
+
+    success_rate_score = success_rate / 100 * 4
+
+    duration_score =
+      case Map.get(performance_metrics, :total_duration_ms, 0) || 0 do
+        # < 1s
+        d when d < 1000 -> 4
+        # < 5s  
+        d when d < 5000 -> 3
+        # < 30s
+        d when d < 30000 -> 2
+        # > 30s
+        _ -> 1
+      end
+
+    depth_score =
+      case Map.get(performance_metrics.summary || %{}, :max_depth, 0) do
+        d when d <= 2 -> 4
+        d when d <= 5 -> 3
+        d when d <= 8 -> 2
+        _ -> 1
+      end
+
+    resource_score =
+      case calculate_resource_grade(performance_metrics) do
+        :excellent -> 4
+        :good -> 3
+        :fair -> 2
+        :poor -> 1
+        _ -> 2
+      end
+
     avg_score = (success_rate_score + duration_score + depth_score + resource_score) / 4
-    
+
     cond do
       avg_score >= 3.5 -> :excellent
       avg_score >= 2.5 -> :good
@@ -612,29 +699,38 @@ defmodule Pipeline.Metrics.NestedPerformance do
 
   defp calculate_efficiency_score(performance_metrics) do
     # Efficiency = successful work done / resources consumed
-    successful_steps = performance_metrics.summary.total_steps * performance_metrics.summary.overall_success_rate / 100
-    time_factor = max(1, (performance_metrics.total_duration_ms || 1) / 1000)  # Convert to seconds
-    memory_factor = max(1, performance_metrics.resource_metrics.peak_memory_mb / 100)  # Normalize memory
-    
+    summary = Map.get(performance_metrics, :summary, %{})
+    total_steps = Map.get(summary, :total_steps, 0)
+    success_rate = Map.get(summary, :overall_success_rate, 100.0)
+    successful_steps = total_steps * success_rate / 100
+    # Convert to seconds
+    time_factor = max(1, (Map.get(performance_metrics, :total_duration_ms, 1) || 1) / 1000)
+    resource_metrics = Map.get(performance_metrics, :resource_metrics, %{})
+    peak_memory = Map.get(resource_metrics, :peak_memory_mb, 100)
+    # Normalize memory
+    memory_factor = max(1, peak_memory / 100)
+
     efficiency = successful_steps / (time_factor * memory_factor)
     Float.round(efficiency, 2)
   end
 
   defp assess_scalability(performance_metrics) do
-    depth_scalability = case performance_metrics.summary.max_depth do
-      d when d <= 3 -> :excellent
-      d when d <= 6 -> :good  
-      d when d <= 10 -> :fair
-      _ -> :poor
-    end
-    
-    memory_scalability = case performance_metrics.resource_metrics.peak_memory_mb do
-      m when m < 100 -> :excellent
-      m when m < 500 -> :good
-      m when m < 1000 -> :fair
-      _ -> :poor
-    end
-    
+    depth_scalability =
+      case Map.get(performance_metrics.summary || %{}, :max_depth, 0) do
+        d when d <= 3 -> :excellent
+        d when d <= 6 -> :good
+        d when d <= 10 -> :fair
+        _ -> :poor
+      end
+
+    memory_scalability =
+      case Map.get(performance_metrics.resource_metrics || %{}, :peak_memory_mb, 0) do
+        m when m < 100 -> :excellent
+        m when m < 500 -> :good
+        m when m < 1000 -> :fair
+        _ -> :poor
+      end
+
     %{
       depth_scalability: depth_scalability,
       memory_scalability: memory_scalability,
@@ -659,9 +755,13 @@ defmodule Pipeline.Metrics.NestedPerformance do
 
   defp calculate_duration_variance(performance_metrics_list) do
     durations = Enum.map(performance_metrics_list, &(&1.total_duration_ms || 0))
+
     if length(durations) > 1 do
       avg = calculate_average_duration(performance_metrics_list)
-      variance = (Enum.map(durations, fn d -> (d - avg) * (d - avg) end) |> Enum.sum()) / length(durations)
+
+      variance =
+        (Enum.map(durations, fn d -> (d - avg) * (d - avg) end) |> Enum.sum()) / length(durations)
+
       Float.round(:math.sqrt(variance), 2)
     else
       0.0
@@ -669,14 +769,15 @@ defmodule Pipeline.Metrics.NestedPerformance do
   end
 
   defp calculate_success_rate_trend(performance_metrics_list) do
-    success_rates = Enum.map(performance_metrics_list, &(&1.summary.overall_success_rate))
+    success_rates = Enum.map(performance_metrics_list, & &1.summary.overall_success_rate)
+
     if length(success_rates) > 1 do
       first_half = Enum.take(success_rates, div(length(success_rates), 2))
       second_half = Enum.drop(success_rates, div(length(success_rates), 2))
-      
+
       first_avg = Enum.sum(first_half) / length(first_half)
       second_avg = Enum.sum(second_half) / length(second_half)
-      
+
       cond do
         second_avg > first_avg + 5 -> :improving
         second_avg < first_avg - 5 -> :declining
@@ -693,7 +794,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
     """
     📊 NESTED PIPELINE PERFORMANCE REPORT
     ====================================
-    
+
     Execution ID: #{performance_metrics.execution_id}
     Trace ID: #{performance_metrics.trace_id}
     Generated: #{DateTime.utc_now() |> DateTime.to_string()}
@@ -705,7 +806,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
     """
     🎯 EXECUTION OVERVIEW
     ====================
-    
+
     Total Duration: #{performance_metrics.total_duration_ms || 0}ms
     Total Pipelines: #{performance_metrics.summary.total_pipelines}
     Total Steps: #{performance_metrics.summary.total_steps}
@@ -715,7 +816,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
   end
 
   defp format_depth_analysis(performance_metrics) do
-    depth_lines = 
+    depth_lines =
       performance_metrics.depth_metrics
       |> Enum.sort_by(fn {depth, _} -> depth end)
       |> Enum.map_join("\n", fn {depth, metrics} ->
@@ -725,7 +826,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
     """
     📏 DEPTH ANALYSIS
     ================
-    
+
     Performance by Depth:
     #{depth_lines}
     """
@@ -735,7 +836,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
     """
     💾 RESOURCE ANALYSIS
     ===================
-    
+
     Peak Memory: #{Float.round(performance_metrics.resource_metrics.peak_memory_mb, 1)} MB
     Average Memory: #{Float.round(performance_metrics.resource_metrics.avg_memory_mb, 1)} MB
     GC Collections: #{performance_metrics.resource_metrics.gc_collections}
@@ -744,53 +845,56 @@ defmodule Pipeline.Metrics.NestedPerformance do
   end
 
   defp format_performance_analysis(analysis) do
-    bottlenecks_text = if Enum.any?(analysis.bottlenecks) do
-      Enum.map_join(analysis.bottlenecks, "\n", fn bottleneck -> "    • #{bottleneck}" end)
-    else
-      "    ✅ No bottlenecks identified"
-    end
+    bottlenecks_text =
+      if Enum.any?(analysis.bottlenecks) do
+        Enum.map_join(analysis.bottlenecks, "\n", fn bottleneck -> "    • #{bottleneck}" end)
+      else
+        "    ✅ No bottlenecks identified"
+      end
 
     """
     ⚡ PERFORMANCE ANALYSIS
     ======================
-    
+
     Efficiency Score: #{analysis.efficiency_score}
     Scalability: #{analysis.scalability_assessment.overall}
-    
+
     Bottlenecks:
     #{bottlenecks_text}
     """
   end
 
   defp format_detailed_metrics(performance_metrics) do
-    pipeline_lines = 
+    pipeline_lines =
       performance_metrics.pipeline_metrics
       |> Enum.sort_by(& &1.depth)
       |> Enum.map_join("\n", fn metric ->
         status = if metric.success, do: "✅", else: "❌"
+
         "    #{status} #{metric.pipeline_id} (depth #{metric.depth}): #{metric.duration_ms}ms, #{metric.step_count} steps"
       end)
 
     """
     📋 DETAILED METRICS
     ==================
-    
+
     Pipeline Execution Details:
     #{pipeline_lines}
     """
   end
 
   defp format_recommendations(analysis) do
-    recommendations_text = if Enum.any?(analysis.recommendations) do
-      Enum.map_join(analysis.recommendations, "\n", fn rec -> "    • #{rec}" end)
-    else
-      "    ✅ No specific recommendations"
-    end
+    recommendations_text =
+      if Enum.any?(analysis.recommendations) do
+        Enum.map_join(analysis.recommendations, "\n", fn rec -> "    • #{rec}" end)
+      else
+        "    ✅ No specific recommendations"
+      end
 
     """
     💡 RECOMMENDATIONS
     ==================
-    
+
     #{recommendations_text}
     """
   end
@@ -799,7 +903,7 @@ defmodule Pipeline.Metrics.NestedPerformance do
     """
     📊 PERFORMANCE COMPARISON
     ========================
-    
+
     Executions Compared: #{comparisons.execution_count}
     Average Duration: #{Float.round(comparisons.avg_duration, 1)}ms
     Duration Variance: #{comparisons.duration_variance}ms

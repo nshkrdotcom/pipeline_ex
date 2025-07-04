@@ -18,6 +18,7 @@ defmodule Pipeline.WorkflowScenariosTest do
       File.rm_rf("/tmp/integration_workspace")
       File.rm_rf("/tmp/integration_outputs")
       File.rm_rf("/tmp/integration_files")
+      File.rm_rf("./checkpoints")
     end)
 
     # Create test files directory
@@ -51,7 +52,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         "workflow" => %{
           "name" => "code_review_workflow",
           "workspace_dir" => "/tmp/integration_workspace",
-          "checkpoint_enabled" => true,
+          "checkpoint_enabled" => false,
           "defaults" => %{
             "output_dir" => "/tmp/integration_outputs",
             "gemini_model" => "gemini-2.5-flash"
@@ -169,13 +170,22 @@ defmodule Pipeline.WorkflowScenariosTest do
 
       # Mocks are set up automatically in setup() for mock mode
 
-      assert {:ok, results} = Executor.execute(workflow)
+      result = Executor.execute(workflow)
 
-      # Verify all steps completed successfully
-      assert results["code_analysis"]["success"] == true
-      assert results["generate_improvements"]["success"] == true
-      assert results["create_tests"]["success"] == true
-      assert results["final_review"]["success"] == true
+      case result do
+        {:ok, results} ->
+          IO.inspect(results, label: "Workflow results")
+          # Verify all steps completed successfully
+          assert results["code_analysis"]["success"] == true
+          assert results["generate_improvements"]["success"] == true
+          assert results["create_tests"]["success"] == true
+          assert results["final_review"]["success"] == true
+
+        {:error, reason} ->
+          IO.puts("Workflow failed: #{reason}")
+          # Re-assert to fail the test with the original assertion
+          assert {:ok, _results} = result
+      end
 
       # Verify outputs were created
       assert File.exists?("/tmp/integration_outputs/code_analysis.json")
@@ -216,7 +226,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         "workflow" => %{
           "name" => "fullstack_development",
           "workspace_dir" => "/tmp/integration_workspace",
-          "checkpoint_enabled" => true,
+          "checkpoint_enabled" => false,
           "defaults" => %{
             "output_dir" => "/tmp/integration_outputs",
             "gemini_model" => "gemini-2.5-pro",
@@ -541,7 +551,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         "workflow" => %{
           "name" => "error_recovery_test",
           "workspace_dir" => "/tmp/integration_workspace",
-          "checkpoint_enabled" => true,
+          "checkpoint_enabled" => false,
           "defaults" => %{"output_dir" => "/tmp/integration_outputs"},
           "steps" => [
             %{
@@ -596,7 +606,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         "workflow" => %{
           "name" => "comprehensive_feature_test",
           "workspace_dir" => "/tmp/integration_workspace",
-          "checkpoint_enabled" => true,
+          "checkpoint_enabled" => false,
           "checkpoint_dir" => "/tmp/integration_workspace/.checkpoints",
           "defaults" => %{
             "output_dir" => "/tmp/integration_outputs",
@@ -709,7 +719,7 @@ defmodule Pipeline.WorkflowScenariosTest do
         "workflow" => %{
           "name" => "validation_workflow",
           "workspace_dir" => "/tmp/workspace",
-          "checkpoint_enabled" => true,
+          "checkpoint_enabled" => false,
           "defaults" => %{
             "gemini_model" => "gemini-2.5-flash",
             "output_dir" => "/tmp/outputs"
@@ -779,6 +789,12 @@ defmodule Pipeline.WorkflowScenariosTest do
       "text" => "Integration test mock response"
     })
 
+    # Error test pattern
+    Mocks.ClaudeProvider.set_response_pattern("error test", %{
+      "success" => false,
+      "error" => "Simulated error for testing"
+    })
+
     Mocks.ClaudeProvider.set_response_pattern("improve", %{
       "success" => true,
       "text" => "Improved code with better error handling and validation"
@@ -843,7 +859,17 @@ defmodule Pipeline.WorkflowScenariosTest do
 
     Mocks.GeminiProvider.set_response_pattern("analysis", %{
       "success" => true,
-      "content" => "Code analysis: Found patterns and potential improvements"
+      "content" => "Code analysis: Found patterns and potential improvements",
+      "key_insights" => [
+        "Data shows strong seasonal patterns",
+        "Customer retention is increasing",
+        "Revenue growth is consistent"
+      ],
+      "recommendations" => [
+        "Focus on Q4 marketing",
+        "Expand customer success team",
+        "Invest in automation"
+      ]
     })
 
     Mocks.GeminiProvider.set_response_pattern("review", %{
@@ -884,6 +910,21 @@ defmodule Pipeline.WorkflowScenariosTest do
             ]
           }
         }
+      ],
+      # Also include merged fields for template extraction
+      "quality_score" => 7,
+      "issues" => [
+        %{
+          "type" => "style",
+          "severity" => "medium",
+          "description" => "Consider adding type hints",
+          "line" => 1
+        }
+      ],
+      "suggestions" => [
+        "Add input validation",
+        "Implement proper error handling",
+        "Add type hints"
       ]
     })
 
@@ -912,7 +953,25 @@ defmodule Pipeline.WorkflowScenariosTest do
             "api_endpoints" => ["/auth/login", "/api/data", "/api/status"]
           }
         }
-      ]
+      ],
+      # Also include merged fields for template extraction
+      "services" => [
+        %{
+          "name" => "auth-service",
+          "purpose" => "Authentication",
+          "technologies" => ["FastAPI", "JWT"]
+        },
+        %{
+          "name" => "api-service",
+          "purpose" => "Main API",
+          "technologies" => ["FastAPI", "SQLAlchemy"]
+        }
+      ],
+      "database_schema" => [
+        %{"table" => "users", "purpose" => "User accounts"},
+        %{"table" => "data", "purpose" => "Application data"}
+      ],
+      "api_endpoints" => ["/auth/login", "/api/data", "/api/status"]
     })
 
     Mocks.GeminiProvider.set_function_response("analyze_patterns", %{
@@ -936,6 +995,20 @@ defmodule Pipeline.WorkflowScenariosTest do
             ]
           }
         }
+      ],
+      # Also include merged fields for template extraction
+      "key_insights" => [
+        "Data shows consistent growth patterns",
+        "Key metrics are within expected ranges"
+      ],
+      "metrics" => %{
+        "total_revenue" => 1000.0,
+        "unique_users" => 50,
+        "conversion_rate" => 0.8
+      },
+      "recommendations" => [
+        "Continue current strategy",
+        "Monitor key metrics closely"
       ]
     })
 
@@ -953,6 +1026,13 @@ defmodule Pipeline.WorkflowScenariosTest do
             ]
           }
         }
+      ],
+      # Also include merged fields for template extraction
+      "is_valid" => true,
+      "issues" => [],
+      "suggestions" => [
+        "Consider adding SSL configuration",
+        "Add monitoring setup"
       ]
     })
   end

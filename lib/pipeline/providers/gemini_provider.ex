@@ -56,12 +56,9 @@ defmodule Pipeline.Providers.GeminiProvider do
   """
   def query(prompt, options \\ %{}) do
     Logger.debug("🧠 Querying Gemini with prompt: #{String.slice(prompt, 0, 100)}...")
-    IO.puts("DEBUG: GeminiProvider.query called with prompt length: #{String.length(prompt)}")
-    IO.puts("DEBUG: Options: #{inspect(options)}")
 
     # Build instruction configuration
     instruction_config = build_instruction_config(options)
-    IO.puts("DEBUG: Built instruction_config: #{inspect(instruction_config)}")
 
     # Format prompt for Gemini adapter - it expects a structured format
     formatted_prompt = %{
@@ -73,27 +70,19 @@ defmodule Pipeline.Providers.GeminiProvider do
       ]
     }
 
-    IO.puts("DEBUG: Formatted prompt: #{inspect(formatted_prompt)}")
-
     # Execute the instruction
-    IO.puts("DEBUG: About to call InstructorLite.instruct")
-
     case InstructorLite.instruct(formatted_prompt, instruction_config) do
       {:ok, response} ->
-        IO.puts("DEBUG: InstructorLite.instruct returned success: #{inspect(response)}")
         formatted_response = format_gemini_response(response)
-        IO.puts("DEBUG: Formatted response: #{inspect(formatted_response)}")
         Logger.debug("✅ Gemini query successful")
         {:ok, formatted_response}
 
       {:error, reason} ->
-        IO.puts("DEBUG: InstructorLite.instruct returned error: #{inspect(reason)}")
         Logger.error("❌ Gemini query failed: #{inspect(reason)}")
         {:error, format_error(reason)}
     end
   rescue
     error ->
-      IO.puts("DEBUG: Exception in GeminiProvider.query: #{inspect(error)}")
       Logger.error("💥 Gemini query crashed: #{inspect(error)}")
       {:error, "Gemini query crashed: #{Exception.message(error)}"}
   end

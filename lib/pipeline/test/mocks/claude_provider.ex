@@ -7,8 +7,15 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
     # Check for pattern-specific responses first
     case find_matching_pattern(prompt) do
       {:ok, response} ->
-        enhanced_response = enhance_response_with_options(response, options)
-        {:ok, enhanced_response}
+        # Handle error responses
+        case response do
+          %{"success" => false, "error" => error_msg} ->
+            {:error, error_msg}
+
+          _ ->
+            enhanced_response = enhance_response_with_options(response, options)
+            {:ok, enhanced_response}
+        end
 
       :not_found ->
         handle_fallback_patterns(prompt, options)
@@ -72,10 +79,13 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
   end
 
   defp find_matching_pattern(prompt) do
+    # Get all mock response keys and sort by pattern length (longest first)
+    # This ensures more specific patterns are matched before generic ones
     Process.get_keys()
     |> Enum.filter(fn key -> match?({:mock_response, _}, key) end)
+    |> Enum.sort_by(fn {_, pattern} -> -String.length(pattern) end)
     |> Enum.find_value(:not_found, fn {_, pattern} ->
-      if String.contains?(prompt, pattern) do
+      if pattern == "" or String.contains?(prompt, pattern) do
         {:ok, Process.get({:mock_response, pattern})}
       else
         nil

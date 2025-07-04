@@ -53,9 +53,9 @@ defmodule Pipeline.Error.NestedPipeline do
     error_context = build_error_context(context, step)
     execution_chain = RecursionGuard.build_execution_chain(context)
     hierarchy = format_pipeline_hierarchy(execution_chain, context)
-    
+
     base_message = extract_base_error_message(error)
-    
+
     formatted_message = """
     Pipeline execution failed in nested pipeline:
 
@@ -185,34 +185,43 @@ defmodule Pipeline.Error.NestedPipeline do
     execution_chain = RecursionGuard.build_execution_chain(safe_context)
     hierarchy = format_pipeline_hierarchy(execution_chain, context)
 
-    limit_description = case limit_type do
-      :memory -> "Memory usage: #{current_value}MB > #{limit_value}MB limit"
-      :depth -> "Nesting depth: #{current_value} > #{limit_value} levels"
-      :steps -> "Total steps: #{current_value} > #{limit_value} steps"
-      _ -> "Resource limit exceeded: #{current_value} > #{limit_value}"
-    end
+    limit_description =
+      case limit_type do
+        :memory -> "Memory usage: #{current_value}MB > #{limit_value}MB limit"
+        :depth -> "Nesting depth: #{current_value} > #{limit_value} levels"
+        :steps -> "Total steps: #{current_value} > #{limit_value} steps"
+        _ -> "Resource limit exceeded: #{current_value} > #{limit_value}"
+      end
 
-    recommendations = case limit_type do
-      :memory -> [
-        "Review pipeline for memory-intensive operations",
-        "Consider breaking large pipelines into smaller chunks",
-        "Increase memory_limit_mb in configuration if appropriate",
-        "Check for memory leaks in custom step implementations"
-      ]
-      :depth -> [
-        "Reduce pipeline nesting levels",
-        "Consider flattening nested pipeline structures",
-        "Increase max_depth in configuration if deep nesting is required",
-        "Review pipeline composition for optimization opportunities"
-      ]
-      :steps -> [
-        "Optimize pipeline step count",
-        "Remove unnecessary steps or combine related operations",
-        "Increase max_total_steps in configuration if needed",
-        "Consider parallel execution for independent operations"
-      ]
-      _ -> ["Review resource usage and configuration"]
-    end
+    recommendations =
+      case limit_type do
+        :memory ->
+          [
+            "Review pipeline for memory-intensive operations",
+            "Consider breaking large pipelines into smaller chunks",
+            "Increase memory_limit_mb in configuration if appropriate",
+            "Check for memory leaks in custom step implementations"
+          ]
+
+        :depth ->
+          [
+            "Reduce pipeline nesting levels",
+            "Consider flattening nested pipeline structures",
+            "Increase max_depth in configuration if deep nesting is required",
+            "Review pipeline composition for optimization opportunities"
+          ]
+
+        :steps ->
+          [
+            "Optimize pipeline step count",
+            "Remove unnecessary steps or combine related operations",
+            "Increase max_total_steps in configuration if needed",
+            "Consider parallel execution for independent operations"
+          ]
+
+        _ ->
+          ["Review resource usage and configuration"]
+      end
 
     """
     Resource limit exceeded in nested pipeline execution:
@@ -247,7 +256,7 @@ defmodule Pipeline.Error.NestedPipeline do
   @spec create_debug_log_entry(any(), map(), map() | nil) :: map()
   def create_debug_log_entry(error, context, step \\ nil) do
     safe_context = ensure_safe_context(context)
-    
+
     %{
       timestamp: DateTime.utc_now(),
       error_type: classify_error_type(error),
@@ -269,7 +278,7 @@ defmodule Pipeline.Error.NestedPipeline do
   defp build_error_context(context, step) do
     # Create a safe context structure for RecursionGuard functions
     safe_context = ensure_safe_context(context)
-    
+
     %{
       pipeline_id: context.pipeline_id || "unknown",
       step_name: get_step_name(step),
@@ -285,18 +294,19 @@ defmodule Pipeline.Error.NestedPipeline do
 
   defp format_pipeline_hierarchy(execution_chain, context) do
     depth = Map.get(context, :nesting_depth, 0)
-    
+
     case execution_chain do
       [single] when depth == 0 ->
         "Main Pipeline: #{single}"
-      
+
       chain ->
-        formatted_chain = 
+        formatted_chain =
           chain
           |> Enum.reverse()
           |> Enum.with_index()
           |> Enum.map_join("\n", fn {pipeline, index} ->
             indent = String.duplicate("  ", index)
+
             if index == 0 do
               "#{indent}Main Pipeline: #{pipeline}"
             else
@@ -304,14 +314,14 @@ defmodule Pipeline.Error.NestedPipeline do
               "#{indent}#{arrow} Nested Pipeline: #{pipeline} (depth: #{index})"
             end
           end)
-        
+
         formatted_chain
     end
   end
 
-  defp format_execution_stack(execution_chain, context) do
+  defp format_execution_stack(execution_chain, _context) do
     chain = Enum.reverse(execution_chain)
-    
+
     chain
     |> Enum.with_index(1)
     |> Enum.map_join("\n", fn {pipeline, index} ->
@@ -320,7 +330,7 @@ defmodule Pipeline.Error.NestedPipeline do
     end)
   end
 
-  defp extract_base_error_message(error) do
+  def extract_base_error_message(error) do
     case error do
       {:error, message} when is_binary(message) -> message
       {:error, %{message: message}} -> message
@@ -344,23 +354,25 @@ defmodule Pipeline.Error.NestedPipeline do
 
   defp classify_error_type(error) do
     error_message = extract_base_error_message(error)
-    
+
     cond do
       String.contains?(error_message, "timeout") or String.contains?(error_message, "Timeout") ->
         :timeout
-      
-      String.contains?(error_message, "circular dependency") or String.contains?(error_message, "Circular") ->
+
+      String.contains?(error_message, "circular dependency") or
+          String.contains?(error_message, "Circular") ->
         :circular_dependency
-      
-      String.contains?(error_message, "limit exceeded") or String.contains?(error_message, "Maximum") ->
+
+      String.contains?(error_message, "limit exceeded") or
+          String.contains?(error_message, "Maximum") ->
         :resource_limit
-      
+
       String.contains?(error_message, "not found") or String.contains?(error_message, "missing") ->
         :not_found
-      
+
       String.contains?(error_message, "invalid") or String.contains?(error_message, "Invalid") ->
         :validation
-      
+
       true ->
         :unknown
     end
@@ -389,6 +401,7 @@ defmodule Pipeline.Error.NestedPipeline do
   end
 
   defp sanitize_step_config(nil), do: nil
+
   defp sanitize_step_config(step) do
     step
     |> Map.take(["name", "type", "condition", "config"])
@@ -431,10 +444,11 @@ defmodule Pipeline.Error.NestedPipeline do
       pipeline_id: context.pipeline_id || "unknown",
       nesting_depth: Map.get(context, :nesting_depth, 0),
       step_count: Map.get(context, :step_count, 0),
-      parent_context: case Map.get(context, :parent_context) do
-        nil -> nil
-        parent -> ensure_safe_context(parent)
-      end
+      parent_context:
+        case Map.get(context, :parent_context) do
+          nil -> nil
+          parent -> ensure_safe_context(parent)
+        end
     }
   end
 end

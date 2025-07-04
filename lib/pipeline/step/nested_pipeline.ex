@@ -27,10 +27,17 @@ defmodule Pipeline.Step.NestedPipeline do
 
     with {:ok, pipeline} <- load_pipeline(resolved_step),
          {:ok, nested_context} <- Nested.create_nested_context(context, resolved_step),
-         {:ok, safety_context} <- create_safety_context(pipeline, nested_context, resolved_step),
+         {:ok, enhanced_nested_context} <- add_parent_safety_context(nested_context, context),
+         {:ok, safety_context} <-
+           create_safety_context(pipeline, enhanced_nested_context, resolved_step),
          :ok <- perform_safety_checks(pipeline, safety_context, resolved_step),
          {:ok, pipeline_results} <-
-           execute_pipeline_safely(pipeline, nested_context, resolved_step, safety_context),
+           execute_pipeline_safely(
+             pipeline,
+             enhanced_nested_context,
+             resolved_step,
+             safety_context
+           ),
          {:ok, extracted_outputs} <-
            Nested.extract_outputs(pipeline_results, resolved_step["outputs"]) do
       # Clean up resources
@@ -57,8 +64,15 @@ defmodule Pipeline.Step.NestedPipeline do
     require Logger
     Logger.debug("Original step inputs: #{inspect(step["inputs"])}")
 
-    # Use the same template resolution as Context.Nested but with the full pipeline context
-    resolved = resolve_data_templates_with_context(step, context)
+    # Only resolve templates in the inputs field, not in the nested pipeline definition
+    # The nested pipeline's steps should be resolved by its own executor
+    resolved =
+      if step["inputs"] do
+        resolved_inputs = resolve_data_templates_with_context(step["inputs"], context)
+        Map.put(step, "inputs", resolved_inputs)
+      else
+        step
+      end
 
     Logger.debug("Resolved step inputs: #{inspect(resolved["inputs"])}")
     resolved
@@ -81,6 +95,51 @@ defmodule Pipeline.Step.NestedPipeline do
   end
 
   defp resolve_data_templates_with_context(data, _context), do: data
+
+  # Add parent safety context to nested context
+  defp add_parent_safety_context(nested_context, parent_context) do
+    parent_safety_context = Map.get(parent_context, :safety_context)
+    enhanced_context = Map.put(nested_context, :safety_context, parent_safety_context)
+    {:ok, enhanced_context}
+  end
+
+  # Create parent safety context from nested context information
+  defp create_parent_safety_context(nested_context) do
+    case Map.get(nested_context, :parent_context) do
+      nil ->
+        # No parent context, this is a root level nested pipeline
+        nil
+
+      parent_ctx ->
+        parent_pipeline_name =
+          Map.get(parent_ctx, :workflow_name) ||
+            Map.get(parent_ctx, :pipeline_name) ||
+            "parent_pipeline"
+
+        # Check if we have a stored safety context for the parent pipeline
+        case Process.get({:safety_context, parent_pipeline_name}) do
+          nil ->
+            # Parent doesn't have a safety context, create a basic one
+            # This is for when a regular pipeline calls a nested pipeline
+            # Try to get the step count from the parent context
+            parent_step_count = Map.get(parent_ctx, :total_steps, 0)
+
+            %{
+              # Parent is the root pipeline 
+              nesting_depth: 0,
+              pipeline_id: parent_pipeline_name,
+              parent_context: nil,
+              step_count: parent_step_count,
+              start_time: DateTime.utc_now(),
+              workspace_dir: nil
+            }
+
+          existing_safety_context ->
+            # Use the existing parent safety context 
+            existing_safety_context
+        end
+    end
+  end
 
   # Load the pipeline from various sources
   defp load_pipeline(step) do
@@ -143,16 +202,29 @@ defmodule Pipeline.Step.NestedPipeline do
     step_config = step["config"] || %{}
     safety_config = extract_safety_config(step_config)
 
-    # Create execution context for safety tracking  
-    # The parent safety context comes from the nested_context if it has one,
-    # otherwise this is a root level nested pipeline
-    parent_safety_context = Map.get(nested_context, :safety_context)
+    # Create parent safety context from the nested context's parent information
+    parent_safety_context = create_parent_safety_context(nested_context)
+
+    # Track cumulative step count across nested pipeline executions
+    parent_pipeline_name = Map.get(nested_context, :pipeline_name, "parent_pipeline")
+    cumulative_key = {:cumulative_steps, parent_pipeline_name}
+    current_cumulative = Process.get(cumulative_key, 0)
+    new_cumulative = current_cumulative + step_count
+    Process.put(cumulative_key, new_cumulative)
+
+    # Use cumulative step count for safety context if parent context exists
+    effective_step_count =
+      if parent_safety_context do
+        new_cumulative
+      else
+        step_count
+      end
 
     safety_context =
       SafetyManager.create_safe_context(
         pipeline_name,
         parent_safety_context,
-        step_count,
+        effective_step_count,
         safety_config
       )
 
@@ -166,29 +238,37 @@ defmodule Pipeline.Step.NestedPipeline do
     safety_config = extract_safety_config(step_config)
 
     # For root-level nested pipelines (no parent context), skip circular dependency check
-    # since they can't be circular by definition
+    # since they can't be circular by definition, but still check step count limits
     case safety_context.parent_context do
       nil ->
-        # Only check resource limits for root-level pipelines
+        # Check resource limits AND step count limits for root-level pipelines
         resource_limits = %{
           memory_limit_mb: Map.get(safety_config, :memory_limit_mb, 1024),
           timeout_seconds: Map.get(safety_config, :timeout_seconds, 300)
         }
 
-        case Pipeline.Safety.ResourceMonitor.monitor_execution(
-               safety_context.start_time,
-               resource_limits
-             ) do
-          :ok -> :ok
-          {:error, message} -> {:error, message}
+        with :ok <-
+               Pipeline.Safety.ResourceMonitor.monitor_execution(
+                 safety_context.start_time,
+                 resource_limits
+               ),
+             :ok <- check_limits_for_current(safety_context, safety_config) do
+          :ok
+        else
+          {:error, message} ->
+            formatted_error =
+              SafetyManager.handle_safety_violation(message, safety_context, safety_config)
+
+            {:error, formatted_error}
         end
 
       parent when not is_nil(parent) ->
-        # For nested pipelines, do full safety checks
-        case SafetyManager.check_safety(pipeline_name, safety_context, safety_config) do
-          :ok ->
-            :ok
-
+        # For nested pipelines, check circular dependency against parent context,
+        # then check other limits against current context
+        with :ok <- check_circular_dependency_with_parent(pipeline_name, parent),
+             :ok <- check_limits_for_current(safety_context, safety_config) do
+          :ok
+        else
           {:error, message} ->
             formatted_error =
               SafetyManager.handle_safety_violation(message, safety_context, safety_config)
@@ -208,16 +288,34 @@ defmodule Pipeline.Step.NestedPipeline do
       "🚀 Starting nested pipeline execution: #{pipeline_name} (depth: #{safety_context.nesting_depth})"
     )
 
-    # Pre-resolve any input templates in the pipeline definition
+    # Get inputs from nested context to pass to the executor
     inputs = Map.get(nested_context, :inputs, %{})
-    enhanced_pipeline = resolve_pipeline_inputs(pipeline, inputs)
+    # Get global_vars if context was inherited
+    global_vars = Map.get(nested_context, :global_vars, %{})
+
+    # Add global_vars to the pipeline workflow if they were inherited and not empty
+    enhanced_pipeline =
+      if map_size(global_vars) > 0 do
+        put_in(pipeline, ["workflow", "global_vars"], global_vars)
+      else
+        pipeline
+      end
+
+    # Store the safety context in a global registry so it can be accessed by child pipelines
+    # This is a simple approach: store it in the process dictionary for this pipeline execution
+    Process.put({:safety_context, pipeline_name}, safety_context)
 
     # Monitor execution with periodic safety checks
     execution_start = DateTime.utc_now()
 
-    # Execute the pipeline using the main Executor
+    # Execute the pipeline using the main Executor, passing the inputs
+    execution_opts = [
+      enable_monitoring: false,
+      inputs: inputs
+    ]
+
     result =
-      case Executor.execute(enhanced_pipeline, enable_monitoring: false) do
+      case Executor.execute(enhanced_pipeline, execution_opts) do
         {:ok, results} ->
           # Perform final safety check
           case SafetyManager.monitor_execution(safety_context, safety_config) do
@@ -255,6 +353,7 @@ defmodule Pipeline.Step.NestedPipeline do
     # Override with step-specific configuration
     config
     |> put_if_present(:max_depth, step_config["max_depth"])
+    |> put_if_present(:max_total_steps, step_config["max_total_steps"])
     |> put_if_present(:memory_limit_mb, step_config["memory_limit_mb"])
     |> put_if_present(:timeout_seconds, step_config["timeout_seconds"])
     |> put_if_present(:workspace_enabled, step_config["workspace_enabled"])
@@ -265,46 +364,28 @@ defmodule Pipeline.Step.NestedPipeline do
   defp put_if_present(map, _key, nil), do: map
   defp put_if_present(map, key, value), do: Map.put(map, key, value)
 
-  # Pre-resolve input templates in the pipeline definition
-  defp resolve_pipeline_inputs(pipeline, inputs) do
-    # Create a simple context for template resolution
-    simple_context = %{inputs: inputs}
+  # Check circular dependency using parent context
+  defp check_circular_dependency_with_parent(pipeline_name, parent_context) do
+    alias Pipeline.Safety.RecursionGuard
 
-    # Resolve templates in the entire pipeline structure
-    resolve_data_templates(pipeline, simple_context)
-  end
-
-  # Recursively resolve templates in any data structure
-  defp resolve_data_templates(data, context) when is_map(data) do
-    data
-    |> Enum.map(fn {k, v} -> {k, resolve_data_templates(v, context)} end)
-    |> Map.new()
-  end
-
-  defp resolve_data_templates(data, context) when is_list(data) do
-    Enum.map(data, &resolve_data_templates(&1, context))
-  end
-
-  defp resolve_data_templates(data, context) when is_binary(data) do
-    # Only resolve input templates to avoid interfering with other template types
-    if String.contains?(data, "{{inputs.") do
-      resolve_input_templates(data, context)
-    else
-      data
+    case RecursionGuard.check_circular_dependency(pipeline_name, parent_context) do
+      :ok -> :ok
+      {:error, message} -> {:error, message}
     end
   end
 
-  defp resolve_data_templates(data, _context), do: data
+  # Check resource limits for current context only
+  defp check_limits_for_current(safety_context, safety_config) do
+    alias Pipeline.Safety.RecursionGuard
 
-  # Resolve only input templates
-  defp resolve_input_templates(text, context) do
-    # Only replace {{inputs.xxx}} patterns
-    Regex.replace(~r/\{\{inputs\.([^}]+)\}\}/, text, fn _, input_key ->
-      case get_in(context, [:inputs, input_key]) do
-        # Keep original if not found
-        nil -> "{{inputs.#{input_key}}}"
-        value -> to_string(value)
-      end
-    end)
+    recursion_limits = %{
+      max_depth: Map.get(safety_config, :max_depth, 10),
+      max_total_steps: Map.get(safety_config, :max_total_steps, 1000)
+    }
+
+    case RecursionGuard.check_limits(safety_context, recursion_limits) do
+      :ok -> :ok
+      {:error, message} -> {:error, message}
+    end
   end
 end

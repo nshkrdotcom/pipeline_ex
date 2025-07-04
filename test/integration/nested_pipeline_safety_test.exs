@@ -56,9 +56,9 @@ defmodule Pipeline.Integration.NestedPipelineSafetyTest do
       File.mkdir_p!(Path.dirname(fixture_path))
       File.write!(fixture_path, Jason.encode!(recursive_fixture))
 
-      # Execute and expect it to fail with recursion limit
+      # Execute and expect it to fail with circular dependency detection
       assert {:error, error_message} = Pipeline.execute(recursive_pipeline)
-      assert error_message =~ "Maximum nesting depth"
+      assert error_message =~ "Circular dependency detected"
 
       # Clean up
       File.rm_rf!(fixture_path)
@@ -195,7 +195,7 @@ defmodule Pipeline.Integration.NestedPipelineSafetyTest do
 
       # This should succeed with normal memory usage
       assert {:ok, results} = Pipeline.execute(pipeline)
-      assert results["nested_with_limits"] == "memory test"
+      assert results["nested_with_limits"]["echo_step"] == "memory test"
     end
 
     test "handles execution timeout monitoring" do
@@ -228,7 +228,7 @@ defmodule Pipeline.Integration.NestedPipelineSafetyTest do
 
       # This should succeed as it's a quick operation
       assert {:ok, results} = Pipeline.execute(pipeline)
-      assert results["quick_nested"] == "quick result"
+      assert results["quick_nested"]["fast_echo"] == "quick result"
     end
 
     test "workspace isolation and cleanup" do
@@ -261,7 +261,7 @@ defmodule Pipeline.Integration.NestedPipelineSafetyTest do
 
       # Execute successfully
       assert {:ok, results} = Pipeline.execute(pipeline)
-      assert results["workspace_step"] == "workspace result"
+      assert results["workspace_step"]["echo_in_workspace"] == "workspace result"
 
       # Workspace should be cleaned up after execution
       # We can't easily test this without more introspection into the workspace paths
@@ -367,7 +367,7 @@ defmodule Pipeline.Integration.NestedPipelineSafetyTest do
 
       # This should succeed with proper depth tracking
       assert {:ok, results} = Pipeline.execute(main_pipeline)
-      assert results["call_level1"] == "level 3 result"
+      assert results["call_level1"]["call_level2"]["call_level3"]["deep_echo"] == "level 3 result"
     end
 
     test "custom safety limits override defaults" do
@@ -404,7 +404,7 @@ defmodule Pipeline.Integration.NestedPipelineSafetyTest do
 
       # Should succeed with custom limits
       assert {:ok, results} = Pipeline.execute(pipeline)
-      assert results["limited_nested"] == "custom limits work"
+      assert results["limited_nested"]["echo_result"] == "custom limits work"
     end
   end
 end

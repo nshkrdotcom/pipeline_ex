@@ -1,6 +1,6 @@
 defmodule Pipeline.Debug.NestedExecutionTest do
   use ExUnit.Case, async: true
-  
+
   alias Pipeline.Debug.NestedExecution
 
   describe "start_debug_session/2" do
@@ -18,16 +18,16 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       session = NestedExecution.start_debug_session(trace_context)
-      
+
       assert is_binary(session.session_id)
       assert session.trace_context == trace_context
       assert is_map(session.execution_tree)
       assert is_map(session.debug_options)
       assert is_struct(session.start_time, DateTime)
       assert session.commands_history == []
-      
+
       # Check default options
       assert session.debug_options.show_metadata == false
       assert session.debug_options.show_errors == true
@@ -37,15 +37,15 @@ defmodule Pipeline.Debug.NestedExecutionTest do
 
     test "creates debug session with custom options" do
       trace_context = %{trace_id: "test", spans: %{}}
-      
+
       options = %{
         show_metadata: true,
         show_errors: false,
         max_depth: 5
       }
-      
+
       session = NestedExecution.start_debug_session(trace_context, options)
-      
+
       assert session.debug_options.show_metadata == true
       assert session.debug_options.show_errors == false
       assert session.debug_options.max_depth == 5
@@ -57,9 +57,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
   describe "debug_execution_tree/2" do
     test "formats execution tree with basic options" do
       context = create_test_execution_tree()
-      
+
       output = NestedExecution.debug_execution_tree(context)
-      
+
       assert output =~ "🌳 Execution Tree Debug View"
       assert output =~ "Pipeline: root_pipeline"
       assert output =~ "Total Duration: 1500ms"
@@ -74,9 +74,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
     test "shows metadata when requested" do
       context = create_test_execution_tree()
       options = %{show_metadata: true}
-      
+
       output = NestedExecution.debug_execution_tree(context, options)
-      
+
       assert output =~ "📊 Depth:"
       assert output =~ "🕐 Started:"
       assert output =~ "📍 Span ID:"
@@ -85,9 +85,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
     test "hides errors when requested" do
       context = create_test_execution_tree_with_errors()
       options = %{show_errors: false}
-      
+
       output = NestedExecution.debug_execution_tree(context, options)
-      
+
       refute output =~ "❌ Error:"
       refute output =~ "Something went wrong"
     end
@@ -95,9 +95,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
     test "respects max_depth option" do
       context = create_deep_execution_tree()
       options = %{max_depth: 2}
-      
+
       output = NestedExecution.debug_execution_tree(context, options)
-      
+
       assert output =~ "... (max depth 2 reached)"
     end
 
@@ -117,11 +117,11 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       session = NestedExecution.start_debug_session(trace_context)
-      
+
       output = NestedExecution.debug_execution_tree(session)
-      
+
       assert output =~ "test_pipeline"
       assert output =~ "1000ms"
     end
@@ -130,15 +130,15 @@ defmodule Pipeline.Debug.NestedExecutionTest do
   describe "analyze_execution/2" do
     test "analyzes execution for performance issues" do
       execution_tree = create_test_execution_tree()
-      
+
       analysis = NestedExecution.analyze_execution(execution_tree)
-      
+
       assert is_list(analysis.performance_issues)
       assert is_list(analysis.potential_optimizations)
       assert is_list(analysis.error_patterns)
       assert is_map(analysis.resource_usage)
       assert is_list(analysis.recommendations)
-      
+
       # Check resource usage analysis
       assert is_number(analysis.resource_usage.total_execution_time)
       assert is_number(analysis.resource_usage.span_count)
@@ -150,17 +150,19 @@ defmodule Pipeline.Debug.NestedExecutionTest do
       slow_tree = %{
         pipeline_id: "slow_pipeline",
         spans: [
-          %{depth: 0, duration_ms: 10000, status: :completed},  # 10 seconds - slow
-          %{depth: 1, duration_ms: 8000, status: :completed}    # 8 seconds - slow
+          # 10 seconds - slow
+          %{depth: 0, duration_ms: 10000, status: :completed},
+          # 8 seconds - slow
+          %{depth: 1, duration_ms: 8000, status: :completed}
         ],
         children: [],
         total_duration_ms: 18000,
         step_count: 2,
         max_depth: 1
       }
-      
+
       analysis = NestedExecution.analyze_execution(slow_tree)
-      
+
       slow_issue = Enum.find(analysis.performance_issues, &(&1.type == :slow_execution))
       assert slow_issue != nil
       assert slow_issue.severity == :warning
@@ -180,9 +182,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
         step_count: 3,
         max_depth: 0
       }
-      
+
       analysis = NestedExecution.analyze_execution(failing_tree)
-      
+
       failure_issue = Enum.find(analysis.performance_issues, &(&1.type == :high_failure_rate))
       assert failure_issue != nil
       assert failure_issue.severity == :error
@@ -195,11 +197,12 @@ defmodule Pipeline.Debug.NestedExecutionTest do
         children: [],
         total_duration_ms: 1000,
         step_count: 1,
-        max_depth: 8  # Deep nesting
+        # Deep nesting
+        max_depth: 8
       }
-      
+
       analysis = NestedExecution.analyze_execution(deep_tree)
-      
+
       depth_issue = Enum.find(analysis.performance_issues, &(&1.type == :deep_nesting))
       assert depth_issue != nil
       assert depth_issue.severity == :warning
@@ -219,44 +222,66 @@ defmodule Pipeline.Debug.NestedExecutionTest do
         step_count: 4,
         max_depth: 1
       }
-      
+
       analysis = NestedExecution.analyze_execution(tree_with_errors)
-      
+
       assert length(analysis.error_patterns) > 0
-      
+
       # Should group timeout errors together
       timeout_pattern = Enum.find(analysis.error_patterns, &(&1.error_type == :timeout))
       assert timeout_pattern != nil
       assert timeout_pattern.count == 2
-      
+
       # Should identify circular dependency
-      circular_pattern = Enum.find(analysis.error_patterns, &(&1.error_type == :circular_dependency))
+      circular_pattern =
+        Enum.find(analysis.error_patterns, &(&1.error_type == :circular_dependency))
+
       assert circular_pattern != nil
       assert circular_pattern.count == 1
     end
 
     test "suggests optimizations based on execution patterns" do
       # Test various scenarios that should trigger different optimization suggestions
-      
+
       # Deep nesting should suggest parallel execution
       deep_tree = %{
-        pipeline_id: "deep", spans: [], children: [], 
-        total_duration_ms: 1000, step_count: 1, max_depth: 4
+        pipeline_id: "deep",
+        spans: [],
+        children: [],
+        total_duration_ms: 1000,
+        step_count: 1,
+        max_depth: 4
       }
-      
+
       analysis_deep = NestedExecution.analyze_execution(deep_tree)
+
       assert "Consider parallel execution for independent nested pipelines" in analysis_deep.potential_optimizations
-      
-      # Many pipelines should suggest caching
+
+      # Many pipelines should suggest caching - create tree with 12 unique pipelines
+      many_spans =
+        for i <- 1..12 do
+          %{
+            id: "span_#{i}",
+            pipeline_id: "pipeline_#{i}",
+            depth: 0,
+            duration_ms: 100,
+            status: :completed,
+            error: nil
+          }
+        end
+
       many_pipelines_tree = %{
-        pipeline_id: "many", spans: [], children: [], 
-        total_duration_ms: 1000, step_count: 1, max_depth: 2
+        pipeline_id: "many",
+        spans: many_spans,
+        children: [],
+        total_duration_ms: 1200,
+        step_count: 12,
+        max_depth: 0
       }
-      
-      # Mock the performance summary to have many pipelines
-      summary = %{pipeline_count: 15, max_depth: 2}
-      optimizations = suggest_optimizations_helper(many_pipelines_tree, summary)
-      assert "Consider caching pipeline definitions for repeated executions" in optimizations
+
+      analysis_many = NestedExecution.analyze_execution(many_pipelines_tree)
+
+      assert "Consider caching pipeline definitions for repeated executions" in analysis_many.potential_optimizations
     end
   end
 
@@ -278,11 +303,11 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       error = "Test debug error"
-      
+
       report = NestedExecution.generate_debug_report(trace_context, error)
-      
+
       assert report =~ "🐛 NESTED PIPELINE DEBUG REPORT"
       assert report =~ "Trace ID: debug_trace"
       assert report =~ "Error Context:"
@@ -311,9 +336,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       report = NestedExecution.generate_debug_report(trace_context)
-      
+
       assert report =~ "success_trace"
       refute report =~ "Error Context:"
       assert report =~ "✅ No error patterns detected"
@@ -344,15 +369,15 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       step = %{
         "name" => "current_step",
         "type" => "claude",
         "config" => %{"timeout" => 30}
       }
-      
+
       output = NestedExecution.inspect_context(context, step)
-      
+
       assert output =~ "Context Inspection:"
       assert output =~ "Pipeline: inspect_test"
       assert output =~ "Nesting Depth: 2"
@@ -367,9 +392,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
 
     test "handles minimal context gracefully" do
       context = %{pipeline_id: "minimal"}
-      
+
       output = NestedExecution.inspect_context(context)
-      
+
       assert output =~ "Pipeline: minimal"
       assert output =~ "Nesting Depth: 0"
       assert output =~ "Step Index: unknown"
@@ -390,9 +415,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           "step7" => "result7"
         }
       }
-      
+
       output = NestedExecution.inspect_context(context)
-      
+
       assert output =~ "step1, step2, step3, step4, step5 (+ 2 more)"
     end
   end
@@ -402,19 +427,33 @@ defmodule Pipeline.Debug.NestedExecutionTest do
       trace1 = %{
         trace_id: "trace1",
         spans: %{
-          "span1" => %{id: "span1", pipeline_id: "pipeline1", depth: 0, duration_ms: 1000, status: :completed, parent_span: nil}
+          "span1" => %{
+            id: "span1",
+            pipeline_id: "pipeline1",
+            depth: 0,
+            duration_ms: 1000,
+            status: :completed,
+            parent_span: nil
+          }
         }
       }
-      
+
       trace2 = %{
-        trace_id: "trace2", 
+        trace_id: "trace2",
         spans: %{
-          "span2" => %{id: "span2", pipeline_id: "pipeline2", depth: 0, duration_ms: 1500, status: :completed, parent_span: nil}
+          "span2" => %{
+            id: "span2",
+            pipeline_id: "pipeline2",
+            depth: 0,
+            duration_ms: 1500,
+            status: :completed,
+            parent_span: nil
+          }
         }
       }
-      
+
       comparison = NestedExecution.compare_executions([trace1, trace2])
-      
+
       assert comparison =~ "📊 PERFORMANCE COMPARISON"
       assert comparison =~ "Executions Compared: 2"
       assert comparison =~ "Average Duration:"
@@ -424,9 +463,9 @@ defmodule Pipeline.Debug.NestedExecutionTest do
 
     test "handles insufficient data for comparison" do
       trace1 = %{trace_id: "single", spans: %{}}
-      
+
       comparison = NestedExecution.compare_executions([trace1])
-      
+
       assert comparison == "At least 2 performance metrics required for comparison"
     end
   end
@@ -442,24 +481,25 @@ defmodule Pipeline.Debug.NestedExecutionTest do
             error: nil
           },
           "span2" => %{
-            id: "span2", 
+            id: "span2",
             pipeline_id: "analysis_engine",
             step_name: "analyze",
             error: nil
           },
           "span3" => %{
             id: "span3",
-            pipeline_id: "data_validator", 
+            pipeline_id: "data_validator",
             step_name: "validate",
             error: nil
           }
         }
       }
-      
+
       results = NestedExecution.search_execution(trace_context, "data", :pipeline_ids)
-      
-      assert length(results) == 2  # data_processor and data_validator
-      pipeline_ids = Enum.map(results, &(&1.span.pipeline_id))
+
+      # data_processor and data_validator
+      assert length(results) == 2
+      pipeline_ids = Enum.map(results, & &1.span.pipeline_id)
       assert "data_processor" in pipeline_ids
       assert "data_validator" in pipeline_ids
       refute "analysis_engine" in pipeline_ids
@@ -476,7 +516,7 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           },
           "span2" => %{
             id: "span2",
-            pipeline_id: "pipeline2", 
+            pipeline_id: "pipeline2",
             step_name: "process_data",
             error: nil
           },
@@ -488,11 +528,12 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       results = NestedExecution.search_execution(trace_context, "validate", :step_names)
-      
-      assert length(results) == 2  # validate_input and validate_output
-      step_names = Enum.map(results, &(&1.span.step_name))
+
+      # validate_input and validate_output
+      assert length(results) == 2
+      step_names = Enum.map(results, & &1.span.step_name)
       assert "validate_input" in step_names
       assert "validate_output" in step_names
       refute "process_data" in step_names
@@ -510,7 +551,7 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           "span2" => %{
             id: "span2",
             pipeline_id: "pipeline2",
-            step_name: "step2", 
+            step_name: "step2",
             error: "API timeout occurred"
           },
           "span3" => %{
@@ -521,11 +562,11 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       results = NestedExecution.search_execution(trace_context, "timeout", :errors)
-      
+
       assert length(results) == 2
-      errors = Enum.map(results, &(&1.span.error))
+      errors = Enum.map(results, & &1.span.error)
       assert "Connection timeout" in errors
       assert "API timeout occurred" in errors
     end
@@ -548,20 +589,21 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           "span3" => %{
             id: "span3",
             pipeline_id: "other_pipeline",
-            step_name: "other_step", 
+            step_name: "other_step",
             error: "test error occurred"
           }
         }
       }
-      
+
       results = NestedExecution.search_execution(trace_context, "test", :all)
-      
-      assert length(results) == 3  # Matches in pipeline_id, step_name, and error
-      
+
+      # Matches in pipeline_id, step_name, and error
+      assert length(results) == 3
+
       # Verify match info is correct
-      match_fields = Enum.map(results, &(&1.match_info.matched_field))
+      match_fields = Enum.map(results, & &1.match_info.matched_field)
       assert :pipeline_id in match_fields
-      assert :step_name in match_fields  
+      assert :step_name in match_fields
       assert :error in match_fields
     end
 
@@ -576,7 +618,7 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           },
           "span2" => %{
             id: "span2",
-            pipeline_id: "data_processor_v2", 
+            pipeline_id: "data_processor_v2",
             step_name: "step2",
             error: nil
           },
@@ -588,13 +630,13 @@ defmodule Pipeline.Debug.NestedExecutionTest do
           }
         }
       }
-      
+
       # Search for pipelines matching pattern "data_processor_v\d+"
       regex_pattern = ~r/data_processor_v\d+/
       results = NestedExecution.search_execution(trace_context, regex_pattern, :pipeline_ids)
-      
+
       assert length(results) == 2
-      pipeline_ids = Enum.map(results, &(&1.span.pipeline_id))
+      pipeline_ids = Enum.map(results, & &1.span.pipeline_id)
       assert "data_processor_v1" in pipeline_ids
       assert "data_processor_v2" in pipeline_ids
       refute "analysis_engine" in pipeline_ids
@@ -606,25 +648,29 @@ defmodule Pipeline.Debug.NestedExecutionTest do
   defp create_test_execution_tree do
     %{
       pipeline_id: "root_pipeline",
-      spans: [%{
-        status: :completed,
-        step_name: nil,
-        duration_ms: 1000,
-        depth: 0,
-        pipeline_id: "root_pipeline",
-        parent_span: nil
-      }],
+      spans: [
+        %{
+          status: :completed,
+          step_name: nil,
+          duration_ms: 1000,
+          depth: 0,
+          pipeline_id: "root_pipeline",
+          parent_span: nil
+        }
+      ],
       children: [
         %{
           pipeline_id: "child_pipeline",
-          spans: [%{
-            status: :failed,
-            step_name: "child_step", 
-            duration_ms: 500,
-            depth: 1,
-            pipeline_id: "child_pipeline",
-            parent_span: "root_span"
-          }],
+          spans: [
+            %{
+              status: :failed,
+              step_name: "child_step",
+              duration_ms: 500,
+              depth: 1,
+              pipeline_id: "child_pipeline",
+              parent_span: "root_span"
+            }
+          ],
           children: [],
           total_duration_ms: 500,
           step_count: 1,
@@ -640,13 +686,15 @@ defmodule Pipeline.Debug.NestedExecutionTest do
   defp create_test_execution_tree_with_errors do
     %{
       pipeline_id: "error_pipeline",
-      spans: [%{
-        status: :failed,
-        step_name: "failing_step",
-        duration_ms: 1000,
-        depth: 0,
-        error: "Something went wrong"
-      }],
+      spans: [
+        %{
+          status: :failed,
+          step_name: "failing_step",
+          duration_ms: 1000,
+          depth: 0,
+          error: "Something went wrong"
+        }
+      ],
       children: [],
       total_duration_ms: 1000,
       step_count: 1,
@@ -660,7 +708,7 @@ defmodule Pipeline.Debug.NestedExecutionTest do
       spans: [%{status: :completed, step_name: nil, duration_ms: 100, depth: 0}],
       children: [
         %{
-          pipeline_id: "level1", 
+          pipeline_id: "level1",
           spans: [%{status: :completed, step_name: nil, duration_ms: 100, depth: 1}],
           children: [
             %{
@@ -690,20 +738,5 @@ defmodule Pipeline.Debug.NestedExecutionTest do
       step_count: 1,
       max_depth: 3
     }
-  end
-
-  # Helper function to test optimization suggestions
-  defp suggest_optimizations_helper(execution_tree, performance_summary) do
-    optimizations = []
-
-    if performance_summary.max_depth > 3 do
-      optimizations = ["Consider parallel execution for independent nested pipelines" | optimizations]
-    end
-
-    if performance_summary.pipeline_count > 10 do
-      optimizations = ["Consider caching pipeline definitions for repeated executions" | optimizations]
-    end
-
-    optimizations
   end
 end
