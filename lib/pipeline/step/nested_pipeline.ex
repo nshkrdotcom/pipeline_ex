@@ -183,7 +183,7 @@ defmodule Pipeline.Step.NestedPipeline do
           {:error, message} -> {:error, message}
         end
 
-      _parent ->
+      parent when not is_nil(parent) ->
         # For nested pipelines, do full safety checks
         case SafetyManager.check_safety(pipeline_name, safety_context, safety_config) do
           :ok ->

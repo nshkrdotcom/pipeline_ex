@@ -362,4 +362,3 @@ defmodule Pipeline.Safety.ResourceMonitorTest do
     end
   end
 end
-

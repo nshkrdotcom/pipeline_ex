@@ -49,9 +49,12 @@ defmodule Pipeline.Safety.ResourceMonitor do
       iex> Pipeline.Safety.ResourceMonitor.check_limits(usage, limits)
       {:error, "Memory limit exceeded: 1907.3 MB > 1024 MB"}
   """
-  @spec check_limits(resource_usage(), resource_limits()) :: check_result()
-  def check_limits(usage, limits \\ %{})
+  @spec check_limits(resource_usage()) :: check_result()
+  def check_limits(usage) do
+    check_limits(usage, %{})
+  end
 
+  @spec check_limits(resource_usage(), resource_limits()) :: check_result()
   def check_limits(usage, limits) do
     memory_limit_mb = Map.get(limits, :memory_limit_mb, get_memory_limit_mb())
     timeout_seconds = Map.get(limits, :timeout_seconds, get_timeout_seconds())
@@ -110,9 +113,12 @@ defmodule Pipeline.Safety.ResourceMonitor do
   - `:ok` if within limits
   - `{:error, message}` if limits exceeded
   """
-  @spec monitor_execution(DateTime.t(), resource_limits()) :: check_result()
-  def monitor_execution(start_time, limits \\ %{})
+  @spec monitor_execution(DateTime.t()) :: check_result()
+  def monitor_execution(start_time) do
+    monitor_execution(start_time, %{})
+  end
 
+  @spec monitor_execution(DateTime.t(), resource_limits()) :: check_result()
   def monitor_execution(start_time, limits) do
     usage = collect_usage(start_time)
     check_limits(usage, limits)
@@ -190,11 +196,15 @@ defmodule Pipeline.Safety.ResourceMonitor do
   ## Returns
   - Updated context with resources cleaned
   """
-  @spec cleanup_context(map()) :: map()
+  @spec cleanup_context(map()) :: %{
+          :execution_log => [],
+          :results => %{},
+          optional(any()) => any()
+        }
   def cleanup_context(context) do
     # Clean workspace if it exists
     if workspace_dir = context[:workspace_dir] do
-      _ = cleanup_workspace(workspace_dir)
+      _cleanup_result = cleanup_workspace(workspace_dir)
     end
 
     # Clear large data structures
@@ -247,9 +257,12 @@ defmodule Pipeline.Safety.ResourceMonitor do
   ## Returns
   - `:ok` always (warnings are logged, not returned as errors)
   """
-  @spec check_memory_pressure(resource_usage(), resource_limits()) :: :ok
-  def check_memory_pressure(usage, limits \\ %{})
+  @spec check_memory_pressure(resource_usage()) :: :ok
+  def check_memory_pressure(usage) do
+    check_memory_pressure(usage, %{})
+  end
 
+  @spec check_memory_pressure(resource_usage(), resource_limits()) :: :ok
   def check_memory_pressure(usage, limits) do
     memory_limit_mb = Map.get(limits, :memory_limit_mb, get_memory_limit_mb())
     memory_limit_bytes = memory_limit_mb * 1_048_576
@@ -294,4 +307,3 @@ defmodule Pipeline.Safety.ResourceMonitor do
     Application.get_env(:pipeline, :timeout_seconds, @default_timeout_seconds)
   end
 end
-

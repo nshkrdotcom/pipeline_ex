@@ -408,4 +408,3 @@ defmodule Pipeline.Integration.NestedPipelineSafetyTest do
     end
   end
 end
-

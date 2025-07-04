@@ -47,9 +47,12 @@ defmodule Pipeline.Safety.RecursionGuard do
       iex> Pipeline.Safety.RecursionGuard.check_limits(context)
       {:error, "Maximum nesting depth (10) exceeded: current depth is 15"}
   """
-  @spec check_limits(execution_context(), safety_limits()) :: check_result()
-  def check_limits(context, limits \\ %{})
+  @spec check_limits(execution_context()) :: check_result()
+  def check_limits(context) do
+    check_limits(context, %{})
+  end
 
+  @spec check_limits(execution_context(), safety_limits()) :: check_result()
   def check_limits(context, limits) do
     max_depth = Map.get(limits, :max_depth, get_max_depth())
     max_total_steps = Map.get(limits, :max_total_steps, get_max_total_steps())
@@ -117,9 +120,12 @@ defmodule Pipeline.Safety.RecursionGuard do
   - `:ok` if all checks pass
   - `{:error, message}` if any check fails
   """
-  @spec check_all_safety(String.t(), execution_context(), safety_limits()) :: check_result()
-  def check_all_safety(pipeline_id, context, limits \\ %{})
+  @spec check_all_safety(String.t(), execution_context()) :: check_result()
+  def check_all_safety(pipeline_id, context) do
+    check_all_safety(pipeline_id, context, %{})
+  end
 
+  @spec check_all_safety(String.t(), execution_context(), safety_limits()) :: check_result()
   def check_all_safety(pipeline_id, context, limits) do
     with :ok <- check_limits(context, limits),
          :ok <- check_circular_dependency(pipeline_id, context) do
@@ -222,4 +228,3 @@ defmodule Pipeline.Safety.RecursionGuard do
     Application.get_env(:pipeline, :max_total_steps, @default_max_total_steps)
   end
 end
-

@@ -342,4 +342,3 @@ defmodule Pipeline.Safety.RecursionGuardTest do
     end
   end
 end
-

@@ -24,4 +24,3 @@ config :pipeline,
 
 # Environment-specific configuration
 import_config "#{config_env()}.exs"
-

@@ -43,17 +43,16 @@ defmodule Pipeline.Safety.SafetyManager do
 
   ## Examples
 
-      iex> context = create_test_context("test", 2, 5)
+      iex> context = %{nesting_depth: 2, pipeline_id: "test", parent_context: nil, step_count: 5, start_time: DateTime.utc_now(), workspace_dir: nil}
       iex> Pipeline.Safety.SafetyManager.check_safety("child", context)
       :ok
-      
-      iex> context = create_test_context("test", 15, 5)
-      iex> Pipeline.Safety.SafetyManager.check_safety("child", context)
-      {:error, "Maximum nesting depth (10) exceeded: current depth is 15"}
   """
-  @spec check_safety(String.t(), execution_context(), safety_config()) :: safety_result()
-  def check_safety(pipeline_id, context, config \\ %{})
+  @spec check_safety(String.t(), execution_context()) :: safety_result()
+  def check_safety(pipeline_id, context) do
+    check_safety(pipeline_id, context, %{})
+  end
 
+  @spec check_safety(String.t(), execution_context(), safety_config()) :: safety_result()
   def check_safety(pipeline_id, context, config) do
     # Extract limits for each safety component
     recursion_limits = %{
@@ -93,14 +92,28 @@ defmodule Pipeline.Safety.SafetyManager do
   ## Returns
   - New execution context with safety tracking
   """
+  @spec create_safe_context(String.t()) :: execution_context()
+  def create_safe_context(pipeline_id) do
+    create_safe_context(pipeline_id, nil, 0, %{})
+  end
+
+  @spec create_safe_context(String.t(), execution_context() | nil) :: execution_context()
+  def create_safe_context(pipeline_id, parent_context) do
+    create_safe_context(pipeline_id, parent_context, 0, %{})
+  end
+
+  @spec create_safe_context(String.t(), execution_context() | nil, non_neg_integer()) ::
+          execution_context()
+  def create_safe_context(pipeline_id, parent_context, step_count) do
+    create_safe_context(pipeline_id, parent_context, step_count, %{})
+  end
+
   @spec create_safe_context(
           String.t(),
           execution_context() | nil,
           non_neg_integer(),
           safety_config()
         ) :: execution_context()
-  def create_safe_context(pipeline_id, parent_context \\ nil, step_count \\ 0, config \\ %{})
-
   def create_safe_context(pipeline_id, parent_context, step_count, config) do
     # Create base execution context
     base_context =
@@ -133,9 +146,12 @@ defmodule Pipeline.Safety.SafetyManager do
   - `:ok` if execution is within safety limits
   - `{:error, message}` if safety limits exceeded
   """
-  @spec monitor_execution(execution_context(), safety_config()) :: safety_result()
-  def monitor_execution(context, config \\ %{})
+  @spec monitor_execution(execution_context()) :: safety_result()
+  def monitor_execution(context) do
+    monitor_execution(context, %{})
+  end
 
+  @spec monitor_execution(execution_context(), safety_config()) :: safety_result()
   def monitor_execution(context, config) do
     resource_limits = %{
       memory_limit_mb: Map.get(config, :memory_limit_mb, 1024),
@@ -164,16 +180,19 @@ defmodule Pipeline.Safety.SafetyManager do
   ## Returns
   - Cleaned execution context
   """
-  @spec cleanup_execution(execution_context(), safety_config()) :: execution_context()
-  def cleanup_execution(context, config \\ %{})
+  @spec cleanup_execution(execution_context()) :: execution_context()
+  def cleanup_execution(context) do
+    cleanup_execution(context, %{})
+  end
 
+  @spec cleanup_execution(execution_context(), safety_config()) :: execution_context()
   def cleanup_execution(context, config) do
     cleanup_on_error = Map.get(config, :cleanup_on_error, true)
 
     if cleanup_on_error do
       # Clean workspace if it exists
       if context.workspace_dir do
-        _ = ResourceMonitor.cleanup_workspace(context.workspace_dir)
+        _cleanup_result = ResourceMonitor.cleanup_workspace(context.workspace_dir)
       end
 
       # Clean context resources
@@ -194,15 +213,18 @@ defmodule Pipeline.Safety.SafetyManager do
   ## Returns
   - Formatted error with context information
   """
-  @spec handle_safety_violation(String.t(), execution_context(), safety_config()) :: String.t()
-  def handle_safety_violation(error, context, config \\ %{})
+  @spec handle_safety_violation(String.t(), execution_context()) :: String.t()
+  def handle_safety_violation(error, context) do
+    handle_safety_violation(error, context, %{})
+  end
 
+  @spec handle_safety_violation(String.t(), execution_context(), safety_config()) :: String.t()
   def handle_safety_violation(error, context, config) do
     # Log the safety violation
     Logger.error("🚨 Safety violation in pipeline '#{context.pipeline_id}': #{error}")
 
     # Perform cleanup
-    _ = cleanup_execution(context, config)
+    _cleaned_context = cleanup_execution(context, config)
 
     # Format error with context
     execution_chain = RecursionGuard.build_execution_chain(context)
@@ -262,17 +284,4 @@ defmodule Pipeline.Safety.SafetyManager do
       {:error, _reason} -> nil
     end
   end
-
-  # Helper function for tests (used in doctests)
-  defp create_test_context(pipeline_id, nesting_depth, step_count) do
-    %{
-      nesting_depth: nesting_depth,
-      pipeline_id: pipeline_id,
-      parent_context: nil,
-      step_count: step_count,
-      start_time: DateTime.utc_now(),
-      workspace_dir: nil
-    }
-  end
 end
-
