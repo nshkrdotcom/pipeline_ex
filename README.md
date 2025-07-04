@@ -563,6 +563,8 @@ export TEST_MODE="live"                          # live, mock, mixed
 1. **Start with the example**: Copy `examples/comprehensive_config_example.yaml`
 2. **Read the guides**: 
    - [Pipeline Configuration Guide](PIPELINE_CONFIG_GUIDE.md) for basic configuration
+   - [Prompt System Guide](PROMPT_SYSTEM_GUIDE.md) for advanced prompt management, templates, and reusable components
+   - [Recursive Pipelines Guide](RECURSIVE_PIPELINES_GUIDE.md) for pipeline composition and modular workflows
    - [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for loops, conditions, file operations, and more
    - [TESTING_STRATEGY.md](TESTING_STRATEGY.md) for comprehensive testing approaches
 3. **Test in mock mode**: Validate your workflow logic without API costs

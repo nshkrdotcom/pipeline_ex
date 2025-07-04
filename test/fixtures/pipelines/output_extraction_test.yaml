@@ -1,0 +1,25 @@
+workflow:
+  name: "output_extraction_test"
+  steps:
+    - name: "step1"
+      type: "test_echo"
+      value: "Simple result"
+    
+    - name: "step2"
+      type: "test_echo"
+      value:
+        nested:
+          value: "Deep nested value"
+          count: 42
+        array: [1, 2, 3]
+    
+    - name: "analysis"
+      type: "test_echo"
+      value:
+        metrics:
+          accuracy: 0.95
+          precision: 0.88
+        summary: "Analysis completed successfully"
+        recommendations:
+          - "Improve data quality"
+          - "Increase sample size"

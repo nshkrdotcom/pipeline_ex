@@ -1,0 +1,23 @@
+workflow:
+  name: "nested_processor"
+  steps:
+    - name: "process_input"
+      type: "test_echo"
+      value: "Processing {{inputs.item_name}} with count {{inputs.item_count}}"
+    
+    - name: "multiply_count"
+      type: "test_echo"
+      value: "{{multiply(inputs.item_count, inputs.multiplier)}}"
+    
+    - name: "final_count"
+      type: "test_echo"
+      value: "{{steps.multiply_count.result}}"
+    
+    - name: "analysis"
+      type: "test_echo"
+      value:
+        summary: "Processed {{inputs.item_name}} successfully"
+        details: "Final count: {{steps.final_count.result}}"
+        metrics:
+          accuracy: 0.95
+          precision: 0.88

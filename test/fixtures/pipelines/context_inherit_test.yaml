@@ -1,0 +1,14 @@
+workflow:
+  name: "context_inherit_test"
+  steps:
+    - name: "use_parent_var"
+      type: "test_echo"
+      value: "Using parent variable: {{global_vars.parent_var}}"
+    
+    - name: "use_input"
+      type: "test_echo"
+      value: "Using input: {{inputs.test_input}}"
+    
+    - name: "combined_result"
+      type: "test_echo"
+      value: "{{steps.use_parent_var.result}} and {{steps.use_input.result}}"

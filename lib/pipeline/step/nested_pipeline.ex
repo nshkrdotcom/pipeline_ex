@@ -8,6 +8,7 @@ defmodule Pipeline.Step.NestedPipeline do
 
   require Logger
   alias Pipeline.{Config, Executor}
+  alias Pipeline.Context.Nested
 
   @doc """
   Execute a nested pipeline step.
@@ -20,17 +21,52 @@ defmodule Pipeline.Step.NestedPipeline do
   def execute(step, context) do
     Logger.info("🔄 Executing nested pipeline step: #{step["name"]}")
 
-    with {:ok, pipeline} <- load_pipeline(step),
-         {:ok, nested_context} <- create_nested_context(context, step),
-         {:ok, result} <- execute_pipeline(pipeline, nested_context, step) do
+    # Resolve templates in step configuration before processing
+    resolved_step = resolve_step_templates_with_context(step, context)
+
+    with {:ok, pipeline} <- load_pipeline(resolved_step),
+         {:ok, nested_context} <- Nested.create_nested_context(context, resolved_step),
+         {:ok, pipeline_results} <- execute_pipeline(pipeline, nested_context, resolved_step),
+         {:ok, extracted_outputs} <-
+           Nested.extract_outputs(pipeline_results, resolved_step["outputs"]) do
       Logger.info("✅ Nested pipeline completed: #{step["name"]}")
-      {:ok, result}
+      {:ok, extracted_outputs}
     else
       {:error, reason} = error ->
         Logger.error("❌ Nested pipeline failed: #{step["name"]} - #{reason}")
         error
     end
   end
+
+  # Resolve templates in step configuration using pipeline context
+  defp resolve_step_templates_with_context(step, context) do
+    require Logger
+    Logger.debug("Original step inputs: #{inspect(step["inputs"])}")
+
+    # Use the same template resolution as Context.Nested but with the full pipeline context
+    resolved = resolve_data_templates_with_context(step, context)
+
+    Logger.debug("Resolved step inputs: #{inspect(resolved["inputs"])}")
+    resolved
+  end
+
+  # Recursively resolve templates using pipeline context
+  defp resolve_data_templates_with_context(data, context) when is_map(data) do
+    data
+    |> Enum.map(fn {k, v} -> {k, resolve_data_templates_with_context(v, context)} end)
+    |> Map.new()
+  end
+
+  defp resolve_data_templates_with_context(data, context) when is_list(data) do
+    Enum.map(data, &resolve_data_templates_with_context(&1, context))
+  end
+
+  defp resolve_data_templates_with_context(data, context) when is_binary(data) do
+    # Use the Context.Nested template resolution which understands pipeline patterns
+    Nested.resolve_template(data, context)
+  end
+
+  defp resolve_data_templates_with_context(data, _context), do: data
 
   # Load the pipeline from various sources
   defp load_pipeline(step) do
@@ -84,27 +120,6 @@ defmodule Pipeline.Step.NestedPipeline do
     end
   end
 
-  # Create a nested execution context
-  defp create_nested_context(parent_context, step) do
-    # For Phase 1, we create a basic nested context
-    # Phase 2 will add input mapping and context inheritance
-
-    nested_context =
-      parent_context
-      # Start with fresh results
-      |> Map.put(:results, %{})
-      # Reset step counter
-      |> Map.put(:step_index, 0)
-      # New execution log
-      |> Map.put(:execution_log, [])
-      |> Map.put(:nesting_depth, Map.get(parent_context, :nesting_depth, 0) + 1)
-
-    # Track the pipeline source for debugging
-    nested_context = Map.put(nested_context, :pipeline_source, get_pipeline_source(step))
-
-    {:ok, nested_context}
-  end
-
   # Execute the nested pipeline
   defp execute_pipeline(pipeline, nested_context, _step) do
     pipeline_name = get_in(pipeline, ["workflow", "name"]) || "unnamed_nested_pipeline"
@@ -113,12 +128,16 @@ defmodule Pipeline.Step.NestedPipeline do
       "🚀 Starting nested pipeline execution: #{pipeline_name} (depth: #{nested_context.nesting_depth})"
     )
 
+    # For Phase 2, we'll use the standard executor but resolve inputs in step templates
+    # This is simpler and more reliable than trying to customize the executor
+    inputs = Map.get(nested_context, :inputs, %{})
+
+    # Pre-resolve any input templates in the pipeline definition
+    enhanced_pipeline = resolve_pipeline_inputs(pipeline, inputs)
+
     # Execute the pipeline using the main Executor
-    # We pass the full pipeline structure, not just the workflow part
-    case Executor.execute(pipeline, enable_monitoring: false) do
+    case Executor.execute(enhanced_pipeline, enable_monitoring: false) do
       {:ok, results} ->
-        # For Phase 1, return all results from the nested pipeline
-        # Phase 2 will add output extraction
         {:ok, results}
 
       {:error, reason} ->
@@ -126,13 +145,46 @@ defmodule Pipeline.Step.NestedPipeline do
     end
   end
 
-  # Helper to identify pipeline source for debugging
-  defp get_pipeline_source(step) do
-    cond do
-      step["pipeline_file"] -> {:file, step["pipeline_file"]}
-      step["pipeline"] -> :inline
-      step["pipeline_ref"] -> {:ref, step["pipeline_ref"]}
-      true -> :unknown
+  # Pre-resolve input templates in the pipeline definition
+  defp resolve_pipeline_inputs(pipeline, inputs) do
+    # Create a simple context for template resolution
+    simple_context = %{inputs: inputs}
+
+    # Resolve templates in the entire pipeline structure
+    resolve_data_templates(pipeline, simple_context)
+  end
+
+  # Recursively resolve templates in any data structure
+  defp resolve_data_templates(data, context) when is_map(data) do
+    data
+    |> Enum.map(fn {k, v} -> {k, resolve_data_templates(v, context)} end)
+    |> Map.new()
+  end
+
+  defp resolve_data_templates(data, context) when is_list(data) do
+    Enum.map(data, &resolve_data_templates(&1, context))
+  end
+
+  defp resolve_data_templates(data, context) when is_binary(data) do
+    # Only resolve input templates to avoid interfering with other template types
+    if String.contains?(data, "{{inputs.") do
+      resolve_input_templates(data, context)
+    else
+      data
     end
+  end
+
+  defp resolve_data_templates(data, _context), do: data
+
+  # Resolve only input templates
+  defp resolve_input_templates(text, context) do
+    # Only replace {{inputs.xxx}} patterns
+    Regex.replace(~r/\{\{inputs\.([^}]+)\}\}/, text, fn _, input_key ->
+      case get_in(context, [:inputs, input_key]) do
+        # Keep original if not found
+        nil -> "{{inputs.#{input_key}}}"
+        value -> to_string(value)
+      end
+    end)
   end
 end
