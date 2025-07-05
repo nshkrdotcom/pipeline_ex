@@ -12,7 +12,7 @@ defmodule Pipeline.Executor do
   alias Pipeline.Step.{Claude, Gemini, GeminiInstructor, ParallelClaude}
   alias Pipeline.Step.{ClaudeBatch, ClaudeExtract, ClaudeRobust, ClaudeSession, ClaudeSmart, Loop}
   alias Pipeline.Step.{DataTransform, FileOps, SetVariable, NestedPipeline, TestEcho}
-  alias Pipeline.Streaming.ResultStream
+  alias Pipeline.Streaming.{ResultStream, AsyncResponse}
   alias Pipeline.Monitoring.Performance
   alias Pipeline.State.VariableEngine
 
@@ -264,10 +264,14 @@ defmodule Pipeline.Executor do
     # Update variable state with current step info
     updated_context = update_variable_step_info(context, step["name"], index)
 
+    # Resolve any async results that might be referenced by this step
+    context_with_resolved_results =
+      resolve_async_results_before_execution(updated_context, interpolated_step)
+
     # Check if step should be executed based on condition
-    if should_execute_step?(interpolated_step, updated_context) do
+    if should_execute_step?(interpolated_step, context_with_resolved_results) do
       Logger.info("✅ Condition met, executing step: #{step["name"]}")
-      execute_step_unconditionally(interpolated_step, index, updated_context)
+      execute_step_unconditionally(interpolated_step, index, context_with_resolved_results)
     else
       Logger.info("⏭️  Condition not met, skipping step: #{step["name"]}")
 
@@ -324,54 +328,61 @@ defmodule Pipeline.Executor do
   end
 
   defp handle_step_success(step, index, context, result, step_start) do
-    # Check if result should be streamed
-    case maybe_create_result_stream(step, result) do
-      {:ok, stream} ->
-        # Store stream reference instead of large result
-        stream_result = %{
-          "success" => true,
-          "type" => "stream",
-          "stream_id" => stream.id,
-          "stream_info" => ResultStream.get_stream_info(stream)
-        }
+    # Check if result is an AsyncResponse (streaming)
+    case result do
+      %AsyncResponse{} = async_response ->
+        handle_async_response_result(step, index, context, async_response, step_start)
 
-        updated_context =
-          update_context_with_success(step, index, context, stream_result, step_start)
+      _ ->
+        # Check if result should be streamed
+        case maybe_create_result_stream(step, result) do
+          {:ok, stream} ->
+            # Store stream reference instead of large result
+            stream_result = %{
+              "success" => true,
+              "type" => "stream",
+              "stream_id" => stream.id,
+              "stream_info" => ResultStream.get_stream_info(stream)
+            }
 
-        save_checkpoint_if_enabled(context, updated_context)
-        save_step_output_if_needed(step, result, context.output_dir)
+            updated_context =
+              update_context_with_success(step, index, context, stream_result, step_start)
 
-        Logger.info("✅ Step completed with streaming: #{step["name"]}")
+            save_checkpoint_if_enabled(context, updated_context)
+            save_step_output_if_needed(step, result, context.output_dir)
 
-        # Notify performance monitoring
-        pipeline_name = context[:pipeline_name] || "unknown"
-        Performance.step_completed(pipeline_name, step["name"], stream_result)
+            Logger.info("✅ Step completed with streaming: #{step["name"]}")
 
-        {:ok, updated_context}
+            # Notify performance monitoring
+            pipeline_name = context[:pipeline_name] || "unknown"
+            Performance.step_completed(pipeline_name, step["name"], stream_result)
 
-      {:no_stream, optimized_result} ->
-        # Use normal result handling
-        updated_context =
-          update_context_with_success(step, index, context, optimized_result, step_start)
+            {:ok, updated_context}
 
-        save_checkpoint_if_enabled(context, updated_context)
-        save_step_output_if_needed(step, result, context.output_dir)
+          {:no_stream, optimized_result} ->
+            # Use normal result handling
+            updated_context =
+              update_context_with_success(step, index, context, optimized_result, step_start)
 
-        Logger.info("✅ Step completed: #{step["name"]}")
-        {:ok, updated_context}
+            save_checkpoint_if_enabled(context, updated_context)
+            save_step_output_if_needed(step, result, context.output_dir)
 
-      {:error, reason} ->
-        Logger.warning("⚠️  Failed to create result stream: #{reason}, using optimized result")
-        optimized_result = optimize_result_for_memory(result)
+            Logger.info("✅ Step completed: #{step["name"]}")
+            {:ok, updated_context}
 
-        updated_context =
-          update_context_with_success(step, index, context, optimized_result, step_start)
+          {:error, reason} ->
+            Logger.warning("⚠️  Failed to create result stream: #{reason}, using optimized result")
+            optimized_result = optimize_result_for_memory(result)
 
-        save_checkpoint_if_enabled(context, updated_context)
-        save_step_output_if_needed(step, result, context.output_dir)
+            updated_context =
+              update_context_with_success(step, index, context, optimized_result, step_start)
 
-        Logger.info("✅ Step completed: #{step["name"]}")
-        {:ok, updated_context}
+            save_checkpoint_if_enabled(context, updated_context)
+            save_step_output_if_needed(step, result, context.output_dir)
+
+            Logger.info("✅ Step completed: #{step["name"]}")
+            {:ok, updated_context}
+        end
     end
   end
 
@@ -438,6 +449,9 @@ defmodule Pipeline.Executor do
   end
 
   defp update_context_with_success(step, index, context, result, step_start) do
+    # Check if the previous step's result is an async stream that needs to be resolved
+    resolved_results = resolve_async_results_for_step(context.results, step)
+
     # Wrap result in a structure that supports template access patterns for nested pipeline steps with inputs
     # For regular steps and nested pipelines without inputs, maintain backward compatibility
     final_result =
@@ -451,7 +465,7 @@ defmodule Pipeline.Executor do
 
     %{
       context
-      | results: Map.put(context.results, step["name"], final_result),
+      | results: Map.put(resolved_results, step["name"], final_result),
         step_index: index + 1,
         execution_log: [create_success_log_entry(step, step_start) | context.execution_log]
     }
@@ -520,7 +534,9 @@ defmodule Pipeline.Executor do
         SetVariable.execute(step, context)
 
       "claude" ->
-        Claude.execute(step, context)
+        # Enable pass-through streaming for pipeline execution
+        step_with_streaming = update_claude_options_for_streaming(step)
+        Claude.execute(step_with_streaming, context)
 
       "gemini" ->
         Gemini.execute(step, context)
@@ -793,5 +809,137 @@ defmodule Pipeline.Executor do
   defp has_inputs?(step) do
     inputs = step["inputs"]
     is_map(inputs) && map_size(inputs) > 0
+  end
+
+  # Async response handling
+
+  defp handle_async_response_result(step, index, context, async_response, step_start) do
+    Logger.info("🌊 Step #{step["name"]} returned async streaming response")
+
+    # Store the async response as a special result type
+    async_result = %{
+      "success" => true,
+      "type" => "async_stream",
+      "async_response" => async_response,
+      "stream_info" => %{
+        "step_name" => async_response.step_name,
+        "handler" => inspect(async_response.handler),
+        "started_at" => async_response.metrics.stream_started_at
+      }
+    }
+
+    # Update context with the async result
+    updated_context =
+      update_context_with_success(step, index, context, async_result, step_start)
+
+    # Notify performance monitoring
+    pipeline_name = context[:pipeline_name] || "unknown"
+    Performance.step_completed(pipeline_name, step["name"], async_result)
+
+    # Save checkpoint if enabled (note: async streams might not be checkpointable)
+    save_checkpoint_if_enabled(context, updated_context)
+
+    Logger.info("✅ Step completed with async streaming: #{step["name"]}")
+    {:ok, updated_context}
+  end
+
+  # Helper to convert async response to sync if needed
+  defp maybe_collect_async_response(async_response, step_name) do
+    Logger.debug("Collecting async response for step: #{step_name}")
+
+    case AsyncResponse.to_sync_response(async_response) do
+      {:ok, sync_result} ->
+        sync_result
+
+      {:error, reason} ->
+        Logger.error("Failed to collect async response: #{reason}")
+
+        %{
+          "success" => false,
+          "error" => "Failed to collect async stream: #{reason}"
+        }
+    end
+  end
+
+  # Resolve any async results that need to be accessed by the current step
+  defp resolve_async_results_for_step(results, step) do
+    # Check if step references any async results
+    referenced_steps = find_referenced_steps(step)
+
+    Enum.reduce(referenced_steps, results, fn step_name, acc ->
+      case Map.get(acc, step_name) do
+        %{"type" => "async_stream", "async_response" => async_response} = async_result ->
+          # Need to collect this async stream for use
+          Logger.debug("Resolving async stream from step: #{step_name}")
+          sync_result = maybe_collect_async_response(async_response, step_name)
+
+          # Preserve the original async result but add the resolved data
+          resolved_result =
+            Map.merge(async_result, %{
+              "resolved_result" => sync_result,
+              "resolved_at" => DateTime.utc_now()
+            })
+
+          Map.put(acc, step_name, resolved_result)
+
+        _ ->
+          # Not an async result or already resolved
+          acc
+      end
+    end)
+  end
+
+  # Find which previous steps are referenced in the current step
+  defp find_referenced_steps(step) do
+    # Extract step references from prompt and other fields
+    prompt_refs = extract_prompt_references(step["prompt"] || [])
+
+    # Add references from inputs if it's a nested pipeline
+    input_refs =
+      case step["inputs"] do
+        inputs when is_map(inputs) ->
+          inputs
+          |> Map.values()
+          |> Enum.flat_map(&extract_template_references/1)
+
+        _ ->
+          []
+      end
+
+    # Combine and deduplicate
+    MapSet.new(prompt_refs ++ input_refs) |> MapSet.to_list()
+  end
+
+  defp extract_prompt_references(prompt) when is_list(prompt) do
+    Enum.flat_map(prompt, fn
+      %{"type" => "previous_response", "step" => step_name} ->
+        [step_name]
+
+      _ ->
+        []
+    end)
+  end
+
+  defp extract_prompt_references(_), do: []
+
+  defp extract_template_references(value) when is_binary(value) do
+    # Extract step references from template strings like {{steps.step_name.field}}
+    Regex.scan(~r/\{\{steps\.([^.\}]+)/, value)
+    |> Enum.map(fn [_, step_name] -> step_name end)
+  end
+
+  defp extract_template_references(_), do: []
+
+  # Resolve async results before step execution  
+  defp resolve_async_results_before_execution(context, step) do
+    resolved_results = resolve_async_results_for_step(context.results, step)
+    %{context | results: resolved_results}
+  end
+
+  # Update claude options to enable pass-through streaming in pipeline context
+  defp update_claude_options_for_streaming(step) do
+    claude_options = Map.get(step, "claude_options", %{})
+    updated_options = Map.put(claude_options, "pass_through_streaming", true)
+    Map.put(step, "claude_options", updated_options)
   end
 end

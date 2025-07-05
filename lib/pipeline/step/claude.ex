@@ -49,11 +49,20 @@ defmodule Pipeline.Step.Claude do
   defp handle_async_response(async_response, step, options) do
     Logger.info("🌊 Processing async streaming response for step: #{step["name"]}")
 
+    # Check if we should pass through the async response for pipeline streaming
+    # Default to false for backward compatibility with tests
+    pass_through_streaming = Map.get(options, "pass_through_streaming", false)
+
     # Determine how to handle the stream based on configuration
     cond do
       # Option to collect stream into sync response
       Map.get(options, "collect_stream", false) ->
         collect_stream_to_sync(async_response)
+
+      # Pass through the async response without processing (for pipeline-level handling)
+      pass_through_streaming and not Map.has_key?(options, "stream_handler") ->
+        Logger.debug("📤 Passing through async response for pipeline-level handling")
+        {:ok, async_response}
 
       # Use configured stream handler
       Map.has_key?(options, "stream_handler") ->

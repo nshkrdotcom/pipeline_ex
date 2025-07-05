@@ -166,19 +166,30 @@ defmodule Pipeline.PromptBuilder do
   defp get_results_from_context(results) when is_map(results), do: results
 
   defp extract_field(result, field_path, strict) do
-    case get_nested_field_with_presence(result, field_path) do
+    # Check if this is a resolved async result
+    working_result =
+      case result do
+        %{"type" => "async_stream", "resolved_result" => resolved} ->
+          # Use the resolved result for field extraction
+          resolved
+
+        _ ->
+          result
+      end
+
+    case get_nested_field_with_presence(working_result, field_path) do
       {:found, value} ->
         format_value(value)
 
       :not_found ->
         if strict do
           # In strict mode, provide helpful error message
-          available_fields = get_available_fields(result)
+          available_fields = get_available_fields(working_result)
 
           raise ArgumentError,
                 "Field '#{field_path}' not found in previous response. " <>
                   "Available fields: #{available_fields}. " <>
-                  "Response structure: #{inspect(result, limit: 200)}"
+                  "Response structure: #{inspect(working_result, limit: 200)}"
         else
           # In non-strict mode, return nil (which formats to "nil")
           format_value(nil)
@@ -217,8 +228,16 @@ defmodule Pipeline.PromptBuilder do
   end
 
   defp format_result(result) when is_map(result) do
-    # Return full JSON representation when no specific field is requested
-    Jason.encode!(result, pretty: true)
+    # Check if this is a resolved async result
+    case result do
+      %{"type" => "async_stream", "resolved_result" => resolved} ->
+        # Use the resolved result for formatting
+        format_result(resolved)
+
+      _ ->
+        # Return full JSON representation when no specific field is requested
+        Jason.encode!(result, pretty: true)
+    end
   end
 
   defp format_result(result) when is_binary(result) do

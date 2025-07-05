@@ -3,6 +3,7 @@ defmodule Pipeline.ExecutorTest do
 
   alias Pipeline.{Executor, TestMode}
   alias Pipeline.Test.Mocks
+  alias Pipeline.Streaming.AsyncResponse
 
   setup do
     # Set test mode
@@ -177,6 +178,247 @@ defmodule Pipeline.ExecutorTest do
       assert {:ok, result} = Executor.execute_step(step, context)
       assert result["success"] == true
       assert Map.has_key?(result, "content")
+    end
+  end
+
+  describe "async streaming execution" do
+    test "handles async streaming response from Claude step" do
+      # Set up mock to return async response
+      mock_stream =
+        Stream.map(
+          [
+            %{type: :text, data: %{content: "Test streaming response"}},
+            %{type: :result, data: %{session_id: "test_123"}}
+          ],
+          & &1
+        )
+
+      async_response = AsyncResponse.new(mock_stream, "test_step")
+
+      Mocks.ClaudeProvider.set_response_pattern("__async__test async streaming", fn _prompt ->
+        async_response
+      end)
+
+      workflow = %{
+        "workflow" => %{
+          "name" => "async_test_workflow",
+          "workspace_dir" => "/tmp/test_workspace",
+          "defaults" => %{"output_dir" => "/tmp/test_outputs"},
+          "steps" => [
+            %{
+              "name" => "async_claude_step",
+              "type" => "claude",
+              "prompt" => [%{"type" => "static", "content" => "test async streaming"}],
+              "claude_options" => %{
+                "async_streaming" => true
+              }
+            }
+          ]
+        }
+      }
+
+      assert {:ok, results} = Executor.execute(workflow)
+      assert Map.has_key?(results, "async_claude_step")
+
+      result = results["async_claude_step"]
+      assert result["success"] == true
+      assert result["type"] == "async_stream"
+      assert Map.has_key?(result, "stream_info")
+    end
+
+    test "resolves async stream when referenced by next step" do
+      # Mock async response for first step
+      mock_stream =
+        Stream.map(
+          [
+            %{type: :text, data: %{content: "Async content from step 1"}},
+            %{type: :result, data: %{session_id: "test_456"}}
+          ],
+          & &1
+        )
+
+      async_response = AsyncResponse.new(mock_stream, "step1")
+
+      Mocks.ClaudeProvider.set_response_pattern("__async__async step 1", fn _prompt ->
+        async_response
+      end)
+
+      workflow = %{
+        "workflow" => %{
+          "name" => "async_chain_workflow",
+          "workspace_dir" => "/tmp/test_workspace",
+          "defaults" => %{"output_dir" => "/tmp/test_outputs"},
+          "steps" => [
+            %{
+              "name" => "step1",
+              "type" => "claude",
+              "prompt" => [%{"type" => "static", "content" => "async step 1"}],
+              "claude_options" => %{
+                "async_streaming" => true
+              }
+            },
+            %{
+              "name" => "step2",
+              "type" => "claude",
+              "prompt" => [
+                %{"type" => "static", "content" => "Process this:"},
+                %{"type" => "previous_response", "step" => "step1"}
+              ]
+            }
+          ]
+        }
+      }
+
+      assert {:ok, results} = Executor.execute(workflow)
+
+      # First step should have async result
+      assert results["step1"]["type"] == "async_stream"
+
+      # Second step should complete successfully
+      assert results["step2"]["success"] == true
+    end
+
+    test "handles mixed sync and async step execution" do
+      # Mock async response
+      mock_stream =
+        Stream.map(
+          [
+            %{type: :text, data: %{content: "Async response"}},
+            %{type: :result, data: %{session_id: "test_789"}}
+          ],
+          & &1
+        )
+
+      async_response = AsyncResponse.new(mock_stream, "async_step")
+
+      Mocks.ClaudeProvider.set_response_pattern("__async__async prompt", fn _prompt ->
+        async_response
+      end)
+
+      workflow = %{
+        "workflow" => %{
+          "name" => "mixed_workflow",
+          "workspace_dir" => "/tmp/test_workspace",
+          "defaults" => %{"output_dir" => "/tmp/test_outputs"},
+          "steps" => [
+            %{
+              "name" => "sync_step",
+              "type" => "gemini",
+              "prompt" => [%{"type" => "static", "content" => "sync analysis"}]
+            },
+            %{
+              "name" => "async_step",
+              "type" => "claude",
+              "prompt" => [%{"type" => "static", "content" => "async prompt"}],
+              "claude_options" => %{
+                "async_streaming" => true
+              }
+            },
+            %{
+              "name" => "final_step",
+              "type" => "claude",
+              "prompt" => [
+                %{"type" => "previous_response", "step" => "sync_step"},
+                %{"type" => "previous_response", "step" => "async_step"}
+              ]
+            }
+          ]
+        }
+      }
+
+      assert {:ok, results} = Executor.execute(workflow)
+
+      # Sync step should have normal result
+      assert results["sync_step"]["success"] == true
+      refute Map.has_key?(results["sync_step"], "type")
+
+      # Async step should have async result
+      assert results["async_step"]["type"] == "async_stream"
+
+      # Final step should complete successfully
+      assert results["final_step"]["success"] == true
+    end
+
+    test "tracks streaming metrics in execution" do
+      # Mock async response with metrics
+      mock_stream =
+        Stream.map(
+          [
+            %{type: :text, data: %{content: "Content", tokens: 5}},
+            %{type: :result, data: %{session_id: "metrics_test"}, tokens: 3}
+          ],
+          & &1
+        )
+
+      async_response = AsyncResponse.new(mock_stream, "metrics_step", metadata: %{test: true})
+
+      Mocks.ClaudeProvider.set_response_pattern("__async__metrics test", fn _prompt ->
+        async_response
+      end)
+
+      workflow = %{
+        "workflow" => %{
+          "name" => "metrics_workflow",
+          "workspace_dir" => "/tmp/test_workspace",
+          "defaults" => %{"output_dir" => "/tmp/test_outputs"},
+          "steps" => [
+            %{
+              "name" => "metrics_step",
+              "type" => "claude",
+              "prompt" => [%{"type" => "static", "content" => "metrics test"}],
+              "claude_options" => %{
+                "async_streaming" => true
+              }
+            }
+          ]
+        }
+      }
+
+      assert {:ok, results} = Executor.execute(workflow, enable_monitoring: false)
+
+      result = results["metrics_step"]
+      assert result["type"] == "async_stream"
+      assert Map.has_key?(result["stream_info"], "started_at")
+    end
+
+    test "handles streaming errors gracefully" do
+      # Mock error stream
+      error_stream =
+        Stream.map(
+          [
+            %{type: :error, data: %{error: "Stream failed"}}
+          ],
+          & &1
+        )
+
+      async_response = AsyncResponse.new(error_stream, "error_step")
+
+      Mocks.ClaudeProvider.set_response_pattern("__async__error test", fn _prompt ->
+        async_response
+      end)
+
+      workflow = %{
+        "workflow" => %{
+          "name" => "error_workflow",
+          "workspace_dir" => "/tmp/test_workspace",
+          "defaults" => %{"output_dir" => "/tmp/test_outputs"},
+          "steps" => [
+            %{
+              "name" => "error_step",
+              "type" => "claude",
+              "prompt" => [%{"type" => "static", "content" => "error test"}],
+              "claude_options" => %{
+                "async_streaming" => true,
+                "collect_stream" => true
+              }
+            }
+          ]
+        }
+      }
+
+      # The step should handle the error stream when collecting
+      assert {:ok, results} = Executor.execute(workflow)
+      assert Map.has_key?(results, "error_step")
     end
   end
 end
