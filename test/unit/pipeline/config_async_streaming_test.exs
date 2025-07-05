@@ -130,7 +130,9 @@ defmodule Pipeline.ConfigAsyncStreamingTest do
       }
 
       assert {:error, message} = Config.validate_workflow(config)
-      assert message =~ "stream_handler must be one of: console, file, callback, buffer"
+
+      assert message =~
+               "stream_handler must be one of: console, simple, debug, file, callback, buffer"
     end
 
     test "accepts valid stream buffer sizes" do

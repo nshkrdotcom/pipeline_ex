@@ -140,6 +140,25 @@ defmodule Pipeline.Streaming.Handlers.ConsoleHandler do
     IO.puts(color(:red, "╰────────────────────╯"))
   end
 
+  defp format_message(%ClaudeCodeSDK.Message{type: :assistant, data: data}, state) do
+    # Handle ClaudeCodeSDK assistant messages
+    content = extract_assistant_content(data)
+
+    if content != "" do
+      # Replace escaped newlines with actual newlines
+      formatted_content = String.replace(content, "\\n", "\n")
+
+      if state.format_options.show_timestamps do
+        timestamp = format_timestamp()
+        color(:gray, "[#{timestamp}] ") <> formatted_content
+      else
+        formatted_content
+      end
+    else
+      ""
+    end
+  end
+
   defp format_message(%{type: :text, data: %{content: content}}, state) do
     if state.format_options.show_timestamps do
       timestamp = format_timestamp()
@@ -221,6 +240,32 @@ defmodule Pipeline.Streaming.Handlers.ConsoleHandler do
     end
   end
 
+  defp format_message(%ClaudeCodeSDK.Message{} = message, state) do
+    # Handle any other ClaudeCodeSDK message types
+    case message.type do
+      :system ->
+        if state.format_options.show_timestamps do
+          "\n" <> color(:gray, "[System: #{message.subtype}]") <> "\n"
+        else
+          ""
+        end
+
+      :result ->
+        if state.format_options.show_stats do
+          "\n" <> color(:green, "[Completed]") <> "\n"
+        else
+          ""
+        end
+
+      _ ->
+        if state.format_options.show_raw_messages do
+          "\n[Raw ClaudeCodeSDK: #{inspect(message, limit: 200)}]\n"
+        else
+          ""
+        end
+    end
+  end
+
   defp format_message(_message, _state), do: ""
 
   defp update_state(message, state) do
@@ -290,4 +335,25 @@ defmodule Pipeline.Streaming.Handlers.ConsoleHandler do
     str = :io_lib.format("~.1fs", [seconds]) |> List.to_string()
     String.pad_trailing(str, width)
   end
+
+  defp extract_assistant_content(data) when is_map(data) do
+    case data[:message] do
+      %{"content" => content} when is_binary(content) ->
+        content
+
+      %{"content" => [%{"text" => text} | _]} when is_binary(text) ->
+        text
+
+      %{"content" => content_list} when is_list(content_list) ->
+        content_list
+        |> Enum.filter(&(Map.get(&1, "type") == "text"))
+        |> Enum.map(&Map.get(&1, "text", ""))
+        |> Enum.join("")
+
+      _ ->
+        ""
+    end
+  end
+
+  defp extract_assistant_content(_), do: ""
 end

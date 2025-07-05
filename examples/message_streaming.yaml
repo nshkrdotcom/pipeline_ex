@@ -1,0 +1,30 @@
+workflow:
+  name: "message_streaming"
+  description: "True message-by-message streaming as messages arrive"
+  workspace_dir: "./workspace"
+  
+  defaults:
+    output_dir: "./outputs"
+  
+  steps:
+    - name: "multi_message_stream"
+      type: "claude"
+      claude_options:
+        async_streaming: true
+        stream_handler: "simple"
+        stream_handler_opts:
+          show_timestamps: true
+        max_turns: 3  # Allow multiple turns to see multiple messages
+        allowed_tools: []
+        system_prompt: |
+          You are a helpful assistant that responds concisely.
+      prompt:
+        - type: "static"
+          content: |
+            Please help me with these three separate tasks:
+            1. What is 2+2?
+            2. What is the capital of France?
+            3. Say "Hello World" in Python
+            
+            Answer each one separately and concisely.
+      output_to_file: "message_streaming_result.json"

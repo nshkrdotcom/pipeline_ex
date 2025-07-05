@@ -1,0 +1,30 @@
+workflow:
+  name: "simple_streaming_test"
+  description: "Direct streaming test that outputs numbers"
+  workspace_dir: "./workspace"
+  
+  defaults:
+    output_dir: "./outputs"
+  
+  steps:
+    - name: "direct_output"
+      type: "claude"
+      claude_options:
+        async_streaming: true
+        stream_handler: "console"
+        max_turns: 1
+        allowed_tools: []
+        verbose: true
+        system_prompt: |
+          You are a simple number printer. Your ONLY job is to output text directly.
+          You cannot write code, use tools, or explain anything.
+          Just output the exact text requested, nothing more.
+      prompt:
+        - type: "static"
+          content: |
+            1
+            (wait 5 seconds)
+            2
+            (wait 5 seconds)
+            3
+      output_to_file: "simple_streaming_result.json"

@@ -333,15 +333,25 @@ defmodule Pipeline.Streaming.AsyncResponse do
   end
 
   defp message_to_map(%{__struct__: _} = message) do
-    # Convert struct to map, handling nested data
-    base_map = Map.from_struct(message)
+    # Handle ClaudeCodeSDK.Message structs specially
+    if message.__struct__ == ClaudeCodeSDK.Message do
+      %{
+        type: message.type,
+        subtype: message.subtype,
+        data: convert_value_to_serializable(message.data),
+        timestamp: message.timestamp
+      }
+    else
+      # Convert other structs to map, handling nested data
+      base_map = Map.from_struct(message)
 
-    # Clean up the map by removing nil values and converting nested structs
-    base_map
-    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-    |> Enum.into(%{}, fn {k, v} ->
-      {k, convert_value_to_serializable(v)}
-    end)
+      # Clean up the map by removing nil values and converting nested structs
+      base_map
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.into(%{}, fn {k, v} ->
+        {k, convert_value_to_serializable(v)}
+      end)
+    end
   end
 
   defp message_to_map(message) when is_map(message), do: message
@@ -408,6 +418,25 @@ defmodule Pipeline.Streaming.AsyncResponse do
 
   defp extract_content_from_message(%{__struct__: _} = msg) do
     cond do
+      # Handle ClaudeCodeSDK.Message with assistant type
+      msg.__struct__ == ClaudeCodeSDK.Message and msg.type == :assistant ->
+        case msg.data[:message] do
+          %{"content" => content} when is_binary(content) ->
+            content
+
+          %{"content" => [%{"text" => text} | _]} when is_binary(text) ->
+            text
+
+          %{"content" => content_list} when is_list(content_list) ->
+            content_list
+            |> Enum.filter(&(Map.get(&1, "type") == "text"))
+            |> Enum.map(&Map.get(&1, "text", ""))
+            |> Enum.join("")
+
+          _ ->
+            ""
+        end
+
       Map.has_key?(msg, :content) and is_binary(msg.content) ->
         msg.content
 

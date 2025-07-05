@@ -1,0 +1,32 @@
+workflow:
+  name: "streaming_file_operations"
+  description: "Streaming example with file operations that show multiple messages"
+  workspace_dir: "./workspace"
+  
+  defaults:
+    output_dir: "./outputs"
+  
+  steps:
+    - name: "file_operations_stream"
+      type: "claude"
+      claude_options:
+        async_streaming: true
+        stream_handler: "simple"
+        stream_handler_opts:
+          show_timestamps: true
+        max_turns: 5
+        allowed_tools: ["Write", "Read", "Bash", "Edit"]
+        system_prompt: |
+          You are a helpful assistant that performs file operations.
+          Execute each operation step by step.
+      prompt:
+        - type: "static"
+          content: |
+            Please perform these file operations in order:
+            1. Create a file called test_file.txt with the content "Hello from streaming!"
+            2. Read the file to confirm it was created
+            3. Append a new line "This is line 2" to the file
+            4. Delete the file using rm command
+            
+            Perform each operation separately so we can see the streaming.
+      output_to_file: "file_operations_result.json"

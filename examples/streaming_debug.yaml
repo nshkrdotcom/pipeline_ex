@@ -1,0 +1,21 @@
+workflow:
+  name: "streaming_debug"
+  description: "Debug streaming to see ALL message types"
+  workspace_dir: "./workspace"
+  
+  defaults:
+    output_dir: "./outputs"
+  
+  steps:
+    - name: "debug_stream"
+      type: "claude"
+      claude_options:
+        async_streaming: true
+        stream_handler: "debug"
+        max_turns: 1
+        allowed_tools: []
+        system_prompt: "You are a helpful assistant."
+      prompt:
+        - type: "static"
+          content: "Say hello and count to 3"
+      output_to_file: "debug_stream_result.json"

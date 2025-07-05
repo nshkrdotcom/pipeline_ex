@@ -136,13 +136,13 @@ defmodule Pipeline.Step.Claude do
     Logger.debug("🖥️ Processing stream with default console handler")
 
     # Use the console handler by default
-    handler_options =
-      AsyncHandler.console_handler_options(%{
-        format_options: %{
-          show_stats: true,
-          show_tool_use: true
-        }
-      })
+    handler_options = %{
+      handler_module: Pipeline.Streaming.Handlers.ConsoleHandler,
+      handler_opts: %{
+        show_stats: true,
+        show_tool_use: true
+      }
+    }
 
     case AsyncHandler.process_stream(AsyncResponse.unwrap_stream(async_response), handler_options) do
       {:ok, _result} ->
@@ -168,16 +168,38 @@ defmodule Pipeline.Step.Claude do
 
   defp get_handler_module(handler_type) do
     case handler_type do
-      "console" -> AsyncHandler.ConsoleHandler
-      "file" -> Pipeline.Streaming.Handlers.FileHandler
-      "callback" -> Pipeline.Streaming.Handlers.CallbackHandler
-      "buffer" -> Pipeline.Streaming.Handlers.BufferHandler
-      custom when is_binary(custom) -> String.to_existing_atom("Elixir.#{custom}")
-      module when is_atom(module) -> module
+      "console" ->
+        Pipeline.Streaming.Handlers.ConsoleHandler
+
+      "simple" ->
+        Pipeline.Streaming.Handlers.SimpleMessageHandler
+
+      "debug" ->
+        Pipeline.Streaming.Handlers.DebugHandler
+
+      "file" ->
+        Pipeline.Streaming.Handlers.FileHandler
+
+      "callback" ->
+        Pipeline.Streaming.Handlers.CallbackHandler
+
+      "buffer" ->
+        Pipeline.Streaming.Handlers.BufferHandler
+
+      custom when is_binary(custom) ->
+        # Check if it's already a full module name
+        if String.starts_with?(custom, "Elixir.") or String.contains?(custom, ".") do
+          String.to_existing_atom("Elixir.#{custom}")
+        else
+          String.to_existing_atom("Elixir.Pipeline.Streaming.Handlers.#{custom}")
+        end
+
+      module when is_atom(module) ->
+        module
     end
   rescue
     _error ->
       Logger.warning("Unknown handler type: #{inspect(handler_type)}, using console")
-      AsyncHandler.ConsoleHandler
+      Pipeline.Streaming.Handlers.ConsoleHandler
   end
 end

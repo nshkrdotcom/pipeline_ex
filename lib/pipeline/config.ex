@@ -305,12 +305,12 @@ defmodule Pipeline.Config do
       nil ->
         :ok
 
-      handler when handler in ["console", "file", "callback", "buffer"] ->
+      handler when handler in ["console", "simple", "debug", "file", "callback", "buffer"] ->
         :ok
 
       _ ->
         {:error,
-         "Step '#{step_name}' claude_options.stream_handler must be one of: console, file, callback, buffer"}
+         "Step '#{step_name}' claude_options.stream_handler must be one of: console, simple, debug, file, callback, buffer"}
     end
   end
 
