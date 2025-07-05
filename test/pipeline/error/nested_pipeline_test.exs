@@ -2,7 +2,6 @@ defmodule Pipeline.Error.NestedPipelineTest do
   use ExUnit.Case, async: true
 
   alias Pipeline.Error.NestedPipeline
-  alias Pipeline.Safety.RecursionGuard
 
   describe "format_nested_error/3" do
     test "formats basic nested pipeline error with context" do

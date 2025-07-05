@@ -1,0 +1,85 @@
+{
+  "config": {
+    "mode": null,
+    "warmup": 0,
+    "iterations": 1,
+    "output_dir": "benchmarks",
+    "test_sizes": [
+      "small"
+    ]
+  },
+  "results": [
+    {
+      "size": "small",
+      "mode": "sync",
+      "throughput": null,
+      "metrics": {},
+      "test_name": "bench_small",
+      "iteration": 1,
+      "duration_ms": 5590,
+      "ttft_ms": null,
+      "memory_peak": 77338736,
+      "memory_delta": 533584
+    },
+    {
+      "size": "small",
+      "mode": "async",
+      "throughput": null,
+      "metrics": {
+        "throughput": null,
+        "stream_id": null,
+        "ttft_ms": null,
+        "message_count": null
+      },
+      "test_name": "bench_small",
+      "iteration": 1,
+      "duration_ms": 6429,
+      "ttft_ms": null,
+      "memory_peak": 77474272,
+      "memory_delta": 18960
+    }
+  ],
+  "comparison": {
+    "async": {
+      "avg_duration_ms": 6429.0,
+      "avg_ttft_ms": null,
+      "avg_throughput": null,
+      "avg_memory_mb": 73.88522338867188,
+      "p95_duration_ms": 6429,
+      "p99_duration_ms": 6429,
+      "sample_count": 1
+    },
+    "sync": {
+      "avg_duration_ms": 5590.0,
+      "avg_ttft_ms": null,
+      "avg_throughput": null,
+      "avg_memory_mb": 73.75596618652344,
+      "p95_duration_ms": 5590,
+      "p99_duration_ms": 5590,
+      "sample_count": 1
+    },
+    "comparison": {
+      "ttft_improvement": null,
+      "memory_efficiency": {
+        "sync_avg_mb": 73.75596618652344,
+        "async_avg_mb": 73.88522338867188,
+        "reduction_percent": -0.18
+      },
+      "throughput_comparison": {
+        "sync_avg": null,
+        "async_avg": null
+      }
+    }
+  },
+  "analyzer_report": {
+    "active_streams": 0,
+    "recommendations": [],
+    "total_streams": 0,
+    "average_ttft_ms": null,
+    "average_throughput": null,
+    "performance_distribution": {},
+    "issues_found": 0,
+    "top_issues": [],
+    "detailed_metrics": []
+  }
+}

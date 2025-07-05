@@ -98,6 +98,12 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
     Process.put({:mock_response, pattern}, response)
   end
 
+  def set_streaming_response_pattern(pattern, response_fn) when is_function(response_fn) do
+    # Store async streaming patterns with a special prefix
+    Process.put({:mock_response, "__async__" <> pattern}, response_fn)
+    :ok
+  end
+
   def reset do
     # Clear all mock responses
     Process.get_keys()
@@ -226,16 +232,106 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
     {:ok, async_response}
   end
 
-  defp create_mock_message_stream(prompt, _options) do
-    # Create a simple stream that simulates Claude messages
+  defp create_mock_message_stream(prompt, options) do
+    # Create a stream that simulates Claude messages with realistic timing
+
+    # Determine response characteristics based on prompt
+    {message_count, total_tokens, delay_pattern} = determine_stream_characteristics(prompt)
+
+    # Generate messages
+    messages = generate_stream_messages(prompt, message_count, total_tokens)
+
+    # Add delays if in benchmark mode
+    if options[:benchmark_mode] || options["benchmark_mode"] do
+      add_streaming_delays(messages, delay_pattern)
+    else
+      Stream.map(messages, & &1)
+    end
+  end
+
+  defp determine_stream_characteristics(prompt) do
+    cond do
+      String.contains?(prompt, "5 items") ->
+        # Small response
+        {4, 50, :fast}
+
+      String.contains?(prompt, "25 items") ->
+        # Medium response
+        {10, 500, :medium}
+
+      String.contains?(prompt, "50 sections") ->
+        # Large response
+        {20, 2000, :slow}
+
+      true ->
+        # Default
+        {5, 100, :fast}
+    end
+  end
+
+  defp generate_stream_messages(prompt, message_count, total_tokens) do
+    tokens_per_message = div(total_tokens, message_count)
+
+    # Initial system message
     messages = [
-      %{type: :text, data: %{content: "Mock streaming response for: "}},
-      %{type: :text, data: %{content: String.slice(prompt, 0, 50)}},
-      %{type: :text, data: %{content: "...", tokens: 10}},
-      %{type: :result, data: %{session_id: "mock_session_123"}, tokens: 5}
+      %{
+        type: :system,
+        subtype: :init,
+        data: %{
+          session_id: "mock_session_#{:rand.uniform(9999)}",
+          model: "claude-3-opus-20240229"
+        }
+      }
     ]
 
-    Stream.map(messages, & &1)
+    # Content messages
+    content_messages =
+      Enum.map(1..message_count, fn i ->
+        %{
+          type: :assistant,
+          content: "Part #{i} of response to: #{String.slice(prompt, 0, 30)}...",
+          data: %{tokens: tokens_per_message}
+        }
+      end)
+
+    # Final result message
+    result_message = %{
+      type: :result,
+      subtype: :success,
+      data: %{
+        session_id: "mock_session_#{:rand.uniform(9999)}",
+        total_tokens: total_tokens,
+        duration_ms: message_count * 100
+      }
+    }
+
+    messages ++ content_messages ++ [result_message]
+  end
+
+  defp add_streaming_delays(messages, delay_pattern) do
+    delays =
+      case delay_pattern do
+        # Fast response
+        :fast -> [50, 20, 20, 20, 10]
+        # Medium response
+        :medium -> [100, 50, 50, 50, 30]
+        # Slow response
+        :slow -> [200, 100, 100, 100, 50]
+      end
+
+    Stream.unfold({messages, delays, 0}, fn
+      {[], _, _} ->
+        nil
+
+      {[msg | rest], [delay | rest_delays], _} ->
+        Process.sleep(delay)
+        {msg, {rest, rest_delays ++ [delay], 0}}
+
+      {[msg | rest], [], _} ->
+        # Default delay
+        Process.sleep(20)
+        {msg, {rest, [], 0}}
+    end)
   end
 
   defp get_option_value(options, string_key, atom_key, default) do
