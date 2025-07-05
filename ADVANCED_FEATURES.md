@@ -650,14 +650,14 @@ Existing pipelines remain fully compatible. To use advanced features:
 
 ## 🚀 6. Async Streaming
 
-Enable real-time response streaming for all Claude-based steps, providing progressive output display and better resource management.
+Enable real-time message streaming for all Claude-based steps, displaying complete messages as they arrive from ClaudeCodeSDK for better user experience and resource management.
 
 ### Why Async Streaming?
 
-- **Real-time feedback**: See Claude's responses character by character as they're generated
+- **Real-time feedback**: See Claude's complete messages as they arrive (message-by-message streaming)
 - **Memory efficiency**: Stream large outputs without loading everything into memory
 - **Early interruption**: Stop long-running operations if they go off track
-- **Better user experience**: Immediate visual feedback instead of waiting
+- **Better user experience**: Progressive display of assistant responses, tool uses, and results
 
 ### Basic Configuration
 
@@ -677,56 +677,93 @@ Enable real-time response streaming for all Claude-based steps, providing progre
 
 ### Stream Handlers
 
-#### Console Handler
-Real-time terminal output with formatting options:
+The implementation provides 6 specialized handlers for different streaming needs:
+
+#### 1. Console Handler (`console`)
+Fancy formatted output with styled headers and statistics:
 
 ```yaml
 stream_handler: "console"
-stream_console_config:
-  show_timestamps: true      # Display message timestamps
-  color_output: true         # Colorize output by type
-  show_progress: true        # Progress indicators
-  clear_on_update: false     # Keep history visible
-  show_tool_use: true        # Show tool invocations
+stream_handler_opts:
+  show_header: true          # Display styled header
+  show_stats: true           # Show completion statistics
+  show_tool_use: true        # Display tool invocations
+  show_timestamps: false     # Add timestamps to messages
+  use_colors: true           # Colorized output
 ```
 
-#### File Handler
-Stream to file with automatic rotation:
+Output example:
+```
+╭─────────────────────────────────────────╮
+│      Claude Streaming Response          │
+╰─────────────────────────────────────────╯
+
+Assistant message content here...
+
+╭─── Stream Statistics ───╮
+│ Messages: 3             │
+│ Tokens:   0             │
+│ Duration: 3.5s          │
+│ Avg/msg:  1.2s          │
+╰─────────────────────────╯
+```
+
+#### 2. Simple Handler (`simple`)
+Clean line-by-line output with optional timestamps:
+
+```yaml
+stream_handler: "simple"
+stream_handler_opts:
+  show_timestamps: true      # Prepend timestamps
+```
+
+Output example:
+```
+[06:54:52] ASSISTANT: I'll perform these file operations...
+[06:54:53] TOOL USE: Write
+[06:54:53] TOOL RESULT: File created successfully...
+[06:54:56] ASSISTANT: ✅ Step 1 completed...
+
+✓ Stream completed: 5 messages in 23356ms
+```
+
+#### 3. Debug Handler (`debug`)
+Complete message debugging showing all message types:
+
+```yaml
+stream_handler: "debug"
+```
+
+Shows system messages, assistant responses, tool uses, tool results, and metadata.
+
+#### 4. File Handler (`file`)
+Stream messages to file with rotation support:
 
 ```yaml
 stream_handler: "file"
-stream_file_path: "./outputs/stream.jsonl"
-stream_file_format: "jsonl"  # or "json", "text"
-stream_file_rotation:
-  enabled: true
-  max_size_mb: 10
-  max_files: 5
-  compress_old: true
+stream_handler_opts:
+  file_path: "./outputs/stream.log"
+  append: true
+  format: "jsonl"            # json lines format
 ```
 
-#### Buffer Handler
-Collect in memory with statistics:
+#### 5. Buffer Handler (`buffer`)
+Collect messages in memory for later processing:
 
 ```yaml
 stream_handler: "buffer"
-stream_buffer_config:
-  max_size: 1000           # Maximum messages
-  circular: true           # Overwrite old messages
-  deduplication: true      # Remove duplicate messages
-  collect_stats: true      # Track message statistics
+stream_handler_opts:
+  max_size: 1000            # Maximum buffer size
 ```
 
-#### Callback Handler
-Custom processing with filtering:
+#### 6. Callback Handler (`callback`)
+Custom message processing with your own handler:
 
 ```yaml
 stream_handler: "callback"
-stream_callback_config:
-  callback_module: "MyApp.StreamProcessor"
-  callback_function: "handle_message"
-  filter_types: ["text", "tool_use"]  # Message types to process
-  rate_limit: 10                      # Max messages per second
-  async_callback: true                # Non-blocking callbacks
+stream_handler_opts:
+  module: "MyApp.StreamProcessor"
+  function: "handle_message"
 ```
 
 ### Advanced Streaming Features
@@ -783,10 +820,10 @@ Error recovery with streaming continuity:
 
 ### Performance Benefits
 
-1. **Time to First Token**: See output immediately (typically <1s)
-2. **Memory Usage**: Constant memory even for large outputs
-3. **Throughput**: Process responses as they arrive
-4. **Scalability**: Handle multiple streams concurrently
+1. **Time to First Message**: See output as soon as first message arrives
+2. **Memory Usage**: Constant memory through streaming instead of buffering
+3. **Progressive Display**: View assistant responses, tool uses, and results in real-time
+4. **Message Metrics**: Track message count, duration, and timing statistics
 
 ### Integration Examples
 
@@ -873,11 +910,19 @@ test "streaming improves time to first output" do
 end
 ```
 
+### Implementation Notes
+
+- **Message-based streaming**: ClaudeCodeSDK uses `--output-format stream-json` to stream complete messages
+- **Not character streaming**: Each message arrives as a complete unit, not character-by-character
+- **Message types**: Stream includes system init, assistant messages, tool uses, tool results, and completion status
+- **Escaped newlines**: The handlers properly convert `\n` to actual line breaks in message content
+
 ### Examples
 
 See complete streaming examples:
-- `examples/claude_streaming_example.yaml` - Basic streaming patterns
-- `examples/claude_streaming_advanced.yaml` - Advanced features
+- `examples/clean_streaming_numbers.yaml` - Simple number output example
+- `examples/streaming_file_operations.yaml` - Multi-message file operations
+- `examples/STREAMING_GUIDE.md` - Complete streaming implementation guide
 - `test/integration/async_streaming_test.exs` - Comprehensive tests
 
 ---

@@ -198,6 +198,14 @@ claude_options:
   append_system_prompt: "Be concise"
   cwd: "./workspace"
   
+  # Async Streaming
+  async_streaming: true      # Enable message streaming
+  stream_handler: "console"  # console|simple|debug|file|buffer|callback
+  stream_buffer_size: 10     # Messages to buffer
+  stream_handler_opts:       # Handler-specific options
+    show_timestamps: true
+    show_tool_use: true
+  
   # Advanced
   session_id: "session_123"
   retry_config:
@@ -387,6 +395,18 @@ workflow:
   pipeline_file: "./component.yaml"
   inputs:
     data: "{{data}}"
+```
+
+### Async Streaming
+```yaml
+- name: "streaming_claude"
+  type: "claude"
+  claude_options:
+    async_streaming: true
+    stream_handler: "simple"
+    stream_handler_opts:
+      show_timestamps: true
+  prompt: "Generate a report..."
 ```
 
 ## Debugging

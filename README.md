@@ -551,14 +551,14 @@ mix pipeline.run examples/claude_session_example.yaml
 
 ## 🚀 Async Streaming (NEW)
 
-The pipeline now supports **real-time response streaming** for all Claude-based steps, enabling progressive output display and lower memory usage for large responses.
+The pipeline now supports **real-time message streaming** for all Claude-based steps, displaying complete messages as they arrive from ClaudeCodeSDK for better user experience.
 
 ### Why Use Async Streaming?
 
-- **Real-time feedback**: See Claude's responses as they're generated
-- **Lower memory usage**: Stream large outputs without loading everything into memory
-- **Better UX**: Users see progress immediately instead of waiting for completion
-- **Early error detection**: Interrupt long-running operations if needed
+- **Real-time feedback**: See Claude's complete messages as they arrive (message-by-message)
+- **Lower memory usage**: Process messages without buffering entire responses
+- **Better UX**: Progressive display of assistant responses, tool uses, and results
+- **Visibility**: Watch Claude's tool usage and thinking process in real-time
 
 ### Basic Streaming Example
 
@@ -617,15 +617,17 @@ The pipeline now supports **real-time response streaming** for all Claude-based 
 ### Streaming Examples
 
 ```bash
-# Basic streaming example
-mix pipeline.run examples/claude_streaming_example.yaml
+# Simple streaming example
+mix pipeline.run examples/clean_streaming_numbers.yaml
 
-# Advanced streaming with callbacks and error handling
-mix pipeline.run examples/claude_streaming_advanced.yaml
+# Multi-message streaming with file operations
+mix pipeline.run examples/streaming_file_operations.yaml
 
 # Run streaming tests
 mix test test/integration/async_streaming_test.exs
 ```
+
+📖 **Complete Streaming Guide**: See [examples/STREAMING_GUIDE.md](examples/STREAMING_GUIDE.md) for implementation details and [docs/ASYNC_STREAMING_MIGRATION_GUIDE.md](docs/ASYNC_STREAMING_MIGRATION_GUIDE.md) for adding streaming to existing pipelines.
 
 ### Works with All Claude Step Types
 

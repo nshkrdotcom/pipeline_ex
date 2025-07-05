@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Async Streaming Support**: Real-time message streaming for all Claude-based steps
+  - Message-by-message streaming displays complete messages as they arrive from ClaudeCodeSDK
+  - 6 specialized stream handlers: console, simple, debug, file, buffer, and callback
+  - Works with all Claude step types (claude, claude_smart, claude_session, etc.)
+  - Progressive display of assistant responses, tool uses, and results
+  - Memory-efficient processing without buffering entire responses
+  - Full mock support for testing without API calls
+  - Documentation: ASYNC_STREAMING_MIGRATION_GUIDE.md and examples/STREAMING_GUIDE.md
+
 ## [0.0.1] - 2025-01-05
 
 **Maintainer**: NSHkr <ZeroTrust@NSHkr.com>
