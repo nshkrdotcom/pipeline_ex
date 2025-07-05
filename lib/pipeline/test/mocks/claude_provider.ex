@@ -3,22 +3,29 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
   Mock implementation of Claude provider for testing.
   """
 
+  alias Pipeline.Streaming.AsyncResponse
+
   def query(prompt, options \\ %{}) do
-    # Check for pattern-specific responses first
-    case find_matching_pattern(prompt) do
-      {:ok, response} ->
-        # Handle error responses
-        case response do
-          %{"success" => false, "error" => error_msg} ->
-            {:error, error_msg}
+    # Check if async streaming is requested
+    if get_option_value(options, "async_streaming", :async_streaming, false) do
+      handle_async_query(prompt, options)
+    else
+      # Original synchronous behavior
+      case find_matching_pattern(prompt) do
+        {:ok, response} ->
+          # Handle error responses
+          case response do
+            %{"success" => false, "error" => error_msg} ->
+              {:error, error_msg}
 
-          _ ->
-            enhanced_response = enhance_response_with_options(response, options)
-            {:ok, enhanced_response}
-        end
+            _ ->
+              enhanced_response = enhance_response_with_options(response, options)
+              {:ok, enhanced_response}
+          end
 
-      :not_found ->
-        handle_fallback_patterns(prompt, options)
+        :not_found ->
+          handle_fallback_patterns(prompt, options)
+      end
     end
   end
 
@@ -171,5 +178,45 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
       end
 
     "#{base_text}#{preset_suffix}"
+  end
+
+  # Async streaming support
+
+  defp handle_async_query(prompt, options) do
+    # Create a mock stream of messages
+    messages = create_mock_message_stream(prompt, options)
+
+    # Extract step name from options if available
+    step_name = options["step_name"] || options[:step_name] || "mock_claude_query"
+
+    # Create AsyncResponse wrapper
+    async_response =
+      AsyncResponse.new(messages, step_name,
+        handler: options[:stream_handler] || options["stream_handler"],
+        buffer_size: get_option_value(options, "stream_buffer_size", :stream_buffer_size, 10),
+        metadata: %{
+          prompt_length: String.length(prompt),
+          started_at: DateTime.utc_now(),
+          mock: true
+        }
+      )
+
+    {:ok, async_response}
+  end
+
+  defp create_mock_message_stream(prompt, _options) do
+    # Create a simple stream that simulates Claude messages
+    messages = [
+      %{type: :text, data: %{content: "Mock streaming response for: "}},
+      %{type: :text, data: %{content: String.slice(prompt, 0, 50)}},
+      %{type: :text, data: %{content: "...", tokens: 10}},
+      %{type: :result, data: %{session_id: "mock_session_123"}, tokens: 5}
+    ]
+
+    Stream.map(messages, & &1)
+  end
+
+  defp get_option_value(options, string_key, atom_key, default) do
+    options[string_key] || options[atom_key] || default
   end
 end

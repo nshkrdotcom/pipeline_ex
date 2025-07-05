@@ -1,9 +1,12 @@
 defmodule Pipeline.Providers.ClaudeProvider do
   @moduledoc """
   Live Claude provider using the existing Claude SDK integration.
+
+  Supports both synchronous and asynchronous streaming modes.
   """
 
   require Logger
+  alias Pipeline.Streaming.AsyncResponse
 
   @doc """
   Query Claude using the existing Claude SDK integration.
@@ -22,7 +25,7 @@ defmodule Pipeline.Providers.ClaudeProvider do
       IO.puts("DEBUG: Built claude_options: #{inspect(claude_options)}")
 
       # Use the existing Claude SDK via the step module
-      case execute_claude_sdk(prompt, claude_options) do
+      case execute_claude_sdk(prompt, claude_options, options) do
         {:ok, response} ->
           Logger.debug("✅ Claude query successful")
           {:ok, response}
@@ -53,7 +56,8 @@ defmodule Pipeline.Providers.ClaudeProvider do
       system_prompt: get_option_value(options, "system_prompt", :system_prompt, nil),
       verbose: get_option_value(options, "verbose", :verbose, false),
       cwd: get_option_value(options, "cwd", :cwd, "./workspace"),
-      timeout_ms: get_option_value(options, "timeout_ms", :timeout_ms, get_default_timeout_ms())
+      timeout_ms: get_option_value(options, "timeout_ms", :timeout_ms, get_default_timeout_ms()),
+      async_streaming: get_option_value(options, "async_streaming", :async_streaming, false)
     }
   end
 
@@ -65,20 +69,16 @@ defmodule Pipeline.Providers.ClaudeProvider do
     Application.get_env(:pipeline, :timeout_seconds, 300) * 1000
   end
 
-  defp execute_claude_sdk(prompt, options) do
+  defp execute_claude_sdk(prompt, claude_options, original_options) do
     # Use the actual Claude Code SDK for live API calls
     case Pipeline.TestMode.get_mode() do
       :mock ->
-        # Return mock response in mock mode
-        {:ok,
-         %{
-           text: "Mock Claude response for: #{String.slice(prompt, 0, 50)}...",
-           success: true,
-           cost: 0.001
-         }}
+        # Use the mock provider to support async streaming
+        provider = Pipeline.TestMode.provider_for(:ai)
+        provider.query(prompt, original_options)
 
       _live_or_mixed ->
-        execute_live_claude_query(prompt, options)
+        execute_live_claude_query(prompt, claude_options)
     end
   end
 
@@ -86,8 +86,12 @@ defmodule Pipeline.Providers.ClaudeProvider do
     sdk_options = build_sdk_options(options)
     log_debug_info(prompt, sdk_options)
 
-    messages = collect_claude_messages(prompt, sdk_options)
-    process_claude_messages(messages)
+    if options[:async_streaming] do
+      execute_async_query(prompt, sdk_options, options)
+    else
+      messages = collect_claude_messages(prompt, sdk_options)
+      process_claude_messages(messages)
+    end
   rescue
     error ->
       Logger.error("ClaudeCodeSDK error: #{inspect(error)}")
@@ -102,7 +106,8 @@ defmodule Pipeline.Providers.ClaudeProvider do
       disallowed_tools: options[:disallowed_tools],
       system_prompt: options[:system_prompt],
       cwd: options[:cwd],
-      timeout_ms: options[:timeout_ms] || get_default_timeout_ms()
+      timeout_ms: options[:timeout_ms] || get_default_timeout_ms(),
+      async: options[:async_streaming] || false
     )
   end
 
@@ -292,5 +297,35 @@ defmodule Pipeline.Providers.ClaudeProvider do
     # Simple cost calculation based on message count
     # In reality, this would be based on token usage
     length(messages) * 0.0001
+  end
+
+  # Async streaming support
+
+  defp execute_async_query(prompt, sdk_options, options) do
+    Logger.debug("🚀 Starting async Claude SDK query...")
+
+    # Get the raw stream from ClaudeCodeSDK
+    stream = ClaudeCodeSDK.query(prompt, sdk_options)
+
+    # Extract step name from options if available
+    step_name = options[:step_name] || options["step_name"] || "claude_query"
+
+    # Create AsyncResponse wrapper
+    async_response =
+      AsyncResponse.new(stream, step_name,
+        handler: options[:stream_handler],
+        buffer_size: options[:stream_buffer_size],
+        metadata: %{
+          prompt_length: String.length(prompt),
+          started_at: DateTime.utc_now()
+        }
+      )
+
+    Logger.debug("✅ Created async response for streaming")
+    {:ok, async_response}
+  rescue
+    error ->
+      Logger.error("💥 Failed to create async stream: #{inspect(error)}")
+      {:error, Exception.message(error)}
   end
 end
