@@ -17,5 +17,9 @@
   {"lib/pipeline/safety/safety_manager.ex", :call},
   {"lib/pipeline/safety/safety_manager.ex", :invalid_contract},
   {"lib/pipeline/safety/safety_manager.ex", :unmatched_return},
-  {"lib/pipeline/step/nested_pipeline.ex", :pattern_match_cov}
+  {"lib/pipeline/step/nested_pipeline.ex", :pattern_match_cov},
+  # False positive - run_single_benchmark can return both :ok and :error
+  {"lib/pipeline/performance/benchmark_runner.ex", :pattern_match},
+  # False positive - the spec correctly references the type t()
+  {"lib/pipeline/streaming/performance_analyzer.ex", :contract_supertype}
 ]
