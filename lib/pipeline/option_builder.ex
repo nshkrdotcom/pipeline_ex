@@ -35,8 +35,9 @@ defmodule Pipeline.OptionBuilder do
   """
   @spec build_development_options() :: claude_options()
   def build_development_options do
+    presets = Application.get_env(:pipeline, :max_turns_presets, %{})
     %{
-      "max_turns" => 20,
+      "max_turns" => presets[:development] || 20,
       "verbose" => true,
       "output_format" => "stream_json",
       "allowed_tools" => ["Write", "Edit", "Read", "Bash", "Search", "Glob", "Grep"],
@@ -61,8 +62,9 @@ defmodule Pipeline.OptionBuilder do
   """
   @spec build_production_options() :: claude_options()
   def build_production_options do
+    presets = Application.get_env(:pipeline, :max_turns_presets, %{})
     %{
-      "max_turns" => 10,
+      "max_turns" => presets[:production] || 10,
       "verbose" => false,
       "output_format" => "json",
       "allowed_tools" => ["Read"],
@@ -86,8 +88,9 @@ defmodule Pipeline.OptionBuilder do
   """
   @spec build_analysis_options() :: claude_options()
   def build_analysis_options do
+    presets = Application.get_env(:pipeline, :max_turns_presets, %{})
     %{
-      "max_turns" => 5,
+      "max_turns" => presets[:analysis] || 5,
       "verbose" => true,
       "output_format" => "json",
       "allowed_tools" => ["Read", "Glob", "Grep"],
@@ -112,8 +115,9 @@ defmodule Pipeline.OptionBuilder do
   """
   @spec build_chat_options() :: claude_options()
   def build_chat_options do
+    presets = Application.get_env(:pipeline, :max_turns_presets, %{})
     %{
-      "max_turns" => 15,
+      "max_turns" => presets[:chat] || 15,
       "verbose" => false,
       "output_format" => "text",
       "allowed_tools" => [],
@@ -137,8 +141,9 @@ defmodule Pipeline.OptionBuilder do
   """
   @spec build_test_options() :: claude_options()
   def build_test_options do
+    presets = Application.get_env(:pipeline, :max_turns_presets, %{})
     %{
-      "max_turns" => 3,
+      "max_turns" => presets[:test] || 3,
       "verbose" => true,
       "output_format" => "json",
       "allowed_tools" => ["Read"],

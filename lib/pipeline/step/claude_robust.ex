@@ -250,7 +250,7 @@ defmodule Pipeline.Step.ClaudeRobust do
     case get_provider(context) do
       {:ok, provider} ->
         simple_options = %{
-          "max_turns" => 1,
+          "max_turns" => Application.get_env(:pipeline, :max_turns_robust_retry, 1),
           "temperature" => 0.3,
           "simplified_mode" => true
         }

@@ -47,7 +47,7 @@ defmodule Pipeline.Providers.EnhancedClaudeProvider do
 
   defp build_sdk_options(options) do
     ClaudeCodeSDK.Options.new(
-      max_turns: get_option(options, "max_turns", 15),
+      max_turns: get_option(options, "max_turns", Application.get_env(:pipeline, :max_turns_presets, %{})[:chat] || 15),
       output_format: get_output_format(options),
       verbose: get_option(options, "verbose", true),
       system_prompt: get_option(options, "system_prompt"),

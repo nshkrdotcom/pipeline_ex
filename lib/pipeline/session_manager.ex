@@ -15,7 +15,7 @@ defmodule Pipeline.SessionManager do
 
   ## Options
   - `persist`: Whether to persist the session across restarts (default: false)
-  - `max_turns`: Maximum turns allowed in the session (default: 50)
+  - `max_turns`: Maximum turns allowed in the session (default: configured in config.exs)
   - `checkpoint_interval`: How often to checkpoint (default: 5 interactions)
   """
   def create_session(session_name, options \\ %{}) do
@@ -93,7 +93,7 @@ defmodule Pipeline.SessionManager do
       "created_at" => DateTime.utc_now(),
       "persist" => Map.get(options, "persist", false),
       "status" => "active",
-      "max_turns" => Map.get(options, "max_turns", 50),
+      "max_turns" => Map.get(options, "max_turns", Application.get_env(:pipeline, :max_turns_session, 50)),
       "checkpoint_interval" => Map.get(options, "checkpoint_interval", 5),
       "interactions" => []
     }
@@ -171,7 +171,7 @@ defmodule Pipeline.SessionManager do
       "created_at" => DateTime.utc_now(),
       "persist" => Map.get(options, "persist", false),
       "status" => "active",
-      "max_turns" => Map.get(options, "max_turns", 50),
+      "max_turns" => Map.get(options, "max_turns", Application.get_env(:pipeline, :max_turns_session, 50)),
       "checkpoint_interval" => Map.get(options, "checkpoint_interval", 5),
       "interactions" => [],
       "total_cost" => 0.0,

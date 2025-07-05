@@ -9,6 +9,21 @@ config :pipeline,
   # Resource limits
   memory_limit_mb: 1024,
   timeout_seconds: 300,
+  
+  # Max turns configuration for different contexts
+  max_turns_default: 3,              # Default fallback for Claude providers
+  max_turns_sdk_default: 1,          # Default for SDK calls when not specified
+  max_turns_session: 50,             # Maximum turns for persistent sessions
+  max_turns_robust_retry: 1,         # Turns for robust error recovery attempts
+  
+  # Environment-specific presets
+  max_turns_presets: %{
+    development: 20,    # Permissive for development
+    production: 10,     # Conservative for production
+    analysis: 5,        # Limited for code analysis
+    chat: 15,          # Moderate for conversational flows
+    test: 3            # Minimal for tests
+  },
 
   # Workspace configuration
   workspace_enabled: true,

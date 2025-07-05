@@ -41,17 +41,22 @@ defmodule Pipeline.Providers.ClaudeProvider do
 
   defp build_claude_options(options) do
     %{
-      max_turns: get_option_value(options, "max_turns", :max_turns, 3),
+      max_turns: get_option_value(options, "max_turns", :max_turns, Application.get_env(:pipeline, :max_turns_default, 3)),
       allowed_tools: get_option_value(options, "allowed_tools", :allowed_tools, []),
       disallowed_tools: get_option_value(options, "disallowed_tools", :disallowed_tools, []),
       system_prompt: get_option_value(options, "system_prompt", :system_prompt, nil),
       verbose: get_option_value(options, "verbose", :verbose, false),
-      cwd: get_option_value(options, "cwd", :cwd, "./workspace")
+      cwd: get_option_value(options, "cwd", :cwd, "./workspace"),
+      timeout_ms: get_option_value(options, "timeout_ms", :timeout_ms, get_default_timeout_ms())
     }
   end
 
   defp get_option_value(options, string_key, atom_key, default) do
     options[string_key] || options[atom_key] || default
+  end
+
+  defp get_default_timeout_ms do
+    Application.get_env(:pipeline, :timeout_seconds, 300) * 1000
   end
 
   defp execute_claude_sdk(prompt, options) do
@@ -85,11 +90,13 @@ defmodule Pipeline.Providers.ClaudeProvider do
 
   defp build_sdk_options(options) do
     ClaudeCodeSDK.Options.new(
-      max_turns: options[:max_turns] || 1,
+      max_turns: options[:max_turns] || Application.get_env(:pipeline, :max_turns_sdk_default, 1),
       verbose: options[:verbose] || true,
       allowed_tools: options[:allowed_tools],
       disallowed_tools: options[:disallowed_tools],
-      system_prompt: options[:system_prompt]
+      system_prompt: options[:system_prompt],
+      cwd: options[:cwd],
+      timeout_ms: options[:timeout_ms] || get_default_timeout_ms()
     )
   end
 
