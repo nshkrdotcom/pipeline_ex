@@ -8,10 +8,32 @@ defmodule Pipeline.Test.Mocks.ClaudeProvider do
   def query(prompt, options \\ %{}) do
     # Check if async streaming is requested
     if get_option_value(options, "async_streaming", :async_streaming, false) do
-      handle_async_query(prompt, options)
+      # First try to find async-specific pattern
+      case find_matching_pattern("__async__" <> prompt) do
+        {:ok, response} when is_function(response) ->
+          result = response.(prompt)
+          {:ok, result}
+
+        _ ->
+          # Fall back to regular async handling
+          handle_async_query(prompt, options)
+      end
     else
-      # Original synchronous behavior
+      # Regular sync handling
       case find_matching_pattern(prompt) do
+        {:ok, response} when is_function(response) ->
+          # Handle function responses (for async mocks returning sync)
+          result = response.(prompt)
+
+          case result do
+            response when is_map(response) ->
+              enhanced_response = enhance_response_with_options(response, options)
+              {:ok, enhanced_response}
+
+            other ->
+              {:ok, other}
+          end
+
         {:ok, response} ->
           # Handle error responses
           case response do
