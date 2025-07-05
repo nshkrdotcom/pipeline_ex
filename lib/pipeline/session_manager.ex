@@ -93,7 +93,8 @@ defmodule Pipeline.SessionManager do
       "created_at" => DateTime.utc_now(),
       "persist" => Map.get(options, "persist", false),
       "status" => "active",
-      "max_turns" => Map.get(options, "max_turns", Application.get_env(:pipeline, :max_turns_session, 50)),
+      "max_turns" =>
+        Map.get(options, "max_turns", Application.get_env(:pipeline, :max_turns_session, 50)),
       "checkpoint_interval" => Map.get(options, "checkpoint_interval", 5),
       "interactions" => []
     }
@@ -171,7 +172,8 @@ defmodule Pipeline.SessionManager do
       "created_at" => DateTime.utc_now(),
       "persist" => Map.get(options, "persist", false),
       "status" => "active",
-      "max_turns" => Map.get(options, "max_turns", Application.get_env(:pipeline, :max_turns_session, 50)),
+      "max_turns" =>
+        Map.get(options, "max_turns", Application.get_env(:pipeline, :max_turns_session, 50)),
       "checkpoint_interval" => Map.get(options, "checkpoint_interval", 5),
       "interactions" => [],
       "total_cost" => 0.0,

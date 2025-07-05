@@ -36,6 +36,7 @@ defmodule Pipeline.OptionBuilder do
   @spec build_development_options() :: claude_options()
   def build_development_options do
     presets = Application.get_env(:pipeline, :max_turns_presets, %{})
+
     %{
       "max_turns" => presets[:development] || 20,
       "verbose" => true,
@@ -63,6 +64,7 @@ defmodule Pipeline.OptionBuilder do
   @spec build_production_options() :: claude_options()
   def build_production_options do
     presets = Application.get_env(:pipeline, :max_turns_presets, %{})
+
     %{
       "max_turns" => presets[:production] || 10,
       "verbose" => false,
@@ -89,6 +91,7 @@ defmodule Pipeline.OptionBuilder do
   @spec build_analysis_options() :: claude_options()
   def build_analysis_options do
     presets = Application.get_env(:pipeline, :max_turns_presets, %{})
+
     %{
       "max_turns" => presets[:analysis] || 5,
       "verbose" => true,
@@ -116,6 +119,7 @@ defmodule Pipeline.OptionBuilder do
   @spec build_chat_options() :: claude_options()
   def build_chat_options do
     presets = Application.get_env(:pipeline, :max_turns_presets, %{})
+
     %{
       "max_turns" => presets[:chat] || 15,
       "verbose" => false,
@@ -142,6 +146,7 @@ defmodule Pipeline.OptionBuilder do
   @spec build_test_options() :: claude_options()
   def build_test_options do
     presets = Application.get_env(:pipeline, :max_turns_presets, %{})
+
     %{
       "max_turns" => presets[:test] || 3,
       "verbose" => true,

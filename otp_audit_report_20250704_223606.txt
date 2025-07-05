@@ -1,0 +1,507 @@
+OTP and Elixir Code Audit Report
+Generated: Fri Jul  4 22:36:06 HST 2025
+========================================
+
+
+## Direct spawn usage (use Task or GenServer instead) (Severity: HIGH)
+None found
+
+## Direct spawn_link usage (use Task or supervised process) (Severity: HIGH)
+None found
+
+## Direct spawn_monitor usage (Severity: HIGH)
+None found
+
+## Timer.sleep usage (blocks scheduler) (Severity: HIGH)
+lib/pipeline/providers/enhanced_claude_provider.ex:176:          :timer.sleep(backoff_delay)
+test/pipeline/metrics/nested_performance_test.exs:203:      :timer.sleep(1)
+test/support/enhanced_mocks.ex:24:        :timer.sleep(sleep_time)
+test/support/enhanced_mocks.ex:329:        :timer.sleep(retry_sleep_time)
+
+## Process.sleep usage (blocks scheduler) (Severity: HIGH)
+lib/pipeline/step/claude_robust.ex:132:            Process.sleep(delay)
+lib/pipeline/step/loop.ex:678:        Process.sleep(10)
+test/support/performance_test_helper.ex:142:        Process.sleep(interval)
+
+## Receive with :infinity timeout (Severity: HIGH)
+None found
+
+## GenServer.call with :infinity timeout (Severity: HIGH)
+None found
+
+## Task.await with :infinity timeout (Severity: HIGH)
+lib/pipeline/step/parallel_claude.ex:40:      Task.await_many(async_tasks, :infinity)
+lib/pipeline/step/loop.ex:198:    chunk_results = Task.await_many(async_tasks, :infinity)
+
+## Task.await_many with :infinity timeout (Severity: HIGH)
+lib/pipeline/step/parallel_claude.ex:40:      Task.await_many(async_tasks, :infinity)
+lib/pipeline/step/loop.ex:198:    chunk_results = Task.await_many(async_tasks, :infinity)
+
+## GenServer.start without link (orphaned process) (Severity: HIGH)
+None found
+
+## Agent.start without link (orphaned process) (Severity: HIGH)
+None found
+
+## Task.start (unsupervised task) (Severity: MEDIUM)
+None found
+
+## GenServer with registered name (needs supervision) (Severity: MEDIUM)
+lib/pipeline/monitoring/performance.ex:47:    GenServer.start_link(__MODULE__, {pipeline_name, opts}, name: via_tuple(pipeline_name))
+
+## Agent with registered name (needs supervision) (Severity: MEDIUM)
+lib/pipeline/tools/tool_registry.ex:95:    Agent.start_link(fn -> %{} end, name: :tool_registry)
+
+## Task.async without supervisor (Severity: MEDIUM)
+lib/pipeline/providers/claude_provider_extended.ex:17:    task = Task.async(fn ->
+lib/pipeline/providers/enhanced_claude_provider.ex:120:      Task.async(fn ->
+lib/pipeline/step/claude_batch.ex:225:        Task.async(fn ->
+lib/pipeline/step/parallel_claude.ex:22:        Task.async(fn ->
+lib/pipeline/step/loop.ex:192:        Task.async(fn ->
+test/unit/pipeline/workflow_performance_test.exs:194:            Task.async(fn -> Executor.execute(workflow) end)
+
+## Manual process registration (Severity: MEDIUM)
+None found
+
+## Race condition: whereis followed by GenServer call (Severity: MEDIUM)
+None found
+
+## File race condition: delete followed by write (Severity: MEDIUM)
+None found
+
+## Named ETS table (potential collision) (Severity: LOW)
+lib/pipeline/prompt_builder.ex:41:          :ets.new(@file_cache_name, [:named_table, :public, :set])
+
+## Process.exit with :kill (brutal termination) (Severity: MEDIUM)
+lib/pipeline/monitoring/performance.ex:69:            Process.exit(pid, :kill)
+test/pipeline/performance/basic_performance_test.exs:179:          Process.exit(pid, :kill)
+test/support/process_helper.ex:62:          Process.exit(pid, :kill)
+test/support/performance_test_helper.ex:188:        Process.exit(pid, :kill)
+
+## System.halt (kills entire VM) (Severity: HIGH)
+lib/mix/tasks/pipeline.generate.ex:68:        System.halt(1)
+lib/mix/tasks/pipeline.generate.ex:109:          System.halt(1)
+lib/mix/tasks/pipeline.run.ex:43:    System.halt(1)
+lib/mix/tasks/pipeline.run.ex:63:      System.halt(1)
+lib/mix/tasks/pipeline.run.ex:69:      System.halt(1)
+lib/mix/tasks/pipeline.run.ex:79:        System.halt(1)
+lib/mix/tasks/pipeline.run.ex:154:        System.halt(1)
+lib/mix/tasks/showcase.ex:48:      System.halt(1)
+lib/mix/tasks/showcase.ex:89:            System.halt(1)
+lib/mix/tasks/showcase.ex:94:        System.halt(1)
+lib/mix/tasks/pipeline.test.live.ex:27:      System.halt(1)
+
+## Process dictionary read (use GenServer state) (Severity: LOW)
+lib/pipeline/session_manager.ex:293:    sessions = Process.get(:pipeline_sessions, %{})
+lib/pipeline/session_manager.ex:298:    sessions = Process.get(:pipeline_sessions, %{})
+lib/pipeline/session_manager.ex:303:    Process.get(:pipeline_sessions, %{})
+lib/pipeline/session_manager.ex:308:    checkpoints = Process.get(:pipeline_checkpoints, %{})
+lib/pipeline/test/mocks.ex:208:      Process.get(:mock_fs, %{})
+lib/pipeline/test/mocks.ex:285:      Process.get(:mock_logs, [])
+lib/pipeline/test/mocks/gemini_provider.ex:146:        {:ok, Process.get({:mock_response, pattern})}
+lib/pipeline/test/mocks/gemini_provider.ex:168:      {:ok, Process.get({:mock_function, function_name})}
+lib/pipeline/test/mocks/gemini_provider.ex:192:      [{_, function_name}] -> {:ok, Process.get({:mock_function, function_name})}
+lib/pipeline/test/mocks/gemini_provider.ex:211:        case Process.get({:mock_function, tool_name}) do
+lib/pipeline/test/mocks/claude_provider.ex:89:        {:ok, Process.get({:mock_response, pattern})}
+lib/pipeline/test/mocks/session_manager.ex:35:    case Process.get({:session, session_name}) do
+lib/pipeline/test/mocks/session_manager.ex:109:      session = Process.get({:session, session_name})
+lib/pipeline/test/mocks/session_manager.ex:125:    case Process.get({:session, session_name}) do
+lib/pipeline/test/mocks/session_manager.ex:154:      session = Process.get({:session, session_name})
+lib/pipeline/step/nested_pipeline.ex:120:        case Process.get({:safety_context, parent_pipeline_name}) do
+lib/pipeline/step/nested_pipeline.ex:211:    current_cumulative = Process.get(cumulative_key, 0)
+lib/pipeline/test_mode.ex:64:    case Process.get(:test_context) do
+
+## Process dictionary write (use GenServer state) (Severity: LOW)
+lib/pipeline/session_manager.ex:294:    Process.put(:pipeline_sessions, Map.put(sessions, session_id, session_data))
+lib/pipeline/session_manager.ex:309:    Process.put(:pipeline_checkpoints, Map.put(checkpoints, checkpoint_id, checkpoint_data))
+lib/pipeline/test/mocks.ex:212:      Process.put(:mock_fs, state)
+lib/pipeline/test/mocks.ex:297:      Process.put(:mock_logs, [new_log | logs])
+lib/pipeline/test/mocks/gemini_provider.ex:123:    Process.put({:mock_response, pattern}, response)
+lib/pipeline/test/mocks/gemini_provider.ex:127:    Process.put({:mock_function, function_name}, response)
+lib/pipeline/test/mocks/claude_provider.ex:69:    Process.put({:mock_response, pattern}, response)
+lib/pipeline/test/mocks/session_manager.ex:27:    Process.put({:session, session_name}, session)
+lib/pipeline/test/mocks/session_manager.ex:61:        Process.put({:session, session["session_name"]}, updated_session)
+lib/pipeline/test/mocks/session_manager.ex:96:        Process.put({:session, session["session_name"]}, updated_session)
+lib/pipeline/test/mocks/session_manager.ex:132:        Process.put({:session, session_name}, closed_session)
+lib/pipeline/step/nested_pipeline.ex:213:    Process.put(cumulative_key, new_cumulative)
+lib/pipeline/step/nested_pipeline.ex:325:    Process.put({:safety_context, pipeline_name}, safety_context)
+lib/pipeline/test_mode.ex:72:    Process.put(:test_context, context)
+
+## Process dictionary delete (Severity: LOW)
+lib/pipeline/test/mocks.ex:261:      Process.delete(:mock_fs)
+lib/pipeline/test/mocks.ex:331:      Process.delete(:mock_logs)
+lib/pipeline/test/mocks/gemini_provider.ex:136:    |> Enum.each(&Process.delete/1)
+lib/pipeline/test/mocks/claude_provider.ex:76:    |> Enum.each(&Process.delete/1)
+lib/pipeline/test/mocks/session_manager.ex:143:    |> Enum.each(&Process.delete/1)
+lib/pipeline/test_mode.ex:76:    Process.delete(:test_context)
+
+## Persistent term usage (be careful with updates) (Severity: LOW)
+None found
+
+## Runtime config modification (Severity: MEDIUM)
+test/unit/pipeline/option_builder_test.exs:7:      Application.put_env(:pipeline, :environment, :development)
+test/unit/pipeline/option_builder_test.exs:19:      Application.put_env(:pipeline, :environment, :production)
+test/unit/pipeline/option_builder_test.exs:31:      Application.put_env(:pipeline, :environment, :test)
+test/support/enhanced_test_case.ex:24:        Application.put_env(:pipeline, :test_mode, :mock)
+test/support/enhanced_test_case.ex:25:        Application.put_env(:claude_code_sdk, :use_mock, true)
+
+## Global process registration (Severity: MEDIUM)
+None found
+
+## File.open without ! (check if closed) (Severity: LOW)
+None found
+
+## DETS table (check if closed) (Severity: LOW)
+None found
+
+## Port usage (check if closed) (Severity: MEDIUM)
+None found
+
+## Task.async inside Enum.map (use Task.async_stream) (Severity: MEDIUM)
+None found
+
+## Task.async inside for comprehension (Severity: MEDIUM)
+None found
+
+## Catching all exceptions (hides errors) (Severity: MEDIUM)
+None found
+
+## Rescuing all error types (Severity: MEDIUM)
+None found
+
+## one_for_all strategy (cascading restarts) (Severity: LOW)
+None found
+
+## Permanent restart for Task (should be :temporary) (Severity: MEDIUM)
+None found
+
+## Nested Enum operations (use Stream or single pass) (Severity: LOW)
+lib/pipeline/context/nested.ex:441:        args |> Enum.map(&ensure_nested_number/1) |> Enum.max()
+lib/pipeline/context/nested.ex:444:        args |> Enum.map(&ensure_nested_number/1) |> Enum.min()
+lib/pipeline/monitoring/performance.ex:507:    total = samples |> Enum.map(& &1.memory_usage) |> Enum.sum()
+lib/pipeline/monitoring/performance.ex:545:          "Optimize slow steps: #{slow_steps |> Enum.map(& &1.name) |> Enum.join(", ")}"
+lib/pipeline/tracing/nested_execution.ex:182:        max_depth = Enum.map(spans, & &1.depth) |> Enum.max(fn -> 0 end)
+lib/pipeline/tracing/nested_execution.ex:246:        durations = Enum.map(spans, & &1.duration_ms) |> Enum.reject(&is_nil/1)
+lib/pipeline/tracing/nested_execution.ex:380:    step_count = 1 + Enum.sum(Enum.map(children_trees, & &1.step_count))
+lib/pipeline/tracing/nested_execution.ex:386:        Enum.map(children_trees, & &1.max_depth) |> Enum.max()
+lib/pipeline/data/transformer.ex:467:        values |> Enum.filter(&is_number/1) |> Enum.sum()
+lib/pipeline/data/transformer.ex:482:        values |> Enum.filter(&is_number/1) |> Enum.max(&>=/2, fn -> 0 end)
+lib/pipeline/data/transformer.ex:485:        values |> Enum.filter(&is_number/1) |> Enum.min(&<=/2, fn -> 0 end)
+lib/pipeline/state/variable_engine.ex:700:        args |> Enum.map(&ensure_number/1) |> Enum.max()
+lib/pipeline/state/variable_engine.ex:703:        args |> Enum.map(&ensure_number/1) |> Enum.min()
+lib/pipeline/debug/nested_execution.ex:399:    total_duration = Enum.sum(Enum.map(spans, &Map.get(&1, :duration_ms, 0)))
+lib/pipeline/debug/nested_execution.ex:400:    max_depth = Enum.map(spans, &Map.get(&1, :depth, 0)) |> Enum.max(fn -> 0 end)
+lib/pipeline/debug/nested_execution.ex:626:    durations = Enum.map(completed_spans, & &1.duration_ms) |> Enum.reject(&is_nil/1)
+lib/pipeline/debug/nested_execution.ex:632:        if(Enum.any?(durations), do: Enum.sum(durations) / length(durations), else: 0),
+lib/pipeline/debug/nested_execution.ex:880:    "  #{Enum.join(Enum.reverse(chain), " → ")}"
+lib/pipeline/debug/nested_execution.ex:1041:      common_depth: Enum.frequencies(depths) |> Enum.max_by(fn {_depth, count} -> count end),
+lib/pipeline/debug/nested_execution.ex:1048:    durations = Enum.map(error_spans, & &1.duration_ms) |> Enum.reject(&is_nil/1)
+lib/pipeline/metrics/nested_performance.ex:395:    total_steps = Enum.sum(Enum.map(performance_context.pipeline_metrics, & &1.step_count))
+lib/pipeline/metrics/nested_performance.ex:399:        Enum.map(performance_context.pipeline_metrics, & &1.depth) |> Enum.max()
+lib/pipeline/metrics/nested_performance.ex:752:    if Enum.any?(durations), do: Enum.sum(durations) / length(durations), else: 0
+lib/pipeline/metrics/nested_performance.ex:762:        (Enum.map(durations, fn d -> (d - avg) * (d - avg) end) |> Enum.sum()) / length(durations)
+lib/pipeline/codebase/context.ex:142:    #{context.structure.main_files |> Enum.take(10) |> Enum.join("\n")}
+lib/pipeline/utils/file_utils.ex:304:              Enum.zip(headers, values) |> Enum.into(%{})
+
+## List concatenation in loop (use reverse/flatten) (Severity: LOW)
+None found
+
+## Length calculation (O(n) for lists) (Severity: LOW)
+lib/pipeline/checkpoint_manager.ex:200:              step_count: length(data["execution_log"] || [])
+lib/pipeline/context/nested.ex:55:      when is_list(output_config) and length(output_config) > 0 do
+lib/pipeline/context/nested.ex:264:        if step_result && length(rest) > 0 do
+lib/pipeline/context/nested.ex:419:      "multiply" when length(args) == 2 ->
+lib/pipeline/context/nested.ex:423:      "add" when length(args) == 2 ->
+lib/pipeline/context/nested.ex:427:      "subtract" when length(args) == 2 ->
+lib/pipeline/context/nested.ex:431:      "divide" when length(args) == 2 ->
+lib/pipeline/context/nested.ex:440:      "max" when length(args) >= 1 ->
+lib/pipeline/context/nested.ex:443:      "min" when length(args) >= 1 ->
+lib/pipeline/context/nested.ex:446:      "round" when length(args) == 1 ->
+lib/pipeline/meta/dna.ex:134:    step_count = length(dna.structural_chromosome.step_sequences)
+lib/pipeline/meta/generator.ex:213:    step_count = length(dna.structural_chromosome.step_sequences)
+lib/pipeline/monitoring/performance.ex:475:      total_warnings: length(state.warnings),
+lib/pipeline/monitoring/performance.ex:506:  defp get_average_memory(samples) when length(samples) > 0 do
+lib/pipeline/monitoring/performance.ex:508:    div(total, length(samples))
+lib/pipeline/monitoring/performance.ex:522:    |> Map.new(fn {type, warns} -> {type, length(warns)} end)
+lib/pipeline/monitoring/performance.ex:543:      if length(slow_steps) > 0 do
+lib/pipeline/monitoring/performance.ex:559:      if length(large_results) > 0 do
+lib/pipeline/condition/functions.ex:6:  - String operations: contains(), matches(), length(), startsWith(), endsWith()
+lib/pipeline/condition/functions.ex:24:      "length" -> get_length(args, context)
+lib/pipeline/condition/functions.ex:89:  defp get_length([value], context) do
+lib/pipeline/condition/functions.ex:93:      is_list(value_val) -> length(value_val)
+lib/pipeline/condition/functions.ex:94:      is_binary(value_val) -> String.length(value_val)
+lib/pipeline/condition/functions.ex:195:    if is_list(array_val), do: length(array_val), else: 0
+lib/pipeline/condition/functions.ex:232:      case length(numbers) do
+lib/pipeline/condition/engine.ex:11:  - Function calls: any(), all(), count(), sum(), length(), startsWith(), etc.
+lib/pipeline/condition/engine.ex:23:      - "length(analysis.recommendations) between 3 and 10"
+lib/pipeline/condition/engine.ex:297:      parts when length(parts) > 2 ->
+lib/pipeline/condition/engine.ex:391:          String.slice(expression, rightmost_pos + String.length(op), String.length(expression))
+lib/pipeline/condition/engine.ex:419:    case :binary.match(string, substring, scope: {start_pos, String.length(string) - start_pos}) do
+lib/pipeline/condition/engine.ex:437:            if length(parts) == 2 do
+lib/pipeline/condition/engine.ex:545:        get_length(field_val)
+lib/pipeline/condition/engine.ex:570:      parts when length(parts) > 2 ->
+lib/pipeline/condition/engine.ex:575:  defp get_length(value) when is_list(value), do: length(value)
+lib/pipeline/condition/engine.ex:576:  defp get_length(value) when is_binary(value), do: String.length(value)
+lib/pipeline/condition/engine.ex:577:  defp get_length(value) when is_map(value), do: map_size(value)
+lib/pipeline/condition/engine.ex:578:  defp get_length(_), do: 0
+lib/pipeline/tools/tool_registry.ex:114:    total = length(results)
+lib/pipeline/tools/adapters/instructor_lite_adapter.ex:54:          |> Map.put("function_calls_executed", length(function_calls))
+lib/pipeline/providers/gemini_provider.ex:103:        Logger.debug("✅ Function call generation successful: #{length(function_calls)} calls")
+lib/pipeline/providers/claude_provider_extended.ex:125:    Logger.debug("📋 Processing #{length(messages)} Claude SDK messages")
+lib/pipeline/providers/claude_provider_extended.ex:205:    length(messages) * 0.0001
+lib/pipeline/providers/claude_provider.ex:13:    IO.puts("DEBUG: ClaudeProvider.query called with prompt length: #{String.length(prompt)}")
+lib/pipeline/providers/claude_provider.ex:104:    IO.puts("DEBUG: Calling ClaudeCodeSDK.query with prompt length: #{String.length(prompt)}")
+lib/pipeline/providers/claude_provider.ex:122:    Logger.debug("📋 Collected #{length(messages)} messages from Claude SDK")
+lib/pipeline/providers/claude_provider.ex:179:    Logger.debug("📋 Extracting text from #{length(messages)} Claude SDK messages")
+lib/pipeline/providers/claude_provider.ex:192:    if length(assistant_messages) > 0 and has_meaningful_content?(assistant_messages) do
+lib/pipeline/providers/claude_provider.ex:241:    Logger.debug("🔍 Found #{length(assistant_messages)} assistant messages")
+lib/pipeline/providers/claude_provider.ex:245:    Logger.debug("✅ Extracted #{String.length(result)} characters from Claude response")
+lib/pipeline/providers/claude_provider.ex:281:      String.length(String.trim(content)) > 10
+lib/pipeline/providers/claude_provider.ex:288:    length(messages) * 0.0001
+lib/pipeline/providers/enhanced_claude_provider.ex:22:      "💪 Enhanced Claude Provider querying with prompt length: #{String.length(prompt)}"
+lib/pipeline/providers/enhanced_claude_provider.ex:236:    Logger.debug("📋 Processing #{length(messages)} Claude SDK messages")
+lib/pipeline/providers/enhanced_claude_provider.ex:251:      "message_count" => length(messages),
+lib/pipeline/providers/enhanced_claude_provider.ex:298:      _ -> length(messages) * 0.001
+lib/pipeline/providers/enhanced_claude_provider.ex:319:          "total_messages" => length(messages),
+lib/pipeline/providers/enhanced_claude_provider.ex:360:          "cost_per_message" => response["cost"] / max(length(messages), 1),
+lib/pipeline/providers/enhanced_claude_provider.ex:386:    "#{base_text}#{preset_suffix}. Original prompt length: #{String.length(prompt)} characters."
+lib/pipeline/tracing/nested_execution.ex:189:          step_count: length(spans),
+lib/pipeline/tracing/nested_execution.ex:250:           span_count: length(spans),
+lib/pipeline/tracing/nested_execution.ex:253:             if(length(durations) > 0, do: Enum.sum(durations) / length(durations), else: 0),
+lib/pipeline/tracing/nested_execution.ex:263:    total_spans = length(all_spans)
+lib/pipeline/tracing/nested_execution.ex:270:      completed_spans: length(completed_spans),
+lib/pipeline/tracing/nested_execution.ex:462:    total = length(spans)
+lib/pipeline/tracing/nested_execution.ex:476:    |> length()
+lib/pipeline/data/transformer.ex:38:    Logger.debug("🔄 Starting data transformation with #{length(operations)} operations")
+lib/pipeline/data/transformer.ex:472:        if length(numeric_values) > 0 do
+lib/pipeline/data/transformer.ex:473:          Enum.sum(numeric_values) / length(numeric_values)
+lib/pipeline/data/transformer.ex:479:        length(values)
+lib/pipeline/executor.ex:98:        step_count = length(workflow["workflow"]["steps"] || [])
+lib/pipeline/executor.ex:733:    if length(metrics.recommendations) > 0 do
+lib/pipeline/error/nested_pipeline.ex:341:              arrow = if index == length(chain) - 1, do: "└─", else: "├─"
+lib/pipeline/error/nested_pipeline.ex:426:      key_count: length(Map.keys(context)),
+lib/pipeline/error/nested_pipeline.ex:456:      process_count: length(Process.list()),
+lib/pipeline/test/mocks/gemini_provider.ex:42:    if options[:tools] && length(options[:tools]) > 0 do
+lib/pipeline/test/mocks/gemini_provider.ex:106:    if options[:tools] && length(options[:tools]) > 0 do
+lib/pipeline/test/mocks/gemini_provider.ex:200:    if length(tools) > 0 do
+lib/pipeline/test/mocks/claude_provider.ex:86:    |> Enum.sort_by(fn {_, pattern} -> -String.length(pattern) end)
+lib/pipeline/step/claude_batch.ex:33:          "✅ Claude Batch step completed successfully: #{length(tasks)} tasks processed"
+lib/pipeline/step/claude_batch.ex:192:    Logger.debug("🚀 Executing #{length(tasks)} tasks with max_parallel=#{max_parallel}")
+lib/pipeline/step/claude_batch.ex:329:      "total_tasks" => length(batch_results),
+lib/pipeline/step/claude_batch.ex:330:      "successful_tasks" => length(successful_tasks),
+lib/pipeline/step/claude_batch.ex:331:      "failed_tasks" => length(failed_tasks),
+lib/pipeline/step/claude_batch.ex:407:    **Total Tasks**: #{length(batch_results)}
+lib/pipeline/step/claude_batch.ex:408:    **Successful**: #{length(successful_results)}
+lib/pipeline/step/claude_batch.ex:409:    **Failed**: #{length(failed_results)}
+lib/pipeline/step/claude_batch.ex:425:      "total_tasks" => length(batch_results),
+lib/pipeline/step/claude_batch.ex:485:          "average_task_time_ms" => div(Enum.sum(execution_times), length(execution_times)),
+lib/pipeline/step/gemini.ex:48:        functions when is_list(functions) and length(functions) > 0 ->
+lib/pipeline/step/codebase_query.ex:153:       count: length(files),
+lib/pipeline/step/parallel_claude.ex:12:    Logger.info("💪💪 Running #{length(tasks)} Claude tasks in parallel")
+lib/pipeline/step/parallel_claude.ex:16:      "🚀 Debug: Starting #{length(tasks)} parallel LLM calls to Claude NOW at #{DateTime.utc_now()}"
+lib/pipeline/step/loop.ex:71:    Logger.info("🔄 Processing #{length(data)} items in for_loop")
+lib/pipeline/step/loop.ex:76:      "total_items" => length(data),
+lib/pipeline/step/loop.ex:85:        Logger.info("🔄 Processing item #{index + 1}/#{length(data)}")
+lib/pipeline/step/loop.ex:89:          case check_memory_usage(index, length(data)) do
+lib/pipeline/step/loop.ex:100:          create_nested_loop_context(iterator_name, item, index, length(data), acc_context)
+lib/pipeline/step/loop.ex:173:    Logger.info("🚀 Processing #{length(data)} items in parallel for_loop")
+lib/pipeline/step/loop.ex:180:      "total_items" => length(data),
+lib/pipeline/step/loop.ex:215:        create_nested_loop_context(iterator_name, item, index, length(chunk), context)
+lib/pipeline/step/loop.ex:715:    data_size = length(data)
+lib/pipeline/step/loop.ex:733:    batch_size = get_batch_size(step, length(data))
+lib/pipeline/step/loop.ex:735:    Logger.info("📊 Processing #{length(data)} items in batches of #{batch_size}")
+lib/pipeline/step/loop.ex:740:      "total_items" => length(data),
+lib/pipeline/step/loop.ex:750:      Logger.info("📊 Processing batch #{batch_index + 1}/#{div(length(data), batch_size) + 1}")
+lib/pipeline/step/loop.ex:765:          case check_memory_usage(batch_index * batch_size, length(data)) do
+lib/pipeline/step/loop.ex:789:          create_nested_loop_context(iterator_name, item, abs_index, length(batch), context)
+lib/pipeline/step/claude_extract.ex:191:            "content_length" => String.length(content)
+lib/pipeline/step/claude_extract.ex:205:        - Length: #{String.length(content)} characters
+lib/pipeline/step/claude_extract.ex:220:        **Content Length**: #{String.length(content)} characters
+lib/pipeline/step/claude_extract.ex:258:        if String.length(content) <= max_length do
+lib/pipeline/step/claude_extract.ex:443:            "original_length" => get_content_length(raw_response),
+lib/pipeline/step/claude_extract.ex:444:            "processed_length" => String.length(processed_content),
+lib/pipeline/step/claude_extract.ex:464:  defp get_content_length(response) do
+lib/pipeline/step/claude_extract.ex:466:    String.length(content)
+lib/pipeline/step/nested_pipeline.ex:199:    step_count = length(get_in(pipeline, ["workflow", "steps"]) || [])
+lib/pipeline/step/gemini_instructor.ex:33:      if String.length(prompt) > 200, do: String.slice(prompt, 0, 200) <> "...", else: prompt
+lib/pipeline/step/gemini_instructor.ex:63:    Logger.info("🔧 Function calling enabled with #{length(functions)} tools")
+lib/pipeline/step/data_transform.ex:116:          "operation_count" => length(step["operations"] || []),
+lib/pipeline/step/data_transform.ex:193:      Logger.debug("Applying #{length(operations)} transformation operations")
+lib/pipeline/step/data_transform.ex:212:    large_dataset = is_list(input_data) && length(input_data) > @lazy_threshold
+lib/pipeline/step/data_transform.ex:439:        {:ok, length(data)}
+lib/pipeline/step/file_ops.ex:139:       "Validation failed for #{length(failed_validations)} file(s): #{inspect(failed_validations)}"}
+lib/pipeline/step/file_ops.ex:155:           "count" => length(files)
+lib/pipeline/state/variable_engine.ex:348:          length(rest) > 0 ->
+lib/pipeline/state/variable_engine.ex:644:          input_value && length(rest) > 0 ->
+lib/pipeline/state/variable_engine.ex:678:      "multiply" when length(args) == 2 ->
+lib/pipeline/state/variable_engine.ex:682:      "add" when length(args) == 2 ->
+lib/pipeline/state/variable_engine.ex:686:      "subtract" when length(args) == 2 ->
+lib/pipeline/state/variable_engine.ex:690:      "divide" when length(args) == 2 ->
+lib/pipeline/state/variable_engine.ex:699:      "max" when length(args) >= 1 ->
+lib/pipeline/state/variable_engine.ex:702:      "min" when length(args) >= 1 ->
+lib/pipeline/state/variable_engine.ex:705:      "round" when length(args) == 1 ->
+lib/pipeline/state/variable_engine.ex:709:      "floor" when length(args) == 1 ->
+lib/pipeline/state/variable_engine.ex:713:      "ceil" when length(args) == 1 ->
+lib/pipeline/debug/nested_execution.ex:254:    if length(trace_contexts) < 2 do
+lib/pipeline/debug/nested_execution.ex:274:    Executions Compared: #{length(summaries)}
+lib/pipeline/debug/nested_execution.ex:407:      step_count: length(spans),
+lib/pipeline/debug/nested_execution.ex:561:            description: "Found #{length(slow_spans)} spans slower than #{slow_threshold}ms",
+lib/pipeline/debug/nested_execution.ex:617:        count: length(error_spans),
+lib/pipeline/debug/nested_execution.ex:630:      span_count: length(spans),
+lib/pipeline/debug/nested_execution.ex:632:        if(Enum.any?(durations), do: Enum.sum(durations) / length(durations), else: 0),
+lib/pipeline/debug/nested_execution.ex:852:        if length(keys) == length(Map.keys(results)) do
+lib/pipeline/debug/nested_execution.ex:872:          if length(keys) < map_size(vars), do: " (+ #{map_size(vars) - 3} more)", else: ""
+lib/pipeline/debug/nested_execution.ex:910:    if length(summaries) >= 2 do
+lib/pipeline/debug/nested_execution.ex:914:      avg_duration = Enum.sum(durations) / length(durations)
+lib/pipeline/debug/nested_execution.ex:918:          length(durations)
+lib/pipeline/debug/nested_execution.ex:928:      if length(summaries) >= 2 do
+lib/pipeline/debug/nested_execution.ex:932:        first_half = Enum.take(success_rates, div(length(success_rates), 2))
+lib/pipeline/debug/nested_execution.ex:933:        second_half = Enum.drop(success_rates, div(length(success_rates), 2))
+lib/pipeline/debug/nested_execution.ex:935:        if length(first_half) > 0 && length(second_half) > 0 do
+lib/pipeline/debug/nested_execution.ex:936:          first_avg = Enum.sum(first_half) / length(first_half)
+lib/pipeline/debug/nested_execution.ex:937:          second_avg = Enum.sum(second_half) / length(second_half)
+lib/pipeline/debug/nested_execution.ex:952:      if length(summaries) >= 2 do
+lib/pipeline/debug/nested_execution.ex:1052:        avg_duration_before_failure: Enum.sum(durations) / length(durations),
+lib/pipeline/metrics/nested_performance.ex:267:    if length(performance_metrics_list) < 2 do
+lib/pipeline/metrics/nested_performance.ex:319:      process_count_peak: length(Process.list())
+lib/pipeline/metrics/nested_performance.ex:394:    total_pipelines = length(performance_context.pipeline_metrics)
+lib/pipeline/metrics/nested_performance.ex:423:    current_process_count = length(Process.list())
+lib/pipeline/metrics/nested_performance.ex:743:      execution_count: length(performance_metrics_list),
+lib/pipeline/metrics/nested_performance.ex:752:    if Enum.any?(durations), do: Enum.sum(durations) / length(durations), else: 0
+lib/pipeline/metrics/nested_performance.ex:758:    if length(durations) > 1 do
+lib/pipeline/metrics/nested_performance.ex:762:        (Enum.map(durations, fn d -> (d - avg) * (d - avg) end) |> Enum.sum()) / length(durations)
+lib/pipeline/metrics/nested_performance.ex:773:    if length(success_rates) > 1 do
+lib/pipeline/metrics/nested_performance.ex:774:      first_half = Enum.take(success_rates, div(length(success_rates), 2))
+lib/pipeline/metrics/nested_performance.ex:775:      second_half = Enum.drop(success_rates, div(length(success_rates), 2))
+lib/pipeline/metrics/nested_performance.ex:777:      first_avg = Enum.sum(first_half) / length(first_half)
+lib/pipeline/metrics/nested_performance.ex:778:      second_avg = Enum.sum(second_half) / length(second_half)
+lib/pipeline/codebase/context.ex:136:    - Directories: #{length(context.structure.directories)}
+lib/pipeline/codebase/context.ex:137:    - Source files: #{length(context.structure.source_files)}
+lib/pipeline/codebase/context.ex:138:    - Test files: #{length(context.structure.test_files)}
+lib/pipeline/codebase/context.ex:139:    - Config files: #{length(context.structure.config_files)}
+lib/pipeline/codebase/analyzers/elixir_analyzer.ex:161:          arity: length(args || []),
+lib/pipeline/codebase/analyzers/elixir_analyzer.ex:170:          arity: length(args || []),
+lib/pipeline/codebase/analyzers/elixir_analyzer.ex:197:            arity: length(args || []),
+lib/pipeline/codebase/analyzers/elixir_analyzer.ex:206:            arity: length(args || []),
+lib/pipeline/codebase/query_engine.ex:682:    length(directly_affected) * 3 +
+lib/pipeline/codebase/query_engine.ex:683:      length(potentially_affected) +
+lib/pipeline/codebase/query_engine.ex:684:      length(test_files) * 2
+lib/pipeline/codebase/ast_parser.ex:485:    |> Enum.map(&length(Regex.scan(&1, content)))
+lib/pipeline/codebase/ast_parser.ex:626:    |> Enum.map(&length(Regex.scan(&1, content)))
+lib/pipeline/codebase/ast_parser.ex:711:    |> Enum.map(&length(Regex.scan(&1, content)))
+lib/pipeline/codebase/ast_parser.ex:811:    |> Enum.map(&length(Regex.scan(&1, content)))
+lib/pipeline/codebase/ast_parser.ex:822:    |> length()
+lib/pipeline/codebase/discovery.ex:232:        |> length() > 0
+lib/pipeline/streaming/async_handler.ex:128:        if length(new_buffer) >= process_state.options.buffer_size do
+lib/pipeline/streaming/async_handler.ex:192:      {:ok, %{state | message_count: state.message_count + length(messages)}}
+lib/pipeline/validation/schema_validator.ex:124:    length_errors = validate_array_length(data, schema, path)
+lib/pipeline/validation/schema_validator.ex:138:    length_errors = validate_string_length(data, schema, path)
+lib/pipeline/validation/schema_validator.ex:246:  defp validate_array_length(data, schema, path) do
+lib/pipeline/validation/schema_validator.ex:251:        if length(data) < min_items do
+lib/pipeline/validation/schema_validator.ex:261:      if length(data) > max_items do
+lib/pipeline/validation/schema_validator.ex:286:  defp validate_string_length(data, schema, path) do
+lib/pipeline/validation/schema_validator.ex:291:        if String.length(data) < min_length do
+lib/pipeline/validation/schema_validator.ex:304:      if String.length(data) > max_length do
+lib/pipeline/validation/schema_validator.ex:428:    error_count = length(errors)
+lib/pipeline/utils/file_utils.ex:317:        {:ok, data} when is_list(data) and length(data) > 0 ->
+lib/mix/tasks/pipeline.generate.ex:225:    Mix.shell().info("🐛 Debug - Binary package result length: #{String.length(package_result)}")
+lib/mix/tasks/pipeline.generate.ex:299:      "🐛 Debug - Binary validation result length: #{String.length(validation_result)}"
+lib/mix/tasks/pipeline.generate.ex:372:      "🐛 Debug - Binary simple pipeline result length: #{String.length(pipeline_result)}"
+lib/mix/tasks/pipeline.generate.ex:417:            |> Enum.reject(&(String.length(&1) < 10))
+lib/mix/tasks/showcase.ex:182:    preview = if String.length(content) > 200, do: preview <> "...", else: preview
+lib/mix/tasks/pipeline.test.live.ex:42:      if length(filtered_args) > 0 do
+test/unit/pipeline/file_prompt_test.exs:209:      assert String.length(built_prompt) > 10_000
+test/unit/pipeline/config_test.exs:25:      assert length(config["workflow"]["steps"]) == 1
+test/unit/pipeline/gemini_functions_test.exs:158:      assert length(results["comprehensive_analysis"]["function_calls"]) == 2
+test/unit/pipeline/step/claude_session_test.exs:394:          assert String.length(reason) > 0
+test/unit/pipeline/step/claude_robust_test.exs:515:          assert String.length(reason) > 0
+test/unit/pipeline/step/claude_batch_test.exs:54:      assert length(result["batch_results"]) == 3
+test/unit/pipeline/step/claude_batch_test.exs:58:      assert length(metadata["files_processed"]) == 3
+test/unit/pipeline/step/claude_batch_test.exs:545:          assert String.length(reason) > 0
+test/unit/pipeline/step/claude_extract_test.exs:86:      assert String.length(result["text"]) <= 100
+test/unit/pipeline/step/claude_extract_test.exs:338:      assert String.length(result["text"]) <= 50
+test/unit/pipeline/step/claude_extract_test.exs:447:          assert String.length(reason) > 0
+test/unit/pipeline/step/claude_smart_test.exs:237:          assert String.length(reason) > 0
+test/unit/pipeline/option_builder_test.exs:263:      assert length(presets) == 5
+test/unit/pipeline/option_builder_test.exs:276:        assert length(preset.optimized_for) > 0
+test/pipeline_library_test.exs:31:        assert length(config["workflow"]["steps"]) == 1
+test/integration/nested_pipeline_phase4_test.exs:316:      assert length(analysis.performance_issues) <= length(analysis.recommendations)
+test/integration/nested_pipeline_phase4_test.exs:331:      assert length(search_results) >= 1
+test/integration/nested_pipeline_phase4_test.exs:501:        assert length(analysis.error_patterns) >= 1
+test/integration/nested_pipeline_phase4_test.exs:511:      assert comparison =~ "Executions Compared: #{length(error_scenarios)}"
+test/pipeline/condition/advanced_test.exs:77:      assert Engine.evaluate("length(step1.text) == 5", context) == true
+test/pipeline/condition/advanced_test.exs:78:      assert Engine.evaluate("length(step1.items) == 4", context) == true
+test/pipeline/condition/advanced_test.exs:79:      assert Engine.evaluate("length(step1.items) > 3", context) == true
+test/pipeline/condition/advanced_test.exs:237:          "length(analysis.recommendations) between 3 and 10"
+test/pipeline/condition/advanced_test.exs:297:      assert Engine.evaluate("length(step1.missing_field) == 0", context) == true
+test/pipeline/tracing/nested_execution_test.exs:189:      assert length(tree.spans) == 1
+test/pipeline/tracing/nested_execution_test.exs:233:      assert length(tree.children) == 2
+test/pipeline/tracing/nested_execution_test.exs:241:      assert length(child1.children) == 1
+test/pipeline/tracing/nested_execution_test.exs:273:      assert length(tree.spans) == 2
+test/pipeline/tracing/nested_execution_test.exs:274:      assert length(tree.children) == 2
+test/pipeline/error/nested_pipeline_test.exs:37:      assert length(result.stack_trace) == 3
+test/pipeline/error/nested_pipeline_test.exs:217:      assert length(result.execution_chain) == 2
+test/pipeline/test/mocks_test.exs:50:      assert length(messages) >= 2
+test/pipeline/test/mocks_test.exs:129:      assert length(all_logs) == 3
+test/pipeline/test/mocks_test.exs:132:      assert length(info_logs) == 1
+test/pipeline/test/mocks_test.exs:136:      assert length(error_logs) == 1
+test/pipeline/test/mocks_test.exs:153:      assert length(LoggerMock.get_all_logs()) == 1
+test/pipeline/step/file_ops_test.exs:152:      assert length(result["results"]) == 2
+test/pipeline/step/file_ops_test.exs:189:      assert length(result["files"]) == 3
+test/pipeline/step/file_ops_test.exs:239:      assert length(data) == 2
+test/pipeline/step/set_variable_test.exs:230:      assert length(errors) == 2
+test/pipeline/step/data_transform_test.exs:33:      assert length(result["filter_high_priority"]) == 2
+test/pipeline/step/data_transform_test.exs:96:      assert length(joined_data) == 2
+test/pipeline/step/data_transform_test.exs:127:      assert length(grouped["completed"]) == 2
+test/pipeline/step/data_transform_test.exs:128:      assert length(grouped["pending"]) == 1
+test/pipeline/step/data_transform_test.exs:129:      assert length(grouped["in_progress"]) == 1
+test/pipeline/step/data_transform_test.exs:205:      assert length(transformed) == 3
+test/pipeline/step/data_transform_test.exs:344:      assert length(result) == 2
+test/pipeline/step/data_transform_test.exs:349:      assert length(result) == 1
+test/pipeline/step/data_transform_test.exs:416:      assert length(result) == 2
+test/pipeline/step/loop_performance_test.exs:250:      assert length(results["iterations"]) == 10
+test/pipeline/debug/nested_execution_test.exs:169:      assert length(slow_issue.spans) == 2
+test/pipeline/debug/nested_execution_test.exs:228:      assert length(analysis.error_patterns) > 0
+test/pipeline/debug/nested_execution_test.exs:501:      assert length(results) == 2
+test/pipeline/debug/nested_execution_test.exs:535:      assert length(results) == 2
+test/pipeline/debug/nested_execution_test.exs:568:      assert length(results) == 2
+test/pipeline/debug/nested_execution_test.exs:601:      assert length(results) == 3
+test/pipeline/debug/nested_execution_test.exs:638:      assert length(results) == 2
+test/pipeline/metrics/nested_performance_test.exs:62:      assert length(updated_context.pipeline_metrics) == 1
+test/pipeline/metrics/nested_performance_test.exs:153:      assert length(context.pipeline_metrics) == 3
+test/pipeline/codebase/context_test.exs:149:      assert length(files) > 0
+test/pipeline/codebase/context_test.exs:152:      assert length(dirs) > 0
+test/pipeline/codebase/ast_parser_test.exs:133:      assert length(functions) > 0
+test/pipeline/codebase/ast_parser_test.exs:164:      assert length(functions) > 0
+test/pipeline/codebase/ast_parser_test.exs:174:      assert length(functions) > 0
+test/pipeline/codebase/ast_parser_test.exs:186:      assert length(classes) > 0
+test/pipeline/codebase/ast_parser_test.exs:207:      assert length(classes) > 0
+test/pipeline/codebase/ast_parser_test.exs:227:      assert length(imports) > 0
+test/pipeline/codebase/ast_parser_test.exs:236:      assert length(imports) > 0
+test/pipeline/codebase/ast_parser_test.exs:245:      assert length(imports) > 0
+test/pipeline/codebase/ast_parser_test.exs:254:      assert length(imports) > 0
+test/pipeline/codebase/query_engine_test.exs:34:      assert length(files) > 0
+test/pipeline/codebase/query_engine_test.exs:185:      assert length(test_relations) > 0
+test/pipeline/codebase/query_engine_test.exs:220:      assert length(related) <= 2
+test/pipeline/codebase/query_engine_test.exs:298:      assert length(files) > 0
+test/pipeline/streaming/async_handler_test.exs:63:      assert length(state.messages) == 2
+test/pipeline/streaming/async_handler_test.exs:81:      assert length(state.batches) > 0
+test/pipeline/streaming/async_handler_test.exs:224:        {:ok, %{state | buffer_calls: [length(messages) | state.buffer_calls]}}
+test/pipeline/streaming/async_handler_test.exs:251:      assert length(state.buffer_calls) == 3
+test/pipeline/streaming/async_handler_test.exs:271:      assert length(state.buffer_calls) >= 1
+test/pipeline/validation/schema_validator_test.exs:296:      assert length(errors) == 1
+test/pipeline/validation/schema_validator_test.exs:431:      assert length(errors) == 3
+test/pipeline/performance/basic_performance_test.exs:87:      assert length(result["filter_test"]) == 2
+test/pipeline/performance/load_test.exs:360:      assert length(final_metrics.step_details) == 2
+test/pipeline/performance/load_test.exs:390:      assert length(final_metrics.recommendations) >= 0
+test/support/enhanced_mocks.ex:131:           "text" => "Batch processing completed for #{length(tasks)} tasks",
+test/support/enhanced_mocks.ex:133:           "cost" => length(tasks) * 0.001,
+test/support/enhanced_mocks.ex:135:           "tasks_completed" => length(tasks),
+test/support/enhanced_mocks.ex:548:        if String.length(text) <= max_length do
+test/support/enhanced_test_case.ex:392:    assert String.length(result["text"]) > 0
+
+
+## SUMMARY
+High severity issues: 12
+Medium severity issues: 16
+Low severity issues: 11

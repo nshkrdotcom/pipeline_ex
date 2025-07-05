@@ -1,0 +1,26 @@
+OTP and Elixir Code Audit Report
+Generated: Fri Jul  4 22:37:42 HST 2025
+Configuration: /home/home/p/g/n/pipeline_ex/scripts/otp_audit_config.sh
+Search Directories: lib test
+========================================
+
+
+## Direct spawn (use Task/GenServer)
+Severity: HIGH | Category: Concurrency
+Pattern: \bspawn\b
+---
+None found
+
+
+## Direct spawn_link
+Severity: HIGH | Category: Concurrency
+Pattern: \bspawn_link\b
+---
+None found
+
+
+## Timer.sleep (blocks scheduler)
+Severity: HIGH | Category: Performance
+Pattern: :timer\.sleep
+---
+lib/pipeline/providers/enhanced_claude_provider.ex:176:          :timer.sleep(backoff_delay)

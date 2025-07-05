@@ -41,7 +41,13 @@ defmodule Pipeline.Providers.ClaudeProvider do
 
   defp build_claude_options(options) do
     %{
-      max_turns: get_option_value(options, "max_turns", :max_turns, Application.get_env(:pipeline, :max_turns_default, 3)),
+      max_turns:
+        get_option_value(
+          options,
+          "max_turns",
+          :max_turns,
+          Application.get_env(:pipeline, :max_turns_default, 3)
+        ),
       allowed_tools: get_option_value(options, "allowed_tools", :allowed_tools, []),
       disallowed_tools: get_option_value(options, "disallowed_tools", :disallowed_tools, []),
       system_prompt: get_option_value(options, "system_prompt", :system_prompt, nil),

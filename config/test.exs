@@ -7,11 +7,12 @@ config :pipeline,
   max_total_steps: 100,
   memory_limit_mb: 512,
   timeout_seconds: 30,
-  
+
   # Test-specific max turns overrides
   max_turns_default: 3,
   max_turns_sdk_default: 1,
-  max_turns_session: 10,  # Smaller for faster tests
+  # Smaller for faster tests
+  max_turns_session: 10,
 
   # Disable workspace for most tests to avoid cleanup overhead
   workspace_enabled: false,

@@ -25,7 +25,14 @@ defmodule Pipeline.Test.EnhancedTestCase do
         Application.put_env(:claude_code_sdk, :use_mock, true)
 
         # Start the mock system if not already started
-        {:ok, _} = ClaudeCodeSDK.Mock.start_link()
+        case Process.whereis(ClaudeCodeSDK.Mock) do
+          nil ->
+            {:ok, _} = ClaudeCodeSDK.Mock.start_link()
+
+          _pid ->
+            # Already started, just continue
+            :ok
+        end
 
         # Clear any existing mock responses
         ClaudeCodeSDK.Mock.clear_responses()

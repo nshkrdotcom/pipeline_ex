@@ -7,26 +7,28 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
   require Logger
   alias ClaudeCodeSDK.{Options, Message}
 
-  @timeout_buffer_ms 5_000     # Extra buffer for process cleanup
+  # Extra buffer for process cleanup
+  @timeout_buffer_ms 5_000
 
   def query(prompt, options \\ %{}) do
     timeout_ms = get_timeout_ms(options)
     Logger.debug("💪 Querying Claude with timeout: #{timeout_ms}ms")
-    
+
     # Spawn a separate process to handle the Claude query
-    task = Task.async(fn ->
-      execute_claude_query(prompt, options)
-    end)
-    
+    task =
+      Task.async(fn ->
+        execute_claude_query(prompt, options)
+      end)
+
     # Wait for the task with our custom timeout
     case Task.yield(task, timeout_ms) || Task.shutdown(task, @timeout_buffer_ms) do
       {:ok, result} ->
         result
-        
+
       nil ->
         Logger.error("❌ Claude query timed out after #{timeout_ms}ms")
         {:error, "Claude query timed out after #{timeout_ms / 1000} seconds"}
-        
+
       {:exit, reason} ->
         Logger.error("💥 Claude query crashed: #{inspect(reason)}")
         {:error, "Claude query crashed: #{inspect(reason)}"}
@@ -35,11 +37,19 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
 
   defp get_timeout_ms(options) do
     cond do
-      options["timeout_ms"] -> options["timeout_ms"]
-      options[:timeout_ms] -> options[:timeout_ms]
-      options["timeout_seconds"] -> options["timeout_seconds"] * 1000
-      options[:timeout_seconds] -> options[:timeout_seconds] * 1000
-      true -> 
+      options["timeout_ms"] ->
+        options["timeout_ms"]
+
+      options[:timeout_ms] ->
+        options[:timeout_ms]
+
+      options["timeout_seconds"] ->
+        options["timeout_seconds"] * 1000
+
+      options[:timeout_seconds] ->
+        options[:timeout_seconds] * 1000
+
+      true ->
         # Get from application config or use default
         Application.get_env(:pipeline, :timeout_seconds, 300) * 1000
     end
@@ -48,7 +58,7 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
   defp execute_claude_query(prompt, options) do
     try do
       claude_options = build_claude_options(options)
-      
+
       case Pipeline.TestMode.get_mode() do
         :mock ->
           {:ok,
@@ -70,7 +80,13 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
 
   defp build_claude_options(options) do
     %{
-      max_turns: get_option_value(options, "max_turns", :max_turns, Application.get_env(:pipeline, :max_turns_default, 3)),
+      max_turns:
+        get_option_value(
+          options,
+          "max_turns",
+          :max_turns,
+          Application.get_env(:pipeline, :max_turns_default, 3)
+        ),
       allowed_tools: get_option_value(options, "allowed_tools", :allowed_tools, []),
       disallowed_tools: get_option_value(options, "disallowed_tools", :disallowed_tools, []),
       system_prompt: get_option_value(options, "system_prompt", :system_prompt, nil),
@@ -84,16 +100,18 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
   end
 
   defp execute_live_claude_query_with_custom_timeout(prompt, options) do
-    sdk_options = Options.new(
-      max_turns: options[:max_turns] || Application.get_env(:pipeline, :max_turns_sdk_default, 1),
-      verbose: options[:verbose] || true,
-      allowed_tools: options[:allowed_tools],
-      disallowed_tools: options[:disallowed_tools],
-      system_prompt: options[:system_prompt]
-    )
+    sdk_options =
+      Options.new(
+        max_turns:
+          options[:max_turns] || Application.get_env(:pipeline, :max_turns_sdk_default, 1),
+        verbose: options[:verbose] || true,
+        allowed_tools: options[:allowed_tools],
+        disallowed_tools: options[:disallowed_tools],
+        system_prompt: options[:system_prompt]
+      )
 
     Logger.debug("🚀 Starting Claude SDK query with extended timeout...")
-    
+
     # Use our custom stream collector that doesn't have a fixed timeout
     messages = collect_claude_messages_no_timeout(prompt, sdk_options)
     process_claude_messages(messages)
@@ -101,10 +119,10 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
 
   defp collect_claude_messages_no_timeout(prompt, sdk_options) do
     Logger.debug("📥 Collecting messages from Claude SDK stream (no timeout)...")
-    
+
     # Create the stream
     stream = ClaudeCodeSDK.query(prompt, sdk_options)
-    
+
     # Collect all messages - the stream itself should complete when done
     # This avoids the 30-second timeout in the SDK
     try do
@@ -123,18 +141,19 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
 
   defp process_claude_messages(messages) do
     Logger.debug("📋 Processing #{length(messages)} Claude SDK messages")
-    
+
     # Check for errors in messages
-    error_msg = Enum.find(messages, fn msg -> 
-      msg.type == :result && msg.subtype != :success
-    end)
-    
+    error_msg =
+      Enum.find(messages, fn msg ->
+        msg.type == :result && msg.subtype != :success
+      end)
+
     if error_msg do
       error_text = extract_error_text(error_msg)
       {:error, error_text}
     else
       text_content = extract_text_from_messages(messages)
-      
+
       if text_content == "" do
         {:error, "Empty response from Claude"}
       else
@@ -152,7 +171,7 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
     cond do
       subtype == :error_max_turns ->
         "Task exceeded max_turns limit. Increase max_turns in claude_options for complex tasks."
-      
+
       subtype == :error_during_execution && data[:error] ->
         # Don't propagate the 30-second timeout error from the SDK
         if String.contains?(data.error, "timed out after 30 seconds") do
@@ -160,13 +179,13 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
         else
           data.error
         end
-        
+
       Map.has_key?(data, :error) && data.error not in [nil, ""] ->
         data.error
-        
+
       Map.has_key?(data, :message) && data.message not in [nil, ""] ->
         data.message
-        
+
       true ->
         "Claude SDK error (#{subtype})"
     end
