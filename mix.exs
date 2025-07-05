@@ -42,7 +42,7 @@ defmodule Pipeline.MixProject do
       {:yaml_elixir, "~> 2.11"},
       {:req, "~> 0.5"},
       {:instructor_lite, "~> 1.0.0"},
-      {:claude_code_sdk, path: "../claude_code_sdk_elixir"},
+      {:claude_code_sdk, git: "https://github.com/nshkrdotcom/claude_code_sdk_elixir.git"},
       {:nimble_options, "~> 1.1"},
       {:ecto, "~> 3.12"},
 
