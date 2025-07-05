@@ -244,18 +244,60 @@ defmodule Pipeline.Streaming.AsyncResponse do
     end
   end
 
+  defp extract_token_count(%{__struct__: _} = message) do
+    # Handle struct messages (like ClaudeCodeSDK.Message)
+    cond do
+      Map.has_key?(message, :data) and is_map(message.data) ->
+        extract_token_count(message.data)
+
+      Map.has_key?(message, :tokens) ->
+        message.tokens
+
+      Map.has_key?(message, :token_count) ->
+        message.token_count
+
+      true ->
+        calculate_approximate_tokens_from_struct(message)
+    end
+  end
+
   defp extract_token_count(message) when is_map(message) do
-    # Try different possible token count fields
-    message[:tokens] || message["tokens"] ||
-      message[:token_count] || message["token_count"] ||
+    # Try different possible token count fields for regular maps
+    Map.get(message, :tokens) || Map.get(message, "tokens") ||
+      Map.get(message, :token_count) || Map.get(message, "token_count") ||
       calculate_approximate_tokens(message)
+  end
+
+  defp extract_token_count(message) when is_binary(message) do
+    # Approximate tokens for plain strings (1 token per 4 characters)
+    div(String.length(message), 4)
   end
 
   defp extract_token_count(_), do: nil
 
+  defp calculate_approximate_tokens_from_struct(%{__struct__: _} = message) do
+    content =
+      cond do
+        Map.has_key?(message, :content) ->
+          message.content
+
+        Map.has_key?(message, :data) and is_map(message.data) ->
+          Map.get(message.data, :content) || Map.get(message.data, "content")
+
+        true ->
+          nil
+      end
+
+    if is_binary(content) do
+      div(String.length(content), 4)
+    else
+      nil
+    end
+  end
+
   defp calculate_approximate_tokens(message) when is_map(message) do
     # Approximate token count based on content length
-    content = message[:content] || message["content"] || ""
+    content = Map.get(message, :content) || Map.get(message, "content") || ""
 
     if is_binary(content) do
       # Rough approximation: 1 token ≈ 4 characters
@@ -272,10 +314,13 @@ defmodule Pipeline.Streaming.AsyncResponse do
     # Calculate duration
     duration_ms = System.monotonic_time(:millisecond) - start_time
 
+    # Convert messages to serializable format
+    serializable_messages = Enum.map(messages, &message_to_map/1)
+
     %{
       success: true,
       response: response_content,
-      messages: messages,
+      messages: serializable_messages,
       streaming_metrics: %{
         message_count: metrics.message_count,
         total_tokens: metrics.total_tokens,
@@ -287,28 +332,99 @@ defmodule Pipeline.Streaming.AsyncResponse do
     }
   end
 
+  defp message_to_map(%{__struct__: _} = message) do
+    # Convert struct to map, handling nested data
+    base_map = Map.from_struct(message)
+
+    # Clean up the map by removing nil values and converting nested structs
+    base_map
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Enum.into(%{}, fn {k, v} ->
+      {k, convert_value_to_serializable(v)}
+    end)
+  end
+
+  defp message_to_map(message) when is_map(message), do: message
+
+  # Handle string messages by wrapping them
+  defp message_to_map(message) when is_binary(message) do
+    %{type: :text, content: message}
+  end
+
+  # Handle other types by converting to string
+  defp message_to_map(message), do: %{type: :unknown, content: inspect(message)}
+
+  defp convert_value_to_serializable(%{__struct__: _} = value) do
+    message_to_map(value)
+  end
+
+  defp convert_value_to_serializable(value) when is_map(value) do
+    Enum.into(value, %{}, fn {k, v} ->
+      {k, convert_value_to_serializable(v)}
+    end)
+  end
+
+  defp convert_value_to_serializable(value) when is_list(value) do
+    Enum.map(value, &convert_value_to_serializable/1)
+  end
+
+  defp convert_value_to_serializable(value), do: value
+
   defp extract_response_content(messages) do
     # Find the result message or concatenate content messages
     result_message =
-      Enum.find(messages, fn msg ->
-        is_map(msg) and (Map.get(msg, :type) == :result or Map.get(msg, "type") == "result")
+      Enum.find(messages, fn
+        %{__struct__: _} = msg ->
+          msg.type == :result or msg.type == "result"
+
+        msg when is_map(msg) ->
+          Map.get(msg, :type) == :result or Map.get(msg, "type") == "result"
+
+        _ ->
+          false
       end)
 
     if result_message do
       # Use the result message content
-      result_message[:content] || result_message["content"] || ""
+      extract_content_from_message(result_message)
     else
-      # Concatenate all content from non-system messages
+      # Concatenate all content from text messages
       messages
-      |> Enum.filter(fn msg ->
-        is_map(msg) and Map.get(msg, :type) in [:content, "content", nil]
-      end)
-      |> Enum.map(fn msg ->
-        msg[:content] || msg["content"] || ""
-      end)
+      |> Enum.filter(&is_text_message?/1)
+      |> Enum.map(&extract_content_from_message/1)
       |> Enum.join("")
     end
   end
+
+  defp is_text_message?(%{__struct__: _} = msg) do
+    msg.type in [:text, "text", :content, "content"]
+  end
+
+  defp is_text_message?(msg) when is_map(msg) do
+    Map.get(msg, :type) in [:text, "text", :content, "content", nil]
+  end
+
+  defp is_text_message?(_), do: false
+
+  defp extract_content_from_message(%{__struct__: _} = msg) do
+    cond do
+      Map.has_key?(msg, :content) and is_binary(msg.content) ->
+        msg.content
+
+      Map.has_key?(msg, :data) and is_map(msg.data) ->
+        Map.get(msg.data, :content) || Map.get(msg.data, "content") || ""
+
+      true ->
+        ""
+    end
+  end
+
+  defp extract_content_from_message(msg) when is_map(msg) do
+    Map.get(msg, :content) || Map.get(msg, "content") ||
+      get_in(msg, [:data, :content]) || get_in(msg, ["data", "content"]) || ""
+  end
+
+  defp extract_content_from_message(_), do: ""
 
   defp time_to_first_token_ms(metrics) do
     case metrics.first_message_time do

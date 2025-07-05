@@ -180,6 +180,7 @@ Application.put_env(:pipeline, :test_mode, true)
 - **Data Transformation**: Filter, aggregate, join with schema validation
 - **Codebase Intelligence**: Project discovery, code analysis, dependency mapping
 - **State Management**: Variables, interpolation, checkpoints with persistence
+- **Async Streaming**: Real-time response streaming for Claude steps with multiple handlers
 
 📚 **See [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for detailed documentation and examples of all advanced capabilities.**
 
@@ -547,6 +548,95 @@ mix pipeline.run examples/claude_smart_example.yaml
 mix pipeline.run examples/claude_session_example.yaml
 # ... etc
 ```
+
+## 🚀 Async Streaming (NEW)
+
+The pipeline now supports **real-time response streaming** for all Claude-based steps, enabling progressive output display and lower memory usage for large responses.
+
+### Why Use Async Streaming?
+
+- **Real-time feedback**: See Claude's responses as they're generated
+- **Lower memory usage**: Stream large outputs without loading everything into memory
+- **Better UX**: Users see progress immediately instead of waiting for completion
+- **Early error detection**: Interrupt long-running operations if needed
+
+### Basic Streaming Example
+
+```yaml
+- name: "streaming_claude"
+  type: "claude"
+  claude_options:
+    # Enable async streaming
+    async_streaming: true
+    stream_handler: "console"  # Real-time console output
+    stream_buffer_size: 100    # Message buffer size
+    
+    # Standard options
+    max_turns: 10
+    allowed_tools: ["Write", "Read", "Edit"]
+```
+
+### Available Stream Handlers
+
+1. **Console Handler** (`console`) - Real-time terminal output
+   ```yaml
+   stream_handler: "console"
+   stream_console_config:
+     show_timestamps: true
+     color_output: true
+     show_progress: true
+   ```
+
+2. **File Handler** (`file`) - Stream to file with rotation
+   ```yaml
+   stream_handler: "file"
+   stream_file_path: "./outputs/stream.jsonl"
+   stream_file_rotation:
+     enabled: true
+     max_size_mb: 10
+     max_files: 5
+   ```
+
+3. **Buffer Handler** (`buffer`) - Collect in memory with stats
+   ```yaml
+   stream_handler: "buffer"
+   stream_buffer_config:
+     max_size: 1000
+     circular: true
+     deduplication: true
+   ```
+
+4. **Callback Handler** (`callback`) - Custom processing
+   ```yaml
+   stream_handler: "callback"
+   stream_callback_config:
+     filter_types: ["text", "tool_use"]
+     rate_limit: 10
+   ```
+
+### Streaming Examples
+
+```bash
+# Basic streaming example
+mix pipeline.run examples/claude_streaming_example.yaml
+
+# Advanced streaming with callbacks and error handling
+mix pipeline.run examples/claude_streaming_advanced.yaml
+
+# Run streaming tests
+mix test test/integration/async_streaming_test.exs
+```
+
+### Works with All Claude Step Types
+
+Async streaming is supported by all Claude-based steps:
+- `claude` - Basic Claude step
+- `claude_smart` - With presets
+- `claude_session` - With session continuity
+- `claude_extract` - With extraction
+- `claude_batch` - Parallel streaming
+- `claude_robust` - With error recovery
+- `parallel_claude` - Multiple streams
 
 ### Environment Configuration
 

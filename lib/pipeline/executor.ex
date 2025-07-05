@@ -763,6 +763,11 @@ defmodule Pipeline.Executor do
 
   defp format_bytes(bytes), do: "#{Float.round(bytes / (1024 * 1024 * 1024), 1)} GB"
 
+  defp format_error_reason(reason) when is_binary(reason), do: reason
+  defp format_error_reason(reason) when is_atom(reason), do: to_string(reason)
+  defp format_error_reason(%{__struct__: _} = reason), do: inspect(reason)
+  defp format_error_reason(reason), do: inspect(reason)
+
   defp cleanup_context(context) do
     # Clean up any temporary resources
     duration = DateTime.diff(DateTime.utc_now(), context.start_time, :millisecond)
@@ -852,11 +857,12 @@ defmodule Pipeline.Executor do
         sync_result
 
       {:error, reason} ->
-        Logger.error("Failed to collect async response: #{reason}")
+        error_message = format_error_reason(reason)
+        Logger.error("Failed to collect async response: #{error_message}")
 
         %{
           "success" => false,
-          "error" => "Failed to collect async stream: #{reason}"
+          "error" => "Failed to collect async stream: #{error_message}"
         }
     end
   end

@@ -1,0 +1,194 @@
+workflow:
+  name: "claude_streaming_advanced"
+  description: "Advanced streaming features with callbacks, error handling, and performance optimization"
+  
+  environment:
+    mode: "development"
+    debug_level: "detailed"
+    
+  defaults:
+    output_dir: "./outputs/streaming"
+    claude_options:
+      telemetry_enabled: true
+      cost_tracking: true
+      
+  steps:
+    # Step 1: Custom callback handler with filtering
+    - name: "callback_streaming"
+      type: "claude_smart"
+      preset: "development"
+      
+      claude_options:
+        async_streaming: true
+        stream_handler: "callback"
+        
+        # Custom callback configuration
+        stream_callback_config:
+          filter_types: ["text", "tool_use"]  # Only process these message types
+          rate_limit: 10  # Max messages per second
+          async_callback: true
+          error_strategy: "continue"  # Continue on callback errors
+          
+        max_turns: 15
+        allowed_tools: ["Write", "Edit", "Read", "Bash", "Search"]
+        
+      prompt:
+        - type: "static"
+          content: |
+            Create a real-time data processing pipeline that:
+            1. Generates sample streaming data
+            2. Processes it with transformations
+            3. Outputs results progressively
+            4. Shows performance metrics
+            
+            Implement in Python with async support.
+            
+      output_to_file: "callback_result.json"
+    
+    # Step 2: Streaming with session continuity
+    - name: "session_streaming"
+      type: "claude_session"
+      
+      session_config:
+        session_name: "streaming_workshop"
+        persist: true
+        checkpoint_frequency: 5
+        
+      claude_options:
+        async_streaming: true
+        stream_handler: "file"
+        stream_file_path: "./outputs/streaming/session_stream.jsonl"
+        stream_file_format: "jsonl"
+        stream_file_rotation:
+          enabled: true
+          max_size_mb: 10
+          max_files: 5
+          
+        max_turns: 20
+        resume_session: true
+        
+      prompt:
+        - type: "static"
+          content: "Let's continue building our streaming data pipeline..."
+        - type: "session_context"
+          session_id: "streaming_workshop"
+          include_last_n: 10
+        - type: "static"
+          content: |
+            Add these advanced features:
+            - Error recovery mechanisms
+            - Backpressure handling
+            - Memory-efficient processing
+            - Real-time monitoring dashboard
+            
+      output_to_file: "session_streaming_result.json"
+    
+    # Step 3: Robust streaming with retry logic
+    - name: "robust_streaming"
+      type: "claude_robust"
+      
+      retry_config:
+        max_retries: 3
+        backoff_strategy: "exponential"
+        retry_conditions: ["timeout", "stream_interrupted", "api_error"]
+        fallback_action: "simplified_prompt"
+        
+      claude_options:
+        async_streaming: true
+        stream_handler: "buffer"
+        stream_buffer_config:
+          max_size: 1000
+          circular: true
+          deduplication: true
+          
+        timeout_ms: 60000
+        debug_mode: true
+        
+      prompt:
+        - type: "static"
+          content: |
+            Create a production-ready streaming service with:
+            - Fault tolerance
+            - Auto-recovery
+            - Health checks
+            - Monitoring integration
+            
+        - type: "previous_response"
+          step: "session_streaming"
+          
+      output_to_file: "robust_streaming_result.json"
+    
+    # Step 4: Extract insights from streaming data
+    - name: "streaming_insights"
+      type: "claude_extract"
+      
+      extraction_config:
+        use_content_extractor: true
+        format: "structured"
+        post_processing:
+          - "extract_performance_metrics"
+          - "extract_error_patterns"
+          - "extract_optimization_suggestions"
+          
+      claude_options:
+        async_streaming: true
+        stream_handler: "console"
+        # Console handler with custom formatting
+        stream_console_config:
+          show_timestamps: true
+          color_output: true
+          show_progress: true
+          clear_on_update: false
+          
+      prompt:
+        - type: "static"
+          content: "Analyze all streaming implementations and extract insights:"
+        - type: "previous_response"
+          step: "callback_streaming"
+        - type: "previous_response"
+          step: "session_streaming"
+        - type: "previous_response"
+          step: "robust_streaming"
+          
+      output_to_file: "streaming_insights.json"
+    
+    # Step 5: Batch processing with mixed streaming modes
+    - name: "batch_streaming"
+      type: "claude_batch"
+      
+      batch_config:
+        max_parallel: 3
+        consolidate_results: true
+        
+      tasks:
+        - id: "optimize_performance"
+          claude_options:
+            async_streaming: true
+            stream_handler: "file"
+            stream_file_path: "./outputs/streaming/perf_optimization.jsonl"
+          prompt:
+            - type: "static"
+              content: "Optimize the streaming pipeline for maximum performance"
+            - type: "previous_response"
+              step: "streaming_insights"
+              extract: "performance_metrics"
+              
+        - id: "fix_errors"
+          claude_options:
+            async_streaming: true
+            stream_handler: "console"
+          prompt:
+            - type: "static"
+              content: "Fix identified error patterns in the streaming implementation"
+            - type: "previous_response"
+              step: "streaming_insights"
+              extract: "error_patterns"
+              
+        - id: "create_benchmarks"
+          claude_options:
+            async_streaming: false  # Non-streaming for comparison
+          prompt:
+            - type: "static"
+              content: "Create performance benchmarks comparing streaming vs non-streaming"
+              
+      output_to_file: "batch_streaming_results.json"

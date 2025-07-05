@@ -1,6 +1,6 @@
 # Advanced Pipeline Features Guide
 
-**🎯 Library Status: Complete Implementation Ready** - This guide covers the 5 critical advanced features that transform pipeline_ex from an 8.5/10 library into a complete 10/10 AI engineering platform.
+**🎯 Library Status: Complete Implementation Ready** - This guide covers the 6 critical advanced features that transform pipeline_ex from an 8.5/10 library into a complete 10/10 AI engineering platform.
 
 ## Overview
 
@@ -647,6 +647,238 @@ Existing pipelines remain fully compatible. To use advanced features:
 - [PIPELINE_CONFIG_GUIDE.md](PIPELINE_CONFIG_GUIDE.md) - Configuration reference
 - [USE_CASES.md](USE_CASES.md) - Working examples for various features
 - [TESTING_ARCHITECTURE.md](TESTING_ARCHITECTURE.md) - Testing approaches
+
+## 🚀 6. Async Streaming
+
+Enable real-time response streaming for all Claude-based steps, providing progressive output display and better resource management.
+
+### Why Async Streaming?
+
+- **Real-time feedback**: See Claude's responses character by character as they're generated
+- **Memory efficiency**: Stream large outputs without loading everything into memory
+- **Early interruption**: Stop long-running operations if they go off track
+- **Better user experience**: Immediate visual feedback instead of waiting
+
+### Basic Configuration
+
+```yaml
+- name: "streaming_analysis"
+  type: "claude"
+  claude_options:
+    # Enable async streaming
+    async_streaming: true
+    stream_handler: "console"  # Handler type
+    stream_buffer_size: 100    # Buffer size for batching
+    
+    # Regular options work as normal
+    max_turns: 20
+    allowed_tools: ["Write", "Edit", "Read"]
+```
+
+### Stream Handlers
+
+#### Console Handler
+Real-time terminal output with formatting options:
+
+```yaml
+stream_handler: "console"
+stream_console_config:
+  show_timestamps: true      # Display message timestamps
+  color_output: true         # Colorize output by type
+  show_progress: true        # Progress indicators
+  clear_on_update: false     # Keep history visible
+  show_tool_use: true        # Show tool invocations
+```
+
+#### File Handler
+Stream to file with automatic rotation:
+
+```yaml
+stream_handler: "file"
+stream_file_path: "./outputs/stream.jsonl"
+stream_file_format: "jsonl"  # or "json", "text"
+stream_file_rotation:
+  enabled: true
+  max_size_mb: 10
+  max_files: 5
+  compress_old: true
+```
+
+#### Buffer Handler
+Collect in memory with statistics:
+
+```yaml
+stream_handler: "buffer"
+stream_buffer_config:
+  max_size: 1000           # Maximum messages
+  circular: true           # Overwrite old messages
+  deduplication: true      # Remove duplicate messages
+  collect_stats: true      # Track message statistics
+```
+
+#### Callback Handler
+Custom processing with filtering:
+
+```yaml
+stream_handler: "callback"
+stream_callback_config:
+  callback_module: "MyApp.StreamProcessor"
+  callback_function: "handle_message"
+  filter_types: ["text", "tool_use"]  # Message types to process
+  rate_limit: 10                      # Max messages per second
+  async_callback: true                # Non-blocking callbacks
+```
+
+### Advanced Streaming Features
+
+#### Session Streaming
+Maintain conversation continuity with streaming:
+
+```yaml
+- name: "streaming_session"
+  type: "claude_session"
+  session_config:
+    session_name: "interactive_coding"
+    persist: true
+  claude_options:
+    async_streaming: true
+    stream_handler: "file"
+    stream_file_path: "./sessions/{{session_id}}_stream.jsonl"
+```
+
+#### Parallel Streaming
+Multiple concurrent streams with different handlers:
+
+```yaml
+- name: "parallel_streams"
+  type: "parallel_claude"
+  parallel_tasks:
+    - id: "console_task"
+      claude_options:
+        async_streaming: true
+        stream_handler: "console"
+    - id: "file_task"
+      claude_options:
+        async_streaming: true
+        stream_handler: "file"
+    - id: "buffer_task"
+      claude_options:
+        async_streaming: true
+        stream_handler: "buffer"
+```
+
+#### Robust Streaming
+Error recovery with streaming continuity:
+
+```yaml
+- name: "robust_stream"
+  type: "claude_robust"
+  retry_config:
+    max_retries: 3
+    retry_conditions: ["stream_interrupted"]
+  claude_options:
+    async_streaming: true
+    stream_handler: "console"
+```
+
+### Performance Benefits
+
+1. **Time to First Token**: See output immediately (typically <1s)
+2. **Memory Usage**: Constant memory even for large outputs
+3. **Throughput**: Process responses as they arrive
+4. **Scalability**: Handle multiple streams concurrently
+
+### Integration Examples
+
+#### Custom Stream Processor
+
+```elixir
+defmodule MyApp.StreamProcessor do
+  @behaviour Pipeline.Streaming.AsyncHandler
+  
+  def init(opts) do
+    {:ok, %{message_count: 0, start_time: System.monotonic_time()}}
+  end
+  
+  def handle_message(%{type: :text, data: data}, state) do
+    # Process text messages
+    IO.write(data.content)
+    {:ok, %{state | message_count: state.message_count + 1}}
+  end
+  
+  def handle_message(%{type: :tool_use}, state) do
+    # Buffer tool use messages
+    {:buffer, state}
+  end
+  
+  def handle_batch(messages, state) do
+    # Process buffered messages
+    Enum.each(messages, &process_tool_use/1)
+    {:ok, state}
+  end
+end
+```
+
+#### Phoenix LiveView Integration
+
+```elixir
+defmodule MyAppWeb.StreamingLive do
+  use Phoenix.LiveView
+  
+  def handle_event("start_analysis", params, socket) do
+    # Start streaming pipeline
+    task = Task.async(fn ->
+      Pipeline.run("streaming_analysis.yaml",
+        stream_callback: &send(self(), {:stream_update, &1})
+      )
+    end)
+    
+    {:noreply, assign(socket, task: task, messages: [])}
+  end
+  
+  def handle_info({:stream_update, message}, socket) do
+    # Update UI with streaming messages
+    {:noreply, update(socket, :messages, &[message | &1])}
+  end
+end
+```
+
+### Testing Streaming
+
+```elixir
+# Test with mock streams
+test "handles streaming responses" do
+  AsyncMocks.create_mock_stream("my_step", :realistic, %{
+    message_count: 50,
+    include_tool_use: true
+  })
+  
+  assert {:ok, results} = Pipeline.run("streaming_pipeline.yaml")
+  assert results["my_step"]["streaming_enabled"] == true
+end
+
+# Test performance
+test "streaming improves time to first output" do
+  # Compare streaming vs non-streaming
+  {time_streaming, _} = :timer.tc(fn ->
+    Pipeline.run("pipeline.yaml", async_streaming: true)
+  end)
+  
+  {time_normal, _} = :timer.tc(fn ->
+    Pipeline.run("pipeline.yaml", async_streaming: false)
+  end)
+  
+  # Streaming should show output faster
+  assert time_streaming < time_normal
+end
+```
+
+### Examples
+
+See complete streaming examples:
+- `examples/claude_streaming_example.yaml` - Basic streaming patterns
+- `examples/claude_streaming_advanced.yaml` - Advanced features
+- `test/integration/async_streaming_test.exs` - Comprehensive tests
 
 ---
 

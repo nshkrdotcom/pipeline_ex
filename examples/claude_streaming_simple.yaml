@@ -1,0 +1,90 @@
+workflow:
+  name: "claude_streaming_simple"
+  description: "Simple demonstration of async streaming with different handlers"
+  
+  defaults:
+    output_dir: "./outputs/streaming"
+    
+  steps:
+    # Example 1: Console streaming - see output in real-time
+    - name: "console_demo"
+      type: "claude"
+      
+      claude_options:
+        async_streaming: true
+        stream_handler: "console"
+        stream_buffer_size: 25  # Small buffer for frequent updates
+        
+        max_turns: 5
+        allowed_tools: ["Write"]
+        verbose: true
+        
+      prompt:
+        - type: "static"
+          content: |
+            Write a short Python script that prints numbers 1-10 with delays.
+            Add comments explaining each line.
+            
+      output_to_file: "console_demo.json"
+    
+    # Example 2: File streaming - stream to JSONL file
+    - name: "file_demo"
+      type: "claude"
+      
+      claude_options:
+        async_streaming: true
+        stream_handler: "file"
+        stream_file_path: "./outputs/streaming/messages.jsonl"
+        
+        max_turns: 5
+        allowed_tools: ["Write", "Read"]
+        
+      prompt:
+        - type: "static"
+          content: |
+            Analyze the Python script from the previous step.
+            Suggest improvements and best practices.
+            
+        - type: "previous_response"
+          step: "console_demo"
+          
+      output_to_file: "file_demo.json"
+    
+    # Example 3: Buffer streaming - collect in memory
+    - name: "buffer_demo"
+      type: "claude"
+      
+      claude_options:
+        async_streaming: true
+        stream_handler: "buffer"
+        stream_buffer_config:
+          max_size: 100
+          collect_stats: true
+          
+        max_turns: 5
+        
+      prompt:
+        - type: "static"
+          content: |
+            Summarize the analysis from the previous step in 3 bullet points.
+            
+        - type: "previous_response"
+          step: "file_demo"
+          
+      output_to_file: "buffer_demo.json"
+    
+    # Example 4: Compare streaming vs non-streaming
+    - name: "non_streaming_demo"
+      type: "claude"
+      
+      claude_options:
+        async_streaming: false  # Traditional mode
+        max_turns: 5
+        
+      prompt:
+        - type: "static"
+          content: |
+            This step uses traditional non-streaming mode.
+            Compare the user experience with the streaming steps above.
+            
+      output_to_file: "non_streaming_demo.json"
