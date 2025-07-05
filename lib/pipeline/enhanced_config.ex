@@ -701,6 +701,31 @@ defmodule Pipeline.EnhancedConfig do
              options,
              "cost_tracking",
              "step '#{step_name}' claude_options.cost_tracking"
+           ),
+         :ok <- validate_async_streaming_options(options, step_name) do
+      :ok
+    end
+  end
+
+  defp validate_async_streaming_options(options, step_name) do
+    with :ok <-
+           validate_optional_boolean(
+             options,
+             "async_streaming",
+             "step '#{step_name}' claude_options.async_streaming"
+           ),
+         :ok <-
+           validate_optional_enum(
+             options,
+             "stream_handler",
+             ["console", "file", "callback", "buffer"],
+             "step '#{step_name}' claude_options.stream_handler"
+           ),
+         :ok <-
+           validate_optional_positive_integer(
+             options,
+             "stream_buffer_size",
+             "step '#{step_name}' claude_options.stream_buffer_size"
            ) do
       :ok
     end
@@ -747,6 +772,9 @@ defmodule Pipeline.EnhancedConfig do
     case {step["prompt"], step["type"]} do
       # Some step types don't require prompts
       {nil, "claude_batch"} ->
+        :ok
+
+      {nil, "parallel_claude"} ->
         :ok
 
       {nil, _} ->

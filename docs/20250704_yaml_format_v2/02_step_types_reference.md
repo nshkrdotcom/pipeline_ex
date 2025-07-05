@@ -120,6 +120,11 @@ Pipeline supports 17+ distinct step types organized into four categories:
     debug_mode: true
     telemetry_enabled: true
     cost_tracking: true
+    
+    # Async streaming (optional)
+    async_streaming: true         # Enable real-time streaming
+    stream_handler: "console"     # Handler: console/file/callback/buffer
+    stream_buffer_size: 100       # Buffer size for batching
   
   prompt:
     - type: "static"
@@ -467,6 +472,55 @@ Pipeline supports 17+ distinct step types organized into four categories:
 - Type safety
 - Integration with InstructorLite
 - JSON Schema support
+
+## Async Streaming Configuration
+
+For Claude-based step types, you can enable async streaming to get real-time responses:
+
+```yaml
+# Example: Claude with async streaming
+- name: "streaming_implementation"
+  type: "claude"
+  
+  claude_options:
+    # Enable async streaming
+    async_streaming: true
+    
+    # Choose a handler type
+    stream_handler: "console"  # Options: console, file, callback, buffer
+    
+    # Configure buffer size for batching messages
+    stream_buffer_size: 50     # Default: 100
+    
+    # Other options work as normal
+    max_turns: 20
+    allowed_tools: ["Write", "Edit", "Read"]
+  
+  prompt:
+    - type: "static"
+      content: "Implement the feature with real-time feedback"
+```
+
+**Stream Handler Types**:
+- `console`: Stream output directly to console in real-time
+- `file`: Stream output to a file as it arrives
+- `callback`: Use custom callback function for handling stream
+- `buffer`: Collect stream into memory buffer
+
+**Benefits of Async Streaming**:
+- Real-time feedback during long-running operations
+- Lower memory usage for large responses
+- Better user experience with progressive output
+- Early error detection and interruption capability
+
+**Supported Step Types**:
+- `claude`
+- `claude_smart`
+- `claude_session`
+- `claude_extract`
+- `claude_batch`
+- `claude_robust`
+- `parallel_claude`
 
 ## Control Flow Steps
 

@@ -261,11 +261,73 @@ defmodule Pipeline.Config do
   end
 
   defp validate_step_type_specific(step) do
-    if step["type"] == "parallel_claude" and is_nil(step["parallel_tasks"]) do
-      {:error,
-       "Step '#{step["name"]}' of type 'parallel_claude' missing required 'parallel_tasks' field"}
-    else
+    cond do
+      step["type"] == "parallel_claude" and is_nil(step["parallel_tasks"]) ->
+        {:error,
+         "Step '#{step["name"]}' of type 'parallel_claude' missing required 'parallel_tasks' field"}
+
+      # Validate async streaming configuration if present
+      step["type"] == "claude" ->
+        validate_claude_async_streaming(step)
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_claude_async_streaming(step) do
+    case get_in(step, ["claude_options", "async_streaming"]) do
+      nil ->
+        :ok
+
+      true ->
+        validate_claude_streaming_options(step)
+
+      false ->
+        :ok
+
+      _ ->
+        {:error, "Step '#{step["name"]}' claude_options.async_streaming must be a boolean"}
+    end
+  end
+
+  defp validate_claude_streaming_options(step) do
+    claude_options = step["claude_options"] || %{}
+
+    with :ok <- validate_stream_handler(claude_options, step["name"]),
+         :ok <- validate_stream_buffer_size(claude_options, step["name"]) do
       :ok
+    end
+  end
+
+  defp validate_stream_handler(options, step_name) do
+    case options["stream_handler"] do
+      nil ->
+        :ok
+
+      handler when handler in ["console", "file", "callback", "buffer"] ->
+        :ok
+
+      _ ->
+        {:error,
+         "Step '#{step_name}' claude_options.stream_handler must be one of: console, file, callback, buffer"}
+    end
+  end
+
+  defp validate_stream_buffer_size(options, step_name) do
+    case options["stream_buffer_size"] do
+      nil ->
+        :ok
+
+      size when is_integer(size) and size > 0 ->
+        :ok
+
+      0 ->
+        {:error, "Step '#{step_name}' claude_options.stream_buffer_size must be positive, got: 0"}
+
+      _ ->
+        {:error,
+         "Step '#{step_name}' claude_options.stream_buffer_size must be a positive integer"}
     end
   end
 
@@ -354,6 +416,22 @@ defmodule Pipeline.Config do
       "previous_response" ->
         if is_nil(part["step"]) do
           {:error, "Step '#{step_name}' has previous_response prompt part missing 'step' field"}
+        else
+          :ok
+        end
+
+      "session_context" ->
+        if is_nil(part["session_id"]) do
+          {:error,
+           "Step '#{step_name}' has session_context prompt part missing 'session_id' field"}
+        else
+          :ok
+        end
+
+      "claude_continue" ->
+        if is_nil(part["session_id"]) do
+          {:error,
+           "Step '#{step_name}' has claude_continue prompt part missing 'session_id' field"}
         else
           :ok
         end
