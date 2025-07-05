@@ -47,12 +47,14 @@ You're still manually running scripts when you should have agents automatically 
 
   Step 3: Simple Frontend (1 hour)
 
+  ```html
   <!-- Single page chat interface -->
   <div id="chat">
     <input id="request" placeholder="I need to analyze log files...">
     <button onclick="sendRequest()">Generate & Run Pipeline</button>
     <div id="results"></div>
   </div>
+  ```
 
   The Real Vision: Pipeline-Generating Agents
 

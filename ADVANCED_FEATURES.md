@@ -643,11 +643,11 @@ Existing pipelines remain fully compatible. To use advanced features:
 
 ## 🔗 Related Documentation
 
-- [LIBRARY_build.md](LIBRARY_build.md) - Complete library usage guide
+- [README.md](README.md) - Complete library usage guide
 - [PIPELINE_CONFIG_GUIDE.md](PIPELINE_CONFIG_GUIDE.md) - Configuration reference
-- [examples/](examples/) - Working examples for all features
-- [test/integration/](test/integration/) - Integration test examples
+- [USE_CASES.md](USE_CASES.md) - Working examples for various features
+- [TESTING_ARCHITECTURE.md](TESTING_ARCHITECTURE.md) - Testing approaches
 
 ---
 
-**Next Steps**: See [TESTING_STRATEGY.md](TESTING_STRATEGY.md) for comprehensive examples and testing approaches for each advanced feature.
+**Next Steps**: See [TESTING_ARCHITECTURE.md](TESTING_ARCHITECTURE.md) for comprehensive examples and testing approaches for each advanced feature.

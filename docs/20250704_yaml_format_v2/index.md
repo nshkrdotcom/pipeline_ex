@@ -6,54 +6,54 @@ Welcome to the comprehensive Pipeline YAML Format v2 documentation. This suite p
 
 ### 🚀 Quick Start
 
-- **[Quick Reference Card](./10_quick_reference.md)** - One-page summary of all features
-- **[Migration Guide](./09_migration_guide.md)** - Upgrade from v1 to v2
+- **Quick Reference Card** - One-page summary of all features (see `docs/20250704_yaml_format_v2/10_quick_reference.md`)
+- **Migration Guide** - Upgrade from v1 to v2 (see `docs/20250704_yaml_format_v2/09_migration_guide.md`)
 
 ### 📖 Core Documentation
 
-1. **[Complete YAML Schema Reference](./01_complete_schema_reference.md)**
+1. **[Complete YAML Schema Reference](01_complete_schema_reference.md)**
    - Full schema definition with all fields and types
    - Validation rules and constraints
    - Configuration precedence
 
-2. **[Step Types Reference](./02_step_types_reference.md)**
+2. **[Step Types Reference](02_step_types_reference.md)**
    - All 17+ step types with examples
    - AI provider steps (Gemini, Claude variants)
    - Control flow steps (loops, conditions, pipelines)
    - Data and file operations
 
-3. **[Prompt System Reference](./03_prompt_system_reference.md)**
+3. **[Prompt System Reference](03_prompt_system_reference.md)**
    - Prompt composition and templates
    - File-based prompt management
    - Content processing and extraction
    - Variable substitution
 
-4. **[Control Flow & Logic](./04_control_flow_logic.md)**
+4. **[Control Flow & Logic](04_control_flow_logic.md)**
    - Conditional execution
    - Loop constructs (for, while)
    - Branching logic (switch/case)
    - State management
 
-5. **[Pipeline Composition](./05_pipeline_composition.md)**
+5. **[Pipeline Composition](05_pipeline_composition.md)**
    - Recursive pipeline execution
    - Input/output mapping
    - Context management
    - Safety features
 
-6. **[Advanced Features](./06_advanced_features.md)**
+6. **[Advanced Features](06_advanced_features.md)**
    - Data transformation (JSONPath)
    - Codebase intelligence
    - File operations
    - Schema validation
    - Session management
 
-7. **[Configuration & Environment](./07_configuration_environment.md)**
+7. **Configuration & Environment** (see `docs/20250704_yaml_format_v2/07_configuration_environment.md`)
    - Workflow configuration
    - Authentication setup
    - Resource management
    - Monitoring and telemetry
 
-8. **[Best Practices & Patterns](./08_best_practices_patterns.md)**
+8. **[Best Practices & Patterns](08_best_practices_patterns.md)**
    - Design principles
    - Common patterns
    - Error handling strategies
@@ -91,17 +91,17 @@ Welcome to the comprehensive Pipeline YAML Format v2 documentation. This suite p
 
 #### By Use Case
 
-- **Building a new pipeline**: Start with [Schema Reference](./01_complete_schema_reference.md)
-- **Using AI providers**: See [Step Types](./02_step_types_reference.md)
-- **Managing prompts**: Check [Prompt System](./03_prompt_system_reference.md)
-- **Adding logic**: Review [Control Flow](./04_control_flow_logic.md)
-- **Creating components**: Study [Pipeline Composition](./05_pipeline_composition.md)
+- **Building a new pipeline**: Start with [Schema Reference](01_complete_schema_reference.md)
+- **Using AI providers**: See [Step Types](02_step_types_reference.md)
+- **Managing prompts**: Check [Prompt System](03_prompt_system_reference.md)
+- **Adding logic**: Review [Control Flow](04_control_flow_logic.md)
+- **Creating components**: Study [Pipeline Composition](05_pipeline_composition.md)
 
 #### By Experience Level
 
-- **Beginners**: [Quick Reference](./10_quick_reference.md) → [Best Practices](./08_best_practices_patterns.md)
-- **Intermediate**: [Step Types](./02_step_types_reference.md) → [Advanced Features](./06_advanced_features.md)
-- **Advanced**: [Pipeline Composition](./05_pipeline_composition.md) → [Configuration](./07_configuration_environment.md)
+- **Beginners**: [Quick Reference](10_quick_reference.md) → [Best Practices](08_best_practices_patterns.md)
+- **Intermediate**: [Step Types](02_step_types_reference.md) → [Advanced Features](06_advanced_features.md)
+- **Advanced**: [Pipeline Composition](05_pipeline_composition.md) → Configuration (see `docs/20250704_yaml_format_v2/07_configuration_environment.md`)
 
 ### 💡 Tips for Success
 

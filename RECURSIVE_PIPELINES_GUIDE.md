@@ -1026,20 +1026,19 @@ config :pipeline,
 ## Related Guides
 
 ### Core Documentation
-- **[Context Management Guide](./docs/guides/context_management.md)** - Deep dive into variable passing and context inheritance
-- **[Safety Features Guide](./docs/guides/safety_features.md)** - Comprehensive safety configuration and best practices
-- **[Developer Experience Guide](./docs/guides/developer_experience.md)** - Debugging tools and performance optimization
-- **[Testing Strategy Guide](./docs/guides/testing_recursive_pipelines.md)** - Testing approaches for nested pipelines
-- **[Examples Collection](./docs/guides/recursive_pipeline_examples.md)** - Real-world use cases and patterns
+- **[Context Management Guide](docs/guides/context_management.md)** - Deep dive into variable passing and context inheritance
+- **[Safety Features Guide](docs/guides/safety_features.md)** - Comprehensive safety configuration and best practices
+- **Developer Experience Guide** - Debugging tools and performance optimization (see `docs/guides/developer_experience.md`)
+- **Testing Strategy Guide** - Testing approaches for nested pipelines (see `docs/guides/testing_recursive_pipelines.md`)
+- **Examples Collection** - Real-world use cases and patterns (see `docs/guides/recursive_pipeline_examples.md`)
 
 ### Technical References
-- **[Architecture Design](./docs/architecture/20250103_recursive.md)** - Complete technical design document
-- **[Implementation Prompts](./docs/architecture/recursive_pipeline_prompts.md)** - Phased implementation guide
-- **[Implementation Worklog](./docs/architecture/20250703_recursive_worklog.md)** - Detailed implementation notes
+- **Architecture Design** - Complete technical design document (see `docs/architecture/20250703_recursive.md`)
+- **Implementation Prompts** - Phased implementation guide (see `docs/architecture/recursive_pipeline_prompts.md`)
+- **Implementation Worklog** - Detailed implementation notes (see `docs/architecture/20250703_recursive_worklog.md`)
 
 ### Related Features
-- **[Pipeline Organization](./docs/architecture/pipeline_organization.md)** - Pipeline categorization and structure
-- **[Claude.md Blueprint](./CLAUDE.md)** - Overall system vision and roadmap
+- **[Pipeline Organization](docs/architecture/pipeline_organization.md)** - Pipeline categorization and structure
 
 ---
 

@@ -108,28 +108,36 @@ Transform pipeline_ex into a comprehensive AI engineering platform that serves a
 - [x] `docs/specifications/data_processing_pipelines.md` - Data pipeline technical specs
 - [x] `docs/specifications/model_development_pipelines.md` - Model pipeline specs
 - [x] `docs/specifications/code_generation_pipelines.md` - Code gen pipeline specs
+<!-- Planned specifications (not yet implemented):
 - [ ] `docs/specifications/analysis_pipelines.md` - Analysis pipeline specs
 - [ ] `docs/specifications/content_generation_pipelines.md` - Content pipeline specs
 - [ ] `docs/specifications/devops_pipelines.md` - DevOps pipeline specs
+-->
 
 #### 5.1 Architecture Documentation
-- [ ] `docs/architecture/system_design.md` - Overall system architecture
 - [x] `docs/architecture/pipeline_organization.md` - Pipeline categorization and organization
+<!-- Planned architecture docs (not yet implemented):
+- [ ] `docs/architecture/system_design.md` - Overall system architecture
 - [ ] `docs/architecture/pipeline_patterns.md` - Common pipeline patterns
 - [ ] `docs/architecture/scalability.md` - Scaling strategies
 - [ ] `docs/architecture/security.md` - Security considerations
+-->
 
 #### 5.2 Pipeline Development Guides
+<!-- Planned guides (not yet implemented):
 - [ ] `docs/guides/pipeline_authoring.md` - How to write pipelines
 - [ ] `docs/guides/prompt_engineering.md` - Prompt design best practices
 - [ ] `docs/guides/testing_pipelines.md` - Testing strategies
 - [ ] `docs/guides/optimization.md` - Performance optimization
+-->
 
 #### 5.3 API References
+<!-- Planned API documentation (not yet implemented):
 - [ ] `docs/api/step_types.md` - Complete step type reference
 - [ ] `docs/api/providers.md` - Provider capabilities
 - [ ] `docs/api/functions.md` - Function definitions
 - [ ] `docs/api/templates.md` - Template system reference
+-->
 
 ### 6. Implementation Phases
 

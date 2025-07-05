@@ -11,8 +11,8 @@ defmodule Pipeline.Test.AIProvider do
     - opts: Keyword list of options (model, token_budget, etc.)
 
   ## Returns
-    - {:ok, response_map} on success
-    - {:error, reason} on failure
+  - `{:ok, response_map}` on success
+  - `{:error, reason}` on failure
   """
   @callback generate(prompt :: String.t(), opts :: keyword()) ::
               {:ok, map()} | {:error, term()}

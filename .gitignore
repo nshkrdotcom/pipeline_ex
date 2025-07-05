@@ -31,3 +31,5 @@ pipeline-*.tar
 
 /cleanup.sh
 /evolved_pipelines/
+
+/pipeline*.tar

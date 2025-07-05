@@ -1,6 +1,8 @@
 # Pipeline
 
 [![CI](https://github.com/nshkrdotcom/pipeline_ex/actions/workflows/elixir.yaml/badge.svg)](https://github.com/nshkrdotcom/pipeline_ex/actions/workflows/elixir.yaml)
+[![Hex.pm](https://img.shields.io/hexpm/v/pipeline_ex.svg)](https://hex.pm/packages/pipeline_ex)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-purple.svg)](https://hexdocs.pm/pipeline_ex)
 
 **AI Pipeline Orchestration Library for Elixir** 
 
@@ -50,7 +52,11 @@ mix pipeline.run evolved_pipelines/sentiment_analyzer_*.yaml
 # mix.exs
 defp deps do
   [
-    {:pipeline_ex, git: "https://github.com/nshkrdotcom/pipeline_ex.git", tag: "v0.1.0"}
+    # From Hex.pm (recommended)
+    {:pipeline_ex, "~> 0.0.1"}
+    
+    # Or from GitHub
+    # {:pipeline_ex, git: "https://github.com/nshkrdotcom/pipeline_ex.git", tag: "v0.0.1"}
   ]
 end
 ```
@@ -140,11 +146,11 @@ Application.put_env(:pipeline, :test_mode, true)
 {:ok, results} = Pipeline.execute(config)
 ```
 
-📖 **Complete Library Guide**: See [LIBRARY_build.md](LIBRARY_build.md) for detailed usage instructions, configuration options, and integration patterns.
+📖 **Complete Library Guide**: See the documentation sections below for detailed usage instructions, configuration options, and integration patterns.
 
 🚀 **Advanced Features**: See [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for comprehensive documentation on loops, complex conditions, file operations, data transformation, codebase intelligence, and state management.
 
-📋 **YAML Format v2 Documentation**: See [docs/20250704_yaml_format_v2/](docs/20250704_yaml_format_v2/) for complete reference documentation on the Pipeline YAML format, including all step types, prompt systems, control flow, and best practices.
+📋 **YAML Format v2 Documentation**: See [docs/20250704_yaml_format_v2/index.md](docs/20250704_yaml_format_v2/index.md) for complete reference documentation on the Pipeline YAML format, including all step types, prompt systems, control flow, and best practices.
 
 ## Features
 
@@ -187,7 +193,11 @@ Application.put_env(:pipeline, :test_mode, true)
 # mix.exs
 defp deps do
   [
-    {:pipeline_ex, git: "https://github.com/nshkrdotcom/pipeline_ex.git", tag: "v0.1.0"}
+    # From Hex.pm (recommended)
+    {:pipeline_ex, "~> 0.0.1"}
+    
+    # Or from GitHub
+    # {:pipeline_ex, git: "https://github.com/nshkrdotcom/pipeline_ex.git", tag: "v0.0.1"}
   ]
 end
 ```
@@ -568,7 +578,7 @@ export TEST_MODE="live"                          # live, mock, mixed
    - [Prompt System Guide](PROMPT_SYSTEM_GUIDE.md) for advanced prompt management, templates, and reusable components
    - [Recursive Pipelines Guide](RECURSIVE_PIPELINES_GUIDE.md) for pipeline composition and modular workflows
    - [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) for loops, conditions, file operations, and more
-   - [TESTING_STRATEGY.md](TESTING_STRATEGY.md) for comprehensive testing approaches
+   - [TESTING_ARCHITECTURE.md](TESTING_ARCHITECTURE.md) for comprehensive testing approaches
 3. **Test in mock mode**: Validate your workflow logic without API costs
 4. **Run live**: Execute with real AI providers when ready
 
