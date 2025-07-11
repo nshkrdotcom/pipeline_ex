@@ -54,12 +54,17 @@ while true; do
         echo "✅ Pipeline completed successfully in ${duration}s"
         
         # Check if new output file was created
+        echo "🔍 Checking for new output files..."
         latest_after=$(ls -t ./outputs/202*_improved_chiral_narrative_synthesis.md 2>/dev/null | head -1)
+        echo "📁 Latest file found: $latest_after"
+        echo "📁 Previous file was: $latest_file"
+        
         if [ "$latest_after" != "$latest_file" ]; then
             echo "📄 New improved paper created: $latest_after"
             
             # Show file size for progress tracking
             if [ -f "$latest_after" ]; then
+                echo "📊 Calculating file size..."
                 size=$(wc -l < "$latest_after" 2>/dev/null || echo "unknown")
                 echo "📊 Paper length: $size lines"
             fi
@@ -79,7 +84,10 @@ while true; do
     # Clean up temp file
     rm "${PIPELINE_FILE}.tmp"
     
-    echo "=== Completed Research Paper Improvement Run #$counter, waiting 5 seconds... ==="
+    echo "=== Completed Research Paper Improvement Run #$counter ==="
+    echo "⏱️  Pausing for 5 seconds before next iteration..."
+    echo "   (Press Ctrl+C now to stop the loop)"
     sleep 5
+    echo ""
     ((counter++))
 done

@@ -17,7 +17,7 @@ workflow:
             
             ```` 
         - type: "file"
-          path: "./workspace/202507110831_chiral_narrative_synthesis_scientific_paper.md"
+          path: "../research_papers/tex/ResearchProposal-ChiralNarrativeSynthesis_3.tex"
         - type: "static"
           content: |
             ````
