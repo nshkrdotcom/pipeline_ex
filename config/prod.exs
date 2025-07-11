@@ -7,6 +7,8 @@ config :pipeline,
   max_total_steps: 500,
   memory_limit_mb: 1024,
   timeout_seconds: 300,
+  # 30 minutes for production
+  gemini_timeout_ms: 1_800_000,
 
   # Production safety settings
   workspace_enabled: true,

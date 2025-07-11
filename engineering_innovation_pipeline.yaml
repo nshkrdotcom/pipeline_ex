@@ -1,0 +1,62 @@
+workflow:
+  name: "science_innovation_pipeline"
+  description: "Gemini generates innovative scientific ideas and theories, then Claude creates comprehensive research and implementation guides"
+
+  steps:
+    - name: "generate_science_innovation"
+      type: "gemini"
+      model: "gemini-2.5-flash-lite-preview-06-17"
+      token_budget:
+        temperature: 0.8
+        max_output_tokens: 24000
+      prompt:
+        - type: "static"
+          content: |
+            You are an innovative engineer and physicist. Generate a completely novel engineering or physics concept, 
+            theory, or experimental approach that could advance technology or our understanding of physical phenomena.
+            
+            Focus broadly on engineering or physics - pick any specific subtopic, application, or phenomenon 
+            that interests you in the moment. Don't overthink it - just choose something fascinating and unexpected 
+            within these fields. This could be anything from microscopic quantum effects to massive engineering 
+            systems, from theoretical frameworks to practical applications.
+            
+            Provide:
+            1. **Core Innovation**: 2-3 sentences describing your novel engineering/physics idea
+            2. **Technical Domain**: What specific area of engineering or physics this involves
+            3. **Problem or Opportunity**: What challenge this addresses or new capability it enables
+            4. **Implementation Approach**: How this could be built, tested, or experimentally validated
+            
+            Be bold, creative, and pick something totally unexpected while keeping it technically feasible.
+
+    - name: "research_expansion"
+      type: "claude"
+      claude_options:
+        max_turns: 10
+        allowed_tools: ["Write"]
+        timeout_ms: 1800000
+      prompt:
+        - type: "static"
+          content: |
+            You are an expert researcher and science communicator. Take the scientific innovation 
+            identified below and create a comprehensive research and exploration guide.
+            
+            Create a detailed markdown document with:
+            1. **Scientific Foundation**: Detailed theoretical background and principles
+            2. **Research Methodology**: Step-by-step experimental approach to investigate this idea
+            3. **Expected Outcomes**: What results and discoveries this could lead to
+            4. **Equipment & Materials**: What would be needed to conduct this research
+            5. **Collaboration Opportunities**: Which fields and researchers could contribute
+            6. **Timeline & Phases**: How to structure the research over time
+            7. **Real-World Applications**: 3-4 potential practical applications of this discovery
+            8. **Funding Strategy**: How to secure resources for this research
+            9. **Publication Plan**: How to share and validate the findings
+            10. **Potential Challenges**: Scientific hurdles, limitations, and alternative approaches
+            
+            Focus on making this scientifically rigorous while being accessible and inspiring.
+            Include considerations for ethical implications and broader impacts on society.
+            
+            IMPORTANT: Use the Write tool to save your response as a markdown file. Use the filename format: yyyymmddhhmm_{descriptive_name}.md (e.g., "202507111945_quantum_biology_research_guide.md").
+            
+            Here's the scientific innovation to explore:
+        - type: "previous_response"
+          step: "generate_science_innovation"

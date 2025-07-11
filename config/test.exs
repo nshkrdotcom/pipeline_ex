@@ -7,6 +7,8 @@ config :pipeline,
   max_total_steps: 100,
   memory_limit_mb: 512,
   timeout_seconds: 30,
+  # 30 seconds for tests
+  gemini_timeout_ms: 30_000,
 
   # Test-specific max turns overrides
   max_turns_default: 3,

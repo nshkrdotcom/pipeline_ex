@@ -1,0 +1,63 @@
+workflow:
+  name: "elixir_otp_innovation_pipeline"
+  description: "Gemini generates innovative software engineering techniques for concurrent distributed fault-tolerant systems using Elixir/OTP, then Claude expands on implementation details"
+
+  steps:
+    - name: "generate_elixir_innovation"
+      type: "gemini"
+      model: "gemini-2.5-flash-lite-preview-06-17"
+      token_budget:
+        temperature: 0.8
+        max_output_tokens: 1024
+      prompt:
+        - type: "static"
+          content: |
+            You are an innovative software engineer specializing in Elixir/OTP and distributed systems. 
+            Generate a completely novel software engineering technique or pattern for building 
+            concurrent, distributed, fault-tolerant systems using Elixir/OTP.
+            
+            Focus on:
+            - Unexplored combinations of OTP behaviors and patterns
+            - Novel approaches to fault tolerance, supervision, or state management
+            - Innovative distributed coordination or consensus mechanisms
+            - Creative uses of Elixir's actor model or process communication
+            - New patterns for handling backpressure, load balancing, or resource management
+            
+            Provide:
+            1. The core technique/pattern (2-3 sentences describing the approach)
+            2. The OTP/Elixir features it leverages (GenServer, Supervisor, Registry, etc.)
+            3. What distributed systems problems it solves uniquely
+            4. A concrete implementation scenario where this would be beneficial
+            
+            Be innovative but technically feasible. Avoid well-known OTP patterns.
+
+    - name: "implementation_expansion"
+      type: "claude"
+      claude_options:
+        max_turns: 10
+        allowed_tools: ["Write"]
+        timeout_ms: 1800000
+      prompt:
+        - type: "static"
+          content: |
+            You are an expert Elixir/OTP engineer and technical architect. Take the innovative software 
+            engineering technique provided below and create a comprehensive implementation guide.
+            
+            Create a detailed markdown document with:
+            1. **Technical Architecture**: Detailed system design and component interactions
+            2. **Implementation Strategy**: Step-by-step approach to building this technique
+            3. **Code Examples**: Key Elixir/OTP code snippets showing the pattern in action
+            4. **Performance Characteristics**: Expected behavior under load, scaling properties
+            5. **Testing Strategy**: How to validate correctness and fault tolerance
+            6. **Real-World Applications**: 3-4 specific use cases where this would excel
+            7. **Integration Patterns**: How this fits with existing OTP supervision trees and applications
+            8. **Potential Pitfalls**: Edge cases, limitations, and troubleshooting guidance
+            
+            Focus on practical implementation details and production-ready considerations.
+            Include relevant OTP principles like "let it crash", supervision strategies, and process isolation.
+            
+            IMPORTANT: Use the Write tool to save your response as a markdown file. Use the filename format: yyyymmddhhmm_{descriptive_name}.md (e.g., "202507111945_adaptive_supervision_implementation.md").
+            
+            Here's the Elixir/OTP innovation to expand upon:
+        - type: "previous_response"
+          step: "generate_elixir_innovation"

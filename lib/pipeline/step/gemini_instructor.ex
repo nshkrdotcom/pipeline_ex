@@ -10,6 +10,14 @@ defmodule Pipeline.Step.GeminiInstructor do
   def execute(step, context) do
     log_execution_start(step)
 
+    # Debug: Log the step configuration
+    Logger.info(
+      "🔍 DEBUG: Step config received: #{inspect(Map.take(step, ["timeout_ms", "name", "type"]))}"
+    )
+
+    timeout_debug = step["timeout_ms"] || "NOT SET"
+    Logger.info("🕒 DEBUG: Timeout from step config: #{timeout_debug}")
+
     prompt = PromptBuilder.build(step["prompt"], context.results)
     log_prompt_preview(prompt)
 
@@ -38,15 +46,15 @@ defmodule Pipeline.Step.GeminiInstructor do
   defp execute_gemini_call(step, prompt, model, start_time) do
     case step["functions"] do
       nil ->
-        execute_regular_generation(prompt, model, start_time)
+        execute_regular_generation(prompt, model, start_time, step)
 
       functions when is_list(functions) ->
-        execute_function_calling(prompt, functions, model, start_time)
+        execute_function_calling(prompt, functions, model, start_time, step)
     end
   end
 
-  defp execute_regular_generation(prompt, model, start_time) do
-    case call_instructor_lite(prompt, Pipeline.Schemas.AnalysisResponse, model) do
+  defp execute_regular_generation(prompt, model, start_time, step) do
+    case call_instructor_lite(prompt, Pipeline.Schemas.AnalysisResponse, model, step) do
       {:ok, response} ->
         elapsed = System.monotonic_time(:millisecond) - start_time
         Logger.info("📤 Raw Gemini response (took #{elapsed / 1000}s):")
@@ -59,12 +67,12 @@ defmodule Pipeline.Step.GeminiInstructor do
     end
   end
 
-  defp execute_function_calling(prompt, functions, model, start_time) do
+  defp execute_function_calling(prompt, functions, model, start_time, step) do
     Logger.info("🔧 Function calling enabled with #{length(functions)} tools")
 
     tool_schema = InstructorLiteAdapter.create_function_schema(functions)
 
-    case call_instructor_lite_with_tools(prompt, tool_schema, model) do
+    case call_instructor_lite_with_tools(prompt, tool_schema, model, step) do
       {:ok, response} -> handle_tool_response(response, start_time)
       {:error, error} -> handle_tool_error(error)
     end
@@ -76,12 +84,25 @@ defmodule Pipeline.Step.GeminiInstructor do
     end
   end
 
-  defp call_instructor_lite(prompt, response_model, model) do
+  defp call_instructor_lite(prompt, response_model, model, step) do
     # Get API key from environment
     api_key =
       System.get_env("GEMINI_API_KEY") ||
         Application.get_env(:pipeline, :gemini_api_key) ||
         raise "GEMINI_API_KEY environment variable not set"
+
+    # Get timeout from step config, default to 120 seconds (120,000ms)
+    timeout_ms = step["timeout_ms"] || 120_000
+
+    Logger.info(
+      "🕒 DEBUG: Step passed to call_instructor_lite: #{inspect(Map.take(step, ["timeout_ms", "name"]))}"
+    )
+
+    Logger.info("🕒 DEBUG: Computed timeout_ms: #{timeout_ms}")
+
+    Logger.info(
+      "🕒 DEBUG: About to call InstructorLite with http_options: [receive_timeout: #{timeout_ms}]"
+    )
 
     # Format the prompt for Gemini's content structure
     contents = [
@@ -122,7 +143,8 @@ defmodule Pipeline.Step.GeminiInstructor do
            adapter: InstructorLite.Adapters.Gemini,
            adapter_context: [
              model: model,
-             api_key: api_key
+             api_key: api_key,
+             http_options: [receive_timeout: timeout_ms]
            ]
          ) do
       {:ok, response} -> {:ok, response}
@@ -130,12 +152,21 @@ defmodule Pipeline.Step.GeminiInstructor do
     end
   end
 
-  defp call_instructor_lite_with_tools(prompt, schema, model) do
+  defp call_instructor_lite_with_tools(prompt, schema, model, step) do
     # Get API key from environment
     api_key =
       System.get_env("GEMINI_API_KEY") ||
         Application.get_env(:pipeline, :gemini_api_key) ||
         raise "GEMINI_API_KEY environment variable not set"
+
+    # Get timeout from step config, default to 120 seconds (120,000ms)
+    timeout_ms = step["timeout_ms"] || 120_000
+
+    Logger.info(
+      "🕒 DEBUG: call_instructor_lite_with_tools - Step: #{inspect(Map.take(step, ["timeout_ms", "name"]))}"
+    )
+
+    Logger.info("🕒 DEBUG: call_instructor_lite_with_tools - Computed timeout_ms: #{timeout_ms}")
 
     # Format the prompt for Gemini's content structure
     contents = [
@@ -169,7 +200,8 @@ defmodule Pipeline.Step.GeminiInstructor do
            adapter: InstructorLite.Adapters.Gemini,
            adapter_context: [
              model: model,
-             api_key: api_key
+             api_key: api_key,
+             http_options: [receive_timeout: timeout_ms]
            ]
          ) do
       {:ok, response} -> {:ok, response}

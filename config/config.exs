@@ -9,6 +9,8 @@ config :pipeline,
   # Resource limits
   memory_limit_mb: 1024,
   timeout_seconds: 300,
+  # 5 minutes default for Gemini requests
+  gemini_timeout_ms: 300_000,
 
   # Max turns configuration for different contexts
   # Default fallback for Claude providers

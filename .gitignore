@@ -35,3 +35,4 @@ pipeline-*.tar
 /pipeline*.tar
 
 /claude_code_sdk_elixir/
+/unified_vision/

@@ -1,0 +1,196 @@
+workflow:
+  name: "ai_project_innovation_pipeline"
+  description: "Gemini analyzes unified vision documents to generate AI/ML innovation ideas, then Claude creates comprehensive implementation guides"
+
+  steps:
+    - name: "analyze_unified_vision"
+      type: "gemini"
+      model: "gemini-2.5-pro"
+      token_budget:
+        temperature: 0.8
+        max_output_tokens: 24000
+      prompt:
+        - type: "static"
+          content: |
+            You are an AI/ML innovation expert analyzing a comprehensive machine learning platform architecture.
+            
+            First, read through all the unified vision documents provided to understand the complete architecture.
+            Then, randomly select ONE specific topic/area from the documents to focus your innovation on. 
+            This could be any technical area mentioned in the docs such as:
+            - DSPy integration patterns
+            - Real-time cognitive orchestration  
+            - Multi-agent coordination systems
+            - Scientific evaluation frameworks
+            - Foundation layer architecture
+            - Agent communication patterns
+            - Resource management systems
+            - State persistence mechanisms
+            - Or any other specific technical area you find in the documents
+            
+            Once you've selected your focus area, identify innovative opportunities to enhance or extend 
+            that specific aspect of the machine learning pipeline architecture.
+            
+            Focus your innovation on:
+            - Novel approaches specific to your chosen topic area
+            - Creative integration opportunities within that domain
+            - New patterns that solve problems in that specific area
+            - Innovative techniques that advance that particular aspect
+            
+            Provide:
+            1. **Selected Focus Area**: Which specific topic/area you randomly chose to focus on
+            2. **Core Innovation**: 2-3 sentences describing your novel approach for that area
+            3. **Technologies & Frameworks**: What ML/AI tech it would leverage specific to this area
+            4. **Specific Problems Solved**: What engineering problems it solves within this domain
+            5. **Implementation Scenario**: Concrete example within the unified vision architecture
+            
+            Here are all the unified vision documents to analyze:
+        - type: "file"
+          path: "./unified_vision/001_UNIFIED_AI_PLATFORM_ARCHITECTURE.md"
+        - type: "file"
+          path: "./unified_vision/002_TECHNICAL_SPECIFICATION.md"
+        - type: "file"
+          path: "./unified_vision/003_MIGRATION_GUIDE.md"
+        - type: "file"
+          path: "./unified_vision/004_IMPLEMENTATION_ROADMAP.md"
+        - type: "file"
+          path: "./unified_vision/005_DESIGN_PHILOSOPHY.md"
+        - type: "file"
+          path: "./unified_vision/006_REBUILD_GUIDE.md"
+        - type: "file"
+          path: "./unified_vision/007_REBUILD_IMPLEMENTATION_ROADMAP.md"
+        - type: "file"
+          path: "./unified_vision/008_ARCHITECTURAL_TRADEOFFS.md"
+        - type: "file"
+          path: "./unified_vision/009_FOUNDATION_COMPLEXITY_ANALYSIS.md"
+        - type: "file"
+          path: "./unified_vision/010_WHY_THIS_ARCHITECTURE_WILL_SUCCEED.md"
+        - type: "file"
+          path: "./unified_vision/011_FOUNDATION_LAYER_ARCHITECTURE.md"
+        - type: "file"
+          path: "./unified_vision/012_FOUNDATION_AGENT_IMPLEMENTATION.md"
+        - type: "file"
+          path: "./unified_vision/013_FOUNDATION_COMMUNICATION_PATTERNS.md"
+        - type: "file"
+          path: "./unified_vision/014_FOUNDATION_RESOURCE_MANAGEMENT.md"
+        - type: "file"
+          path: "./unified_vision/015_FOUNDATION_STATE_PERSISTENCE.md"
+        - type: "file"
+          path: "./unified_vision/016_FOUNDATION_JIDO_SKILLS_INTEGRATION.md"
+        - type: "file"
+          path: "./unified_vision/017_FOUNDATION_SENSORS_FRAMEWORK.md"
+        - type: "file"
+          path: "./unified_vision/018_FOUNDATION_DIRECTIVES_SYSTEM.md"
+        - type: "file"
+          path: "./unified_vision/019_FOUNDATION_ENHANCED_ACTION_FRAMEWORK.md"
+        - type: "file"
+          path: "./unified_vision/020_FOUNDATION_CONFIGURATION_ROUTING_TESTING.md"
+        - type: "file"
+          path: "./unified_vision/021_MINIMAL_JIDO_WRAPPER_APPROACH.md"
+        - type: "file"
+          path: "./unified_vision/022_FIXING_JIDO_TECHNICAL_ROADMAP.md"
+        - type: "file"
+          path: "./unified_vision/023_BUILDING_OUR_OWN_AGENT_ENGINE.md"
+        - type: "file"
+          path: "./unified_vision/024_SYNTHESIS_AND_RECOMMENDATION.md"
+        - type: "file"
+          path: "./unified_vision/025_PERIMETER_AGENT_ENGINE_DESIGN.md"
+        - type: "file"
+          path: "./unified_vision/026_STRATEGIC_IMPLEMENTATION_PLAN.md"
+        - type: "file"
+          path: "./unified_vision/1000_gemini_rec.md"
+        - type: "file"
+          path: "./unified_vision/1001_claude_retort.md"
+        - type: "file"
+          path: "./unified_vision/1002_gem_agree.md"
+        - type: "file"
+          path: "./unified_vision/1003_gem_vision.md"
+        - type: "file"
+          path: "./unified_vision/1004_gem_jido_vision.md"
+        - type: "file"
+          path: "./unified_vision/1005_jido.md"
+        - type: "file"
+          path: "./unified_vision/1006_jido_ng.md"
+        - type: "file"
+          path: "./unified_vision/1010_unified_foundation_architecture.md"
+        - type: "file"
+          path: "./unified_vision/1011_core_implementation_roadmap.md"
+        - type: "file"
+          path: "./unified_vision/1012_type_system_architecture.md"
+        - type: "file"
+          path: "./unified_vision/1013_critical_path_analysis.md"
+        - type: "file"
+          path: "./unified_vision/1014_decision_recommendation.md"
+        - type: "file"
+          path: "./unified_vision/1098_DSPY_GIST_OMAR_TEAM.md"
+        - type: "file"
+          path: "./unified_vision/1099_discussing_plain_dspy_integration.md"
+        - type: "file"
+          path: "./unified_vision/1100_native_signature_syntax_exploration.md"
+        - type: "file"
+          path: "./unified_vision/1101_DSPY_SIGNATURE_GIST.md"
+        - type: "file"
+          path: "./unified_vision/1102_PYTHON_LIKE_TYPE_SYNTAX.md"
+        - type: "file"
+          path: "./unified_vision/1200_EVOLUTIONARY_ANALYSIS.md"
+        - type: "file"
+          path: "./unified_vision/1201_REAL_TIME_COGNITIVE_ORCHESTRATION.md"
+        - type: "file"
+          path: "./unified_vision/1202_MABEAM_MULTI_AGENT_COORDINATION.md"
+        - type: "file"
+          path: "./unified_vision/1203_SCIENTIFIC_EVALUATION_FRAMEWORK.md"
+        - type: "file"
+          path: "./unified_vision/1204_CONSOLIDATED_ARCHITECTURE.md"
+        - type: "file"
+          path: "./unified_vision/1205_IMPLEMENTATION_ROADMAP.md"
+        - type: "file"
+          path: "./unified_vision/1206_LESSONS_LEARNED.md"
+        - type: "file"
+          path: "./unified_vision/1207_FINAL_RECOMMENDATIONS.md"
+        - type: "file"
+          path: "./unified_vision/1249_ascii_for_1250_series.md"
+        - type: "file"
+          path: "./unified_vision/1250_ELIXIR_ML_UNIFIED_ARCHITECTURE.md"
+        - type: "file"
+          path: "./unified_vision/1251_DECOUPLED_ENGINE_ARCHITECTURE.md"
+        - type: "file"
+          path: "./unified_vision/1252_DSPY_NATIVE_INTEGRATION.md"
+        - type: "file"
+          path: "./unified_vision/1253_SCIENTIFIC_EVALUATION_FRAMEWORK.md"
+        - type: "file"
+          path: "./unified_vision/1254_IMPLEMENTATION_ROADMAP.md"
+        - type: "file"
+          path: "./unified_vision/1255_FINAL_ARCHITECTURE_SYNTHESIS.md"
+
+    - name: "implementation_guide"
+      type: "claude"
+      claude_options:
+        max_turns: 10
+        allowed_tools: ["Write"]
+        timeout_ms: 1800000
+      prompt:
+        - type: "static"
+          content: |
+            You are an expert ML engineer and platform architect. Take the AI/ML innovation opportunity 
+            identified below and create a comprehensive implementation guide specifically for the unified 
+            vision architecture.
+            
+            Create a detailed markdown document with:
+            1. **Technical Architecture**: Detailed system design showing how this fits into the unified vision
+            2. **Implementation Strategy**: Step-by-step approach to building this innovation
+            3. **Code Examples**: Key code snippets showing the implementation in action
+            4. **Integration Points**: How this connects with existing unified vision components
+            5. **Performance Characteristics**: Expected behavior, scaling properties, resource requirements
+            6. **Testing Strategy**: How to validate correctness and performance
+            7. **Real-World Applications**: 3-4 specific use cases within the ML platform context
+            8. **Migration Path**: How to integrate this with the current unified vision implementation
+            9. **Monitoring and Observability**: How to track and measure this innovation's impact
+            10. **Potential Challenges**: Technical hurdles, limitations, and mitigation strategies
+            
+            Focus on practical implementation details that align with the unified vision architecture.
+            Include considerations for the Elixir/OTP foundation, DSPy integration, and production deployment.
+            
+            IMPORTANT: Use the Write tool to save your response as a markdown file. Use the filename format: yyyymmddhhmm_{descriptive_name}.md (e.g., "202507111945_ml_pipeline_innovation_guide.md").
+            
+            Here's the AI/ML innovation opportunity to implement:
+        - type: "previous_response"
+          step: "analyze_unified_vision"

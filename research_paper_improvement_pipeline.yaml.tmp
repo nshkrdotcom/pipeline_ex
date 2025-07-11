@@ -1,0 +1,97 @@
+workflow:
+  name: "research_paper_improvement_pipeline"
+  description: "Gemini analyzes and improves existing research proposal, then Claude creates comprehensive scientific paper with LaTeX formatting"
+
+  steps:
+    - name: "analyze_and_improve_research"
+      type: "gemini"
+      model: "gemini-2.5-flash-lite-preview-06-17"
+      token_budget:
+        temperature: 0.7
+        max_output_tokens: 24000
+      prompt:
+        - type: "static"
+          content: |
+            You are an expert researcher and scientific editor. Analyze the research proposal below and provide comprehensive improvements.
+            
+            ```` 
+        - type: "file"
+          path: "../research_papers/tex/ResearchProposal-ChiralNarrativeSynthesis_3.tex"
+        - type: "static"
+          content: |
+            ````
+            
+            Your analysis should include:
+            
+            1. **Research Strengths**: What aspects of this research are innovative and valuable
+            2. **Critical Gaps**: What theoretical foundations, methodologies, or evidence are missing
+            3. **Enhanced Methodology**: Improved experimental design, data collection, and analysis approaches
+            4. **Expanded Theoretical Framework**: Additional theoretical perspectives that could strengthen the work
+            5. **Literature Integration**: Key papers, theories, or research areas that should be incorporated
+            6. **Practical Applications**: How to make the research more applicable and impactful
+            7. **Research Questions Refinement**: More precise, testable hypotheses and research questions
+            8. **Technical Improvements**: Better metrics, validation methods, and evaluation criteria
+            9. **Interdisciplinary Connections**: How to bridge this work with other relevant fields
+            10. **Future Research Directions**: Logical next steps and extensions of this work
+            
+            Be thorough, constructive, and scientifically rigorous. Focus on elevating the research quality
+            while maintaining the core innovative concepts. Suggest specific improvements that would make
+            this research more compelling, rigorous, and publishable in top-tier venues.
+
+    - name: "create_scientific_paper"
+      type: "claude"
+      claude_options:
+        max_turns: 10
+        allowed_tools: ["Write"]
+        timeout_ms: 1800000
+        # Enable comprehensive conversation logging for debugging
+        pass_through_streaming: true
+        verbose: true
+      output_to_file:
+        path: "./logs/claude_conversation_202507110831.jsonl"
+        format: "jsonl"
+      prompt:
+        - type: "static"
+          content: |
+            You are an expert scientific writer and researcher. Using the original research proposal below
+            and the analysis/improvements from the previous step, create a comprehensive scientific paper
+            in markdown format with inline LaTeX mathematics.
+            
+            Original Research Proposal:
+            ```` 
+        - type: "file"
+          path: "../research_papers/tex/ResearchProposal-ChiralNarrativeSynthesis_3.tex"
+        - type: "static"
+          content: |
+            ````
+            
+            Structure the paper as follows:
+            
+            # Title
+            ## Abstract
+            ## 1. Introduction
+            ## 2. Related Work
+            ## 3. Theoretical Framework
+            ## 4. Methodology
+            ## 5. Experimental Design
+            ## 6. Expected Results and Analysis
+            ## 7. Applications and Implications
+            ## 8. Limitations and Future Work
+            ## 9. Conclusion
+            ## References
+            
+            Requirements:
+            - Use proper scientific writing style and academic tone
+            - Include inline LaTeX for all mathematical expressions using $ and $$ notation
+            - Incorporate the improvements and suggestions from the analysis step
+            - Add rigorous theoretical foundations and methodology
+            - Include detailed experimental protocols where applicable
+            - Provide comprehensive literature review and citations
+            - Make the research more technically sound and publishable
+            - Ensure proper scientific formatting and structure
+            
+            IMPORTANT: Use the Write tool to save as markdown file with format: 202507110831_{descriptive_filename}.md
+            
+            Here are the improvements and analysis to incorporate:
+        - type: "previous_response"
+          step: "analyze_and_improve_research"

@@ -53,10 +53,18 @@ defmodule Pipeline.Step.Gemini do
           step["tools"] || []
       end
 
+    # Add timeout configuration - use step config, then application config, then fallback
+    timeout_ms =
+      step["timeout_ms"] ||
+        Application.get_env(:pipeline, :gemini_timeout_ms, 300_000)
+
+    Logger.info("🕒 DEBUG: Passing timeout_ms to provider: #{timeout_ms}")
+
     %{
       model: step["model"] || "gemini-2.5-flash-lite-preview-06-17",
       token_budget: step["token_budget"] || %{},
-      tools: tools
+      tools: tools,
+      timeout_ms: timeout_ms
     }
   end
 

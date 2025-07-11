@@ -1,0 +1,40 @@
+workflow:
+  name: "research_paper_improvement_gemini_pro"
+  description: "Gemini 2.5 Pro analyzes and improves research proposal"
+
+  steps:
+    - name: "analyze_and_improve_research"
+      type: "gemini"
+      model: "gemini-2.5-pro"
+      output_to_file: "{{timestamp}}_improved_chiral_narrative_synthesis.md"
+      token_budget:
+        temperature: 0.7
+        max_output_tokens: 65536
+      prompt:
+        - type: "static"
+          content: |
+            You are an expert researcher and scientific editor. Analyze the research proposal below and provide comprehensive improvements.
+            
+            ```` 
+        - type: "file"
+          path: "../research_papers/tex/ResearchProposal-ChiralNarrativeSynthesis_3.tex"
+        - type: "static"
+          content: |
+            ````
+            
+            Your analysis should include:
+            
+            1. **Research Strengths**: What aspects of this research are innovative and valuable
+            2. **Critical Gaps**: What theoretical foundations, methodologies, or evidence are missing
+            3. **Enhanced Methodology**: Improved experimental design, data collection, and analysis approaches
+            4. **Expanded Theoretical Framework**: Additional theoretical perspectives that could strengthen the work
+            5. **Literature Integration**: Key papers, theories, or research areas that should be incorporated
+            6. **Practical Applications**: How to make the research more applicable and impactful
+            7. **Research Questions Refinement**: More precise, testable hypotheses and research questions
+            8. **Technical Improvements**: Better metrics, validation methods, and evaluation criteria
+            9. **Interdisciplinary Connections**: How to bridge this work with other relevant fields
+            10. **Future Research Directions**: Logical next steps and extensions of this work
+            
+            Be thorough, constructive, and scientifically rigorous. Focus on elevating the research quality
+            while maintaining the core innovative concepts. Suggest specific improvements that would make
+            this research more compelling, rigorous, and publishable in top-tier venues.

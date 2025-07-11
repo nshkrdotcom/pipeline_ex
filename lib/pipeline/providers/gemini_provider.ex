@@ -118,8 +118,9 @@ defmodule Pipeline.Providers.GeminiProvider do
   defp build_instruction_config(options) do
     model = get_model_from_options(options)
     token_budget = get_token_budget_from_options(options)
+    timeout_ms = get_timeout_from_options(options)
 
-    base_config = build_base_config(model)
+    base_config = build_base_config(model, timeout_ms)
     generation_config = build_generation_config(token_budget)
 
     apply_generation_config(base_config, generation_config)
@@ -133,8 +134,24 @@ defmodule Pipeline.Providers.GeminiProvider do
     options["token_budget"] || options[:token_budget] || %{}
   end
 
-  defp build_base_config(model) do
-    adapter_context = [model: model, api_key: get_api_key()]
+  defp get_timeout_from_options(options) do
+    timeout_ms =
+      options["timeout_ms"] ||
+        options[:timeout_ms] ||
+        Application.get_env(:pipeline, :gemini_timeout_ms, 300_000)
+
+    Logger.info("🕒 DEBUG: GeminiProvider received timeout_ms: #{timeout_ms}")
+    timeout_ms
+  end
+
+  defp build_base_config(model, timeout_ms) do
+    Logger.info("🕒 DEBUG: Adding http_options with receive_timeout: #{timeout_ms}")
+
+    adapter_context = [
+      model: model,
+      api_key: get_api_key(),
+      http_options: [receive_timeout: timeout_ms]
+    ]
 
     json_schema = %{
       type: "object",

@@ -1,0 +1,47 @@
+workflow:
+  name: "engineering_innovation_single_step"
+  description: "Claude generates innovative engineering/physics ideas and creates comprehensive implementation guides in one step"
+
+  steps:
+    - name: "innovation_and_implementation"
+      type: "claude"
+      claude_options:
+        max_turns: 10
+        allowed_tools: ["Write"]
+        timeout_ms: 3600000
+      prompt:
+        - type: "static"
+          content: |
+            You are an innovative engineer and physicist. First, generate a completely novel engineering or physics concept, 
+            theory, or experimental approach that could advance technology or our understanding of physical phenomena.
+            
+            Focus broadly on engineering or physics - pick any specific subtopic, application, or phenomenon 
+            that interests you in the moment. Don't overthink it - just choose something fascinating and unexpected 
+            within these fields. This could be anything from microscopic quantum effects to massive engineering 
+            systems, from theoretical frameworks to practical applications.
+            
+            Then, create a comprehensive research and implementation guide for your innovation.
+            
+            Create a detailed markdown document with:
+            1. **Innovation Summary**: 
+               - Core Innovation (2-3 sentences describing your novel engineering/physics idea)
+               - Technical Domain (what specific area of engineering or physics this involves)
+               - Problem or Opportunity (what challenge this addresses or new capability it enables)
+            
+            2. **Technical Foundation**: Detailed theoretical background and principles
+            3. **Implementation Methodology**: Step-by-step approach to build or test this innovation
+            4. **Expected Outcomes**: What results and breakthroughs this could lead to
+            5. **Equipment & Materials**: What would be needed to implement this innovation
+            6. **Collaboration Opportunities**: Which fields and experts could contribute
+            7. **Timeline & Phases**: How to structure the development over time
+            8. **Real-World Applications**: 3-4 potential practical applications
+            9. **Funding Strategy**: How to secure resources for this innovation
+            10. **Validation Plan**: How to test and prove the concept works
+            11. **Potential Challenges**: Technical hurdles, limitations, and alternative approaches
+            
+            Focus on making this technically rigorous while being accessible and inspiring.
+            Include considerations for ethical implications and broader impacts on society.
+            
+            Be bold, creative, and pick something totally unexpected while keeping it technically feasible.
+            
+            IMPORTANT: Use the Write tool to save your response as a markdown file. Use the filename format: TIMESTAMP_PLACEHOLDER_{descriptive_name}.md
