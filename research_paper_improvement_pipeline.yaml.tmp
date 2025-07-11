@@ -47,9 +47,7 @@ workflow:
         # Enable comprehensive conversation logging for debugging
         pass_through_streaming: true
         verbose: true
-      output_to_file:
-        path: "./logs/claude_conversation_202507110831.jsonl"
-        format: "jsonl"
+      output_to_file: "./logs/claude_conversation_202507110837.jsonl"
       prompt:
         - type: "static"
           content: |
@@ -90,7 +88,7 @@ workflow:
             - Make the research more technically sound and publishable
             - Ensure proper scientific formatting and structure
             
-            IMPORTANT: Use the Write tool to save as markdown file with format: 202507110831_{descriptive_filename}.md
+            IMPORTANT: Use the Write tool to save as markdown file with format: 202507110837_{descriptive_filename}.md
             
             Here are the improvements and analysis to incorporate:
         - type: "previous_response"

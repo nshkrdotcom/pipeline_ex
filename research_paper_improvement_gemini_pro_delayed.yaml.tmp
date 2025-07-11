@@ -6,7 +6,7 @@ workflow:
     - name: "analyze_and_improve_research"
       type: "gemini"
       model: "gemini-2.5-pro"
-      output_to_file: "202507110833_improved_chiral_narrative_synthesis.md"
+      output_to_file: "202507110839_improved_chiral_narrative_synthesis.md"
       token_budget:
         temperature: 0.7
         max_output_tokens: 65536
@@ -17,7 +17,7 @@ workflow:
             
             ```` 
         - type: "file"
-          path: "./workspace/202507110830_continuing_from_large_file.md"
+          path: "./workspace/202507110831_chiral_narrative_synthesis_scientific_paper.md"
         - type: "static"
           content: |
             ````

@@ -47,9 +47,7 @@ workflow:
         # Enable comprehensive conversation logging for debugging
         pass_through_streaming: true
         verbose: true
-      output_to_file:
-        path: "./logs/claude_conversation_TIMESTAMP_PLACEHOLDER.jsonl"
-        format: "jsonl"
+      output_to_file: "./logs/claude_conversation_TIMESTAMP_PLACEHOLDER.jsonl"
       prompt:
         - type: "static"
           content: |
