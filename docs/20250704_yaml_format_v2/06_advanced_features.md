@@ -726,6 +726,8 @@ Maintain conversation state:
     description: "Developing authentication feature"
   
   claude_options:
+    model: "opus"                     # High-quality for complex sessions
+    fallback_model: "sonnet"          # Fallback for reliability
     max_turns: 20
     allowed_tools: ["Write", "Edit", "Read", "Bash"]
   
@@ -895,6 +897,7 @@ Execute operations concurrently:
   
   task_template:
     claude_options:
+      model: "sonnet"                 # Cost-effective for batch processing
       max_turns: 5
       allowed_tools: ["Read"]
     prompt:

@@ -1,0 +1,39 @@
+workflow:
+  name: "test_sonnet_model"
+  description: "Test pipeline to verify sonnet model selection and identification"
+  version: "2.0"
+  
+  defaults:
+    output_dir: "./outputs/model_tests"
+    
+  steps:
+    - name: "identify_sonnet_model"
+      type: "claude"
+      
+      claude_options:
+        model: "sonnet"                    # Explicit sonnet model selection
+        max_turns: 1
+        output_format: "json"
+        verbose: true
+        allowed_tools: []                  # No tools needed for this test
+        
+      prompt:
+        - type: "static"
+          content: |
+            What model are you? Please respond with information about:
+            
+            1. Your model name/identifier
+            2. Your capabilities 
+            3. Your training date/version
+            4. Any other identifying information
+            
+            Be specific about which Claude model you are (e.g., Claude 3.5 Sonnet, Claude 3 Opus, etc.).
+            
+            Please format your response as JSON with these fields:
+            - model_name: string
+            - model_version: string  
+            - capabilities: array of strings
+            - training_info: string
+            - cost_tier: string (e.g., "cost-effective", "premium")
+            
+      output_to_file: "sonnet_model_identity.json"

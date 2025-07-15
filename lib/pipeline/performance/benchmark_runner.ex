@@ -307,7 +307,7 @@ defmodule Pipeline.Performance.BenchmarkRunner do
     }
   end
 
-  defp calculate_summary(results) when length(results) == 0 do
+  defp calculate_summary([]) do
     %{
       avg_duration_ms: 0,
       avg_ttft_ms: nil,

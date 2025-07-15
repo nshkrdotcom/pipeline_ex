@@ -51,14 +51,64 @@ defmodule Pipeline.Providers.ClaudeProviderTest do
       options = %{
         async_streaming: true,
         max_turns: 5,
-        verbose: true
+        step_name: "test_async"
       }
 
       capture_io(fn ->
-        {:ok, response} = ClaudeProvider.query("Test prompt", options)
-
-        # Should get an AsyncResponse when async_streaming is true
+        {:ok, response} = ClaudeProvider.query("Test async", options)
         assert %AsyncResponse{} = response
+      end)
+    end
+
+    test "supports model selection options" do
+      System.put_env("TEST_MODE", "mock")
+
+      options = %{
+        "model" => "sonnet",
+        "fallback_model" => "opus",
+        "max_turns" => 5
+      }
+
+      capture_io(fn ->
+        {:ok, response} = ClaudeProvider.query("Test prompt with model selection", options)
+
+        # Should successfully process with model options
+        assert is_map(response)
+        assert response["success"] == true
+      end)
+    end
+
+    test "supports model shortcuts" do
+      System.put_env("TEST_MODE", "mock")
+
+      # Test sonnet shortcut
+      sonnet_options = %{"model" => "sonnet"}
+
+      capture_io(fn ->
+        {:ok, response} = ClaudeProvider.query("Test sonnet", sonnet_options)
+        assert is_map(response)
+      end)
+
+      # Test opus shortcut  
+      opus_options = %{"model" => "opus"}
+
+      capture_io(fn ->
+        {:ok, response} = ClaudeProvider.query("Test opus", opus_options)
+        assert is_map(response)
+      end)
+    end
+
+    test "supports specific model versions" do
+      System.put_env("TEST_MODE", "mock")
+
+      options = %{
+        "model" => "claude-3-5-sonnet-20241022",
+        "fallback_model" => "claude-3-opus-20240229"
+      }
+
+      capture_io(fn ->
+        {:ok, response} = ClaudeProvider.query("Test specific versions", options)
+        assert is_map(response)
       end)
     end
 

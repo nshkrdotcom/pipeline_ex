@@ -432,6 +432,66 @@ workflow:
 
 ## Performance Optimization
 
+### Model Selection for Cost Optimization
+
+Choose appropriate models for different task complexities:
+
+```yaml
+# GOOD: Cost-optimized workflow
+workflow:
+  name: "smart_code_review"
+  
+  steps:
+    # Simple tasks - use cost-effective model
+    - name: "syntax_check"
+      type: "claude"
+      claude_options:
+        model: "sonnet"         # ~$0.01 per query
+        max_turns: 1
+      prompt:
+        - type: "static"
+          content: "Check for basic syntax errors"
+    
+    # Complex analysis - use high-quality model
+    - name: "security_audit"
+      type: "claude"
+      claude_options:
+        model: "opus"           # ~$0.26 per query (25x more expensive)
+        fallback_model: "sonnet" # Fallback when overloaded
+        max_turns: 5
+      prompt:
+        - type: "static"
+          content: "Perform comprehensive security analysis"
+    
+    # Use smart presets for automatic selection
+    - name: "development_task"
+      type: "claude_smart"
+      preset: "development"     # Automatically uses sonnet
+      
+    - name: "production_task"
+      type: "claude_smart"
+      preset: "production"      # Uses opus + sonnet fallback
+```
+
+### Model Selection Best Practices
+
+1. **Development workflows**: Use `sonnet` for cost-effective iteration
+2. **Production workflows**: Use `opus` with `sonnet` fallback for reliability
+3. **Analysis tasks**: Use `opus` for best capability
+4. **Simple tasks**: Always use `sonnet` to minimize costs
+5. **Batch processing**: Consider cost per query when processing large datasets
+
+```yaml
+# Cost comparison example
+defaults:
+  # Development environment - optimize for cost
+  claude_model: "sonnet"        # $0.01/query × 100 queries = $1.00
+  
+  # Production environment - optimize for quality + reliability
+  claude_model: "opus"          # $0.26/query × 100 queries = $26.00
+  claude_fallback_model: "sonnet"
+```
+
 ### Lazy Loading Strategy
 
 Load resources only when needed:

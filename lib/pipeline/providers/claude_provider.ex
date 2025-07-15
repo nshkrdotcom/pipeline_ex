@@ -57,7 +57,9 @@ defmodule Pipeline.Providers.ClaudeProvider do
       verbose: get_option_value(options, "verbose", :verbose, false),
       cwd: get_option_value(options, "cwd", :cwd, "./workspace"),
       timeout_ms: get_option_value(options, "timeout_ms", :timeout_ms, get_default_timeout_ms()),
-      async_streaming: get_option_value(options, "async_streaming", :async_streaming, false)
+      async_streaming: get_option_value(options, "async_streaming", :async_streaming, false),
+      model: get_option_value(options, "model", :model, nil),
+      fallback_model: get_option_value(options, "fallback_model", :fallback_model, nil)
     }
   end
 
@@ -107,7 +109,9 @@ defmodule Pipeline.Providers.ClaudeProvider do
       system_prompt: options[:system_prompt],
       cwd: options[:cwd],
       timeout_ms: options[:timeout_ms] || get_default_timeout_ms(),
-      async: options[:async_streaming] || false
+      async: options[:async_streaming] || false,
+      model: options[:model],
+      fallback_model: options[:fallback_model]
     )
   end
 

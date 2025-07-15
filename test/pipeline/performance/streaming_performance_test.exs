@@ -491,7 +491,7 @@ defmodule Pipeline.Performance.StreamingPerformanceTest do
               "type" => "set_variable",
               "variables" => %{
                 "large_data" =>
-                  Enum.map(1..10000, fn i ->
+                  Enum.map(1..10_000, fn i ->
                     %{"id" => i, "data" => String.duplicate("x", 100)}
                   end)
               }

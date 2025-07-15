@@ -73,7 +73,7 @@ defmodule Pipeline.Monitoring.StreamingMetrics do
 
     # Set first message time if not set
     updated_metrics =
-      if is_nil(metrics.first_message_time) && is_content_message?(message) do
+      if is_nil(metrics.first_message_time) && content_message?(message) do
         %{updated_metrics | first_message_time: now}
       else
         updated_metrics
@@ -208,9 +208,9 @@ defmodule Pipeline.Monitoring.StreamingMetrics do
 
   # Private functions
 
-  defp is_content_message?(%{type: :assistant}), do: true
-  defp is_content_message?(%{type: "assistant"}), do: true
-  defp is_content_message?(_), do: false
+  defp content_message?(%{type: :assistant}), do: true
+  defp content_message?(%{type: "assistant"}), do: true
+  defp content_message?(_), do: false
 
   defp extract_token_count(%{data: %{token_count: count}}), do: count
   defp extract_token_count(%{tokens: count}) when is_integer(count), do: count

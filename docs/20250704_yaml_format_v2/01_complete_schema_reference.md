@@ -80,6 +80,8 @@ defaults:
   # Model configuration
   gemini_model: string            # Default Gemini model
   claude_preset: enum             # Default Claude preset
+  claude_model: string            # Default Claude model ("sonnet", "opus", specific version)
+  claude_fallback_model: string   # Default Claude fallback model
   
   # Token configuration
   gemini_token_budget:

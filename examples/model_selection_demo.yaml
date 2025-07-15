@@ -1,0 +1,126 @@
+workflow:
+  name: "model_selection_demo"
+  description: "Demonstrate Claude model selection for cost optimization"
+  version: "2.0"
+  
+  defaults:
+    claude_preset: "development"
+    output_dir: "./outputs/model_selection_demo"
+    
+  steps:
+    # Example 1: Cost-effective development workflow
+    - name: "simple_code_review"
+      type: "claude_smart"
+      preset: "development"              # Uses sonnet automatically (cost-effective)
+      
+      prompt:
+        - type: "static"
+          content: |
+            Review this simple function for basic issues:
+            
+            ```python
+            def add_numbers(a, b):
+                return a + b
+            ```
+            
+            Just check for basic syntax and style issues.
+            
+      output_to_file: "simple_review.json"
+      
+    # Example 2: High-quality analysis workflow  
+    - name: "complex_architecture_analysis"
+      type: "claude_smart" 
+      preset: "analysis"                 # Uses opus automatically (best capability)
+      
+      prompt:
+        - type: "static"
+          content: |
+            Analyze this complex microservices architecture for:
+            - Security vulnerabilities
+            - Performance bottlenecks  
+            - Scalability issues
+            - Design pattern violations
+            - Technical debt
+            
+            Provide detailed recommendations with specific implementation steps.
+            
+      output_to_file: "architecture_analysis.json"
+      
+    # Example 3: Production workflow with fallback
+    - name: "production_deployment"
+      type: "claude_smart"
+      preset: "production"               # Uses opus with sonnet fallback
+      
+      prompt:
+        - type: "static"
+          content: |
+            Generate a production deployment checklist for a critical banking application.
+            Include security checks, rollback procedures, and monitoring setup.
+            
+      output_to_file: "deployment_checklist.json"
+      
+    # Example 4: Manual model selection - cost optimization
+    - name: "batch_documentation"
+      type: "claude"
+      
+      claude_options:
+        model: "sonnet"                  # Explicit cost-effective choice
+        max_turns: 3
+        allowed_tools: ["Read", "Write"]
+        
+      prompt:
+        - type: "static"
+          content: |
+            Generate basic documentation for these functions.
+            Keep it simple and concise.
+            
+      output_to_file: "basic_docs.md"
+      
+    # Example 5: Manual model selection - high quality  
+    - name: "critical_security_audit"
+      type: "claude"
+      
+      claude_options:
+        model: "opus"                    # Explicit high-quality choice
+        fallback_model: "sonnet"         # Fallback for reliability
+        max_turns: 10
+        allowed_tools: ["Read", "Glob", "Grep"]
+        
+      prompt:
+        - type: "static"
+          content: |
+            Perform a comprehensive security audit of the entire codebase.
+            Look for:
+            - SQL injection vulnerabilities
+            - XSS attack vectors
+            - Authentication bypass issues
+            - Data exposure risks
+            - Cryptographic weaknesses
+            
+            Provide detailed findings with remediation steps.
+            
+      output_to_file: "security_audit.json"
+      
+    # Example 6: Cost comparison demonstration
+    - name: "cost_comparison_summary"
+      type: "gemini"
+      model: "gemini-2.5-flash"
+      
+      prompt:
+        - type: "static"
+          content: |
+            Summarize the cost implications of this pipeline:
+            
+            - simple_code_review: Used sonnet (~$0.01)
+            - complex_architecture_analysis: Used opus (~$0.26)  
+            - production_deployment: Used opus with fallback (~$0.26)
+            - batch_documentation: Used sonnet (~$0.01)
+            - critical_security_audit: Used opus (~$0.26)
+            
+            Total estimated cost: ~$0.80
+            Cost if everything used opus: ~$1.30 (63% more expensive)
+            Cost if everything used sonnet: ~$0.05 (94% cheaper, but lower quality for complex tasks)
+            
+            Explain the cost optimization strategy.
+            
+      output_to_file: "cost_analysis.json"

@@ -18,6 +18,8 @@ workflow:
   # Defaults for all steps
   defaults:
     gemini_model: "gemini-2.5-flash"
+    claude_model: "sonnet"              # Model selection: sonnet|opus|specific_version
+    claude_fallback_model: "sonnet"     # Fallback for reliability
     timeout_seconds: 300
   
   # Step definitions
@@ -313,6 +315,33 @@ output_schema:
             type: "number"
             minimum: 0
             maximum: 100
+```
+
+## Model Selection & Cost Control
+
+```yaml
+# Cost-effective development (sonnet ~$0.01/query)
+- type: "claude"
+  claude_options:
+    model: "sonnet"
+
+# High-quality production (opus ~$0.26/query, 25x more expensive)
+- type: "claude"
+  claude_options:
+    model: "opus"
+    fallback_model: "sonnet"    # Fallback for reliability
+
+# Smart presets with automatic model selection
+- type: "claude_smart"
+  preset: "development"         # Uses sonnet (cost-effective)
+  preset: "production"          # Uses opus + sonnet fallback
+  preset: "analysis"            # Uses opus (best capability)
+
+# Specific model versions for reproducibility
+- type: "claude"
+  claude_options:
+    model: "claude-3-5-sonnet-20241022"
+    fallback_model: "claude-3-opus-20240229"
 ```
 
 ## Environment Modes

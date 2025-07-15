@@ -343,7 +343,7 @@ defmodule Pipeline.Integration.AsyncStreamingTest do
               "claude_options" => %{
                 "async_streaming" => true,
                 "stream_handler" => "console",
-                "timeout_ms" => 30000,
+                "timeout_ms" => 30_000,
                 "max_turns" => 5
               },
               "prompt" => [

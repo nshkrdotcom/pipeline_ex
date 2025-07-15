@@ -106,7 +106,7 @@ defmodule Pipeline.Streaming.Handlers.BufferHandler do
     entry = create_buffer_entry(message, state.message_count)
 
     # Check for duplicates if enabled
-    if state.deduplicate && is_duplicate?(entry, state.buffer) do
+    if state.deduplicate && duplicate?(entry, state.buffer) do
       {:ok, state}
     else
       add_to_buffer(entry, state)
@@ -236,7 +236,7 @@ defmodule Pipeline.Streaming.Handlers.BufferHandler do
     }
   end
 
-  defp is_duplicate?(entry, buffer) do
+  defp duplicate?(entry, buffer) do
     Enum.any?(buffer, fn existing ->
       messages_equal?(entry.message, existing.message)
     end)
@@ -255,7 +255,7 @@ defmodule Pipeline.Streaming.Handlers.BufferHandler do
       Enum.reduce(entries, {[], MapSet.new()}, fn entry, {acc, seen} ->
         message_key = {entry.message.type, entry.message.data}
 
-        if MapSet.member?(seen, message_key) or is_duplicate?(entry, existing_buffer) do
+        if MapSet.member?(seen, message_key) or duplicate?(entry, existing_buffer) do
           {acc, seen}
         else
           {[entry | acc], MapSet.put(seen, message_key)}

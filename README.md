@@ -163,6 +163,7 @@ Application.put_env(:pipeline, :test_mode, true)
 
 ### 🤖 AI Integration
 - 🤖 **Multi-AI Integration**: Chain Claude and Gemini APIs together
+- 💰 **Model Selection & Cost Control**: Choose between Claude models (sonnet ~$0.01 vs opus ~$0.26 per query)
 - 🔄 **Flexible Execution Modes**: Mock, Live, and Mixed modes for testing
 - 📋 **YAML Workflow Configuration**: Define complex multi-step workflows
 - 🎯 **Structured Output**: JSON-based responses with proper error handling
@@ -171,6 +172,7 @@ Application.put_env(:pipeline, :test_mode, true)
 
 ### ⚡ Advanced Features
 - **Enhanced Claude Steps**: Smart presets, sessions, extraction, batch processing, robust error handling
+- **Model Selection**: Automatic cost optimization (development=sonnet, production=opus+fallback, analysis=opus)
 - **Genesis Pipeline**: Self-improving AI system that generates other pipelines
 - **Session Management**: Persistent conversations with automatic checkpointing
 - **Fault Tolerance**: Retry mechanisms, circuit breakers, graceful degradation

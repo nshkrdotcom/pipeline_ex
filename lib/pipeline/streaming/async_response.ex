@@ -400,21 +400,21 @@ defmodule Pipeline.Streaming.AsyncResponse do
     else
       # Concatenate all content from text messages
       messages
-      |> Enum.filter(&is_text_message?/1)
+      |> Enum.filter(&text_message?/1)
       |> Enum.map(&extract_content_from_message/1)
       |> Enum.join("")
     end
   end
 
-  defp is_text_message?(%{__struct__: _} = msg) do
+  defp text_message?(%{__struct__: _} = msg) do
     msg.type in [:text, "text", :content, "content"]
   end
 
-  defp is_text_message?(msg) when is_map(msg) do
+  defp text_message?(msg) when is_map(msg) do
     Map.get(msg, :type) in [:text, "text", :content, "content", nil]
   end
 
-  defp is_text_message?(_), do: false
+  defp text_message?(_), do: false
 
   defp extract_content_from_message(%{__struct__: _} = msg) do
     cond do

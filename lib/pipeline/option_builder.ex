@@ -45,6 +45,7 @@ defmodule Pipeline.OptionBuilder do
       "debug_mode" => true,
       "telemetry_enabled" => true,
       "cost_tracking" => true,
+      "model" => "sonnet",
       "retry_config" => %{
         "max_retries" => 3,
         "backoff_strategy" => "exponential",
@@ -73,6 +74,8 @@ defmodule Pipeline.OptionBuilder do
       "debug_mode" => false,
       "telemetry_enabled" => true,
       "cost_tracking" => true,
+      "model" => "opus",
+      "fallback_model" => "sonnet",
       "retry_config" => %{
         "max_retries" => 2,
         "backoff_strategy" => "linear",
@@ -100,6 +103,7 @@ defmodule Pipeline.OptionBuilder do
       "debug_mode" => false,
       "telemetry_enabled" => true,
       "cost_tracking" => true,
+      "model" => "opus",
       "retry_config" => %{
         "max_retries" => 2,
         "backoff_strategy" => "exponential",

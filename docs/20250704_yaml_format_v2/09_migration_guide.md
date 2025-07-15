@@ -42,14 +42,22 @@ This guide helps you migrate existing Pipeline YAML v1 configurations to the v2 
    type: "claude_robust"   # Enterprise error handling
    ```
 
-3. **Advanced Control Flow**
+3. **Model Selection & Cost Control**
+   ```yaml
+   claude_options:
+     model: "sonnet"         # Cost-effective (~$0.01/query)
+     model: "opus"           # High-quality (~$0.26/query)
+     fallback_model: "sonnet" # Reliability fallback
+   ```
+
+4. **Advanced Control Flow**
    ```yaml
    type: "for_loop"     # Iteration
    type: "while_loop"   # Conditional loops
    type: "switch"       # Multi-branch logic
    ```
 
-4. **Data Operations**
+5. **Data Operations**
    ```yaml
    type: "data_transform"   # JSONPath transformations
    type: "file_ops"        # File manipulation

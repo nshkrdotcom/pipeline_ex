@@ -103,6 +103,10 @@ Pipeline supports 17+ distinct step types organized into four categories:
     output_format: "json"         # Response format
     verbose: true                 # Detailed logging
     
+    # Model selection
+    model: "sonnet"               # Model choice: "sonnet", "opus", or specific version
+    fallback_model: "sonnet"      # Fallback when primary model overloaded
+    
     # Tool permissions
     allowed_tools: ["Write", "Edit", "Read", "Bash", "Search"]
     disallowed_tools: ["Delete"]  # Explicitly forbidden
@@ -151,6 +155,8 @@ Pipeline supports 17+ distinct step types organized into four categories:
 - Session management for continuity
 - Comprehensive error handling
 - Cost tracking and telemetry
+- Model selection for cost optimization (25x savings: sonnet vs opus)
+- Fallback model support for reliability
 
 ### Claude Smart
 
@@ -177,9 +183,9 @@ Pipeline supports 17+ distinct step types organized into four categories:
 ```
 
 **Available Presets**:
-- `development`: Permissive settings, full tool access, verbose logging
-- `production`: Restricted tools, optimized for safety and performance
-- `analysis`: Read-only tools, optimized for code analysis
+- `development`: Permissive settings, full tool access, verbose logging (uses sonnet - cost-effective)
+- `production`: Restricted tools, optimized for safety and performance (uses opus with sonnet fallback)
+- `analysis`: Read-only tools, optimized for code analysis (uses opus - best capability)
 - `chat`: Simple conversation mode, basic tools
 
 **Key Features**:
@@ -187,6 +193,53 @@ Pipeline supports 17+ distinct step types organized into four categories:
 - Preset-specific optimizations
 - Simplified configuration
 - Intelligent defaults
+- Built-in model selection for cost optimization
+
+## Model Selection & Cost Control
+
+All Claude step types support model selection for cost optimization and performance tuning:
+
+### Model Options
+
+```yaml
+claude_options:
+  # Simple shortcuts (recommended)
+  model: "sonnet"               # Fast, cost-effective (~$0.01 per query)
+  model: "opus"                 # Highest quality (~$0.26 per query, 25x more expensive)
+  
+  # Specific model versions (for reproducibility)
+  model: "claude-3-5-sonnet-20241022"
+  model: "claude-3-opus-20240229"
+  
+  # Production reliability with fallback
+  model: "opus"
+  fallback_model: "sonnet"      # Falls back when opus overloaded
+```
+
+### Cost Optimization Examples
+
+```yaml
+# Development workflow - cost-effective
+- name: "dev_task"
+  type: "claude_smart"
+  preset: "development"         # Automatically uses sonnet
+  
+# Production workflow - quality + reliability  
+- name: "prod_task"
+  type: "claude_smart"
+  preset: "production"          # Uses opus with sonnet fallback
+  
+# Manual cost control
+- name: "simple_task"
+  type: "claude"
+  claude_options:
+    model: "sonnet"             # 25x cheaper for simple tasks
+    
+- name: "complex_analysis"
+  type: "claude"
+  claude_options:
+    model: "opus"               # Worth the cost for complex work
+```
 
 ### Claude Session
 

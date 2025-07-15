@@ -136,7 +136,7 @@ defmodule Pipeline.ConfigAsyncStreamingTest do
     end
 
     test "accepts valid stream buffer sizes" do
-      valid_sizes = [1, 10, 100, 1000, 10000]
+      valid_sizes = [1, 10, 100, 1000, 10_000]
 
       for size <- valid_sizes do
         config = %{

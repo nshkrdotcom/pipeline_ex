@@ -13,6 +13,7 @@ defmodule Pipeline.OptionBuilderTest do
       assert options["output_format"] == "stream_json"
       assert "Write" in options["allowed_tools"]
       assert options["debug_mode"] == true
+      assert options["model"] == "sonnet"
     end
 
     test "for_environment/0 selects production preset when configured" do
@@ -25,6 +26,8 @@ defmodule Pipeline.OptionBuilderTest do
       assert options["output_format"] == "json"
       assert options["allowed_tools"] == ["Read"]
       assert options["debug_mode"] == false
+      assert options["model"] == "opus"
+      assert options["fallback_model"] == "sonnet"
     end
 
     test "for_environment/0 selects test preset in test environment" do
@@ -48,6 +51,7 @@ defmodule Pipeline.OptionBuilderTest do
       assert options["verbose"] == true
       assert options["debug_mode"] == true
       assert options["telemetry_enabled"] == true
+      assert options["model"] == "sonnet"
       assert options["cost_tracking"] == true
 
       expected_tools = ["Write", "Edit", "Read", "Bash", "Search", "Glob", "Grep"]
@@ -229,6 +233,48 @@ defmodule Pipeline.OptionBuilderTest do
     end
   end
 
+  describe "model selection" do
+    test "development preset uses cost-effective sonnet model" do
+      options = OptionBuilder.build_development_options()
+
+      assert options["model"] == "sonnet"
+      refute Map.has_key?(options, "fallback_model")
+    end
+
+    test "production preset uses opus with sonnet fallback" do
+      options = OptionBuilder.build_production_options()
+
+      assert options["model"] == "opus"
+      assert options["fallback_model"] == "sonnet"
+    end
+
+    test "analysis preset uses opus for best capability" do
+      options = OptionBuilder.build_analysis_options()
+
+      assert options["model"] == "opus"
+      refute Map.has_key?(options, "fallback_model")
+    end
+
+    test "merge/2 can override model selection" do
+      base_options = OptionBuilder.build_development_options()
+      assert base_options["model"] == "sonnet"
+
+      custom_options = OptionBuilder.merge(:development, %{"model" => "opus"})
+      assert custom_options["model"] == "opus"
+
+      # Other development settings preserved
+      assert custom_options["verbose"] == true
+      assert custom_options["debug_mode"] == true
+    end
+
+    test "model selection works with string preset names" do
+      options = OptionBuilder.merge("production", %{})
+
+      assert options["model"] == "opus"
+      assert options["fallback_model"] == "sonnet"
+    end
+  end
+
   describe "preset configuration metadata" do
     test "get_preset_config/1 returns complete configuration info" do
       config = OptionBuilder.get_preset_config(:development)
@@ -239,6 +285,7 @@ defmodule Pipeline.OptionBuilderTest do
       assert "rapid development" in config.optimized_for
       assert is_map(config.options)
       assert config.options["max_turns"] == 20
+      assert config.options["model"] == "sonnet"
     end
 
     test "get_preset_config/1 works with string names" do
