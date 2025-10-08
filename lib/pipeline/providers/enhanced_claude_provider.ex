@@ -13,7 +13,6 @@ defmodule Pipeline.Providers.EnhancedClaudeProvider do
 
   require Logger
   alias Pipeline.TestMode
-  alias Pipeline.Streaming.AsyncResponse
 
   @doc """
   Query Claude using the enhanced Claude Code SDK integration.
@@ -60,8 +59,7 @@ defmodule Pipeline.Providers.EnhancedClaudeProvider do
       append_system_prompt: get_option(options, "append_system_prompt"),
       allowed_tools: get_option(options, "allowed_tools"),
       disallowed_tools: get_option(options, "disallowed_tools"),
-      cwd: get_option(options, "cwd", "./workspace"),
-      async: get_option(options, "async_streaming", false)
+      cwd: get_option(options, "cwd", "./workspace")
     )
   end
 
@@ -83,29 +81,24 @@ defmodule Pipeline.Providers.EnhancedClaudeProvider do
   end
 
   defp execute_mock_query(prompt, options) do
-    # Check if async streaming is enabled
-    if get_option(options, "async_streaming", false) do
-      execute_mock_async_query(prompt, options)
+    # Return enhanced mock response for testing
+    preset = get_option(options, "preset", "development")
+
+    mock_response = %{
+      "text" => generate_mock_response_text(prompt, preset),
+      "success" => true,
+      "cost" => calculate_mock_cost(preset),
+      "session_id" => "mock-enhanced-session-#{:rand.uniform(10000)}",
+      "preset_applied" => preset,
+      "enhanced_provider" => true,
+      "mock_mode" => true
+    }
+
+    # Add retry simulation if enabled
+    if should_simulate_retry(options) do
+      add_retry_simulation(mock_response)
     else
-      # Return enhanced mock response for testing
-      preset = get_option(options, "preset", "development")
-
-      mock_response = %{
-        "text" => generate_mock_response_text(prompt, preset),
-        "success" => true,
-        "cost" => calculate_mock_cost(preset),
-        "session_id" => "mock-enhanced-session-#{:rand.uniform(10000)}",
-        "preset_applied" => preset,
-        "enhanced_provider" => true,
-        "mock_mode" => true
-      }
-
-      # Add retry simulation if enabled
-      if should_simulate_retry(options) do
-        add_retry_simulation(mock_response)
-      else
-        {:ok, mock_response}
-      end
+      {:ok, mock_response}
     end
   end
 
@@ -125,28 +118,23 @@ defmodule Pipeline.Providers.EnhancedClaudeProvider do
   defp execute_single_query(prompt, sdk_options, pipeline_options) do
     Logger.debug("📤 Single Claude SDK query execution")
 
-    # Check if async streaming is enabled
-    if Map.get(sdk_options, :async) || get_option(pipeline_options, "async_streaming", false) do
-      execute_async_streaming_query(prompt, sdk_options, pipeline_options)
-    else
-      # Set timeout if specified
-      timeout = get_option(pipeline_options, "timeout_ms", 300_000)
+    # Set timeout if specified
+    timeout = get_option(pipeline_options, "timeout_ms", 300_000)
 
-      task =
-        Task.async(fn ->
-          messages = ClaudeCodeSDK.query(prompt, sdk_options) |> Enum.to_list()
-          process_claude_messages(messages, pipeline_options)
-        end)
+    task =
+      Task.async(fn ->
+        messages = ClaudeCodeSDK.query(prompt, sdk_options) |> Enum.to_list()
+        process_claude_messages(messages, pipeline_options)
+      end)
 
-      case Task.yield(task, timeout) do
-        {:ok, result} ->
-          result
+    case Task.yield(task, timeout) do
+      {:ok, result} ->
+        result
 
-        nil ->
-          _shutdown_result = Task.shutdown(task, :brutal_kill)
-          Logger.error("⏰ Claude SDK query timed out after #{timeout}ms")
-          {:error, "Query timed out after #{timeout}ms"}
-      end
+      nil ->
+        _shutdown_result = Task.shutdown(task, :brutal_kill)
+        Logger.error("⏰ Claude SDK query timed out after #{timeout}ms")
+        {:error, "Query timed out after #{timeout}ms"}
     end
   end
 
@@ -382,313 +370,6 @@ defmodule Pipeline.Providers.EnhancedClaudeProvider do
       Map.merge(response, cost_info)
     else
       response
-    end
-  end
-
-  # Async streaming implementation
-
-  defp execute_async_streaming_query(prompt, sdk_options, pipeline_options) do
-    Logger.debug("🚀 Starting enhanced async streaming Claude SDK query...")
-
-    # Emit telemetry event for stream start
-    :telemetry.execute(
-      [:pipeline, :enhanced_claude, :stream, :start],
-      %{timestamp: System.monotonic_time()},
-      %{
-        prompt_length: String.length(prompt),
-        options: pipeline_options
-      }
-    )
-
-    # Get the raw stream from ClaudeCodeSDK
-    stream = ClaudeCodeSDK.query(prompt, sdk_options)
-
-    # Extract step name from options if available
-    step_name = get_option(pipeline_options, "step_name", "enhanced_claude_query")
-
-    # Create enhanced async response with streaming telemetry
-    async_response = create_enhanced_async_response(stream, step_name, prompt, pipeline_options)
-
-    Logger.debug("✅ Created enhanced async response for streaming")
-    {:ok, async_response}
-  rescue
-    error ->
-      Logger.error("💥 Failed to create enhanced async stream: #{inspect(error)}")
-
-      # Emit telemetry event for stream error
-      :telemetry.execute(
-        [:pipeline, :enhanced_claude, :stream, :error],
-        %{timestamp: System.monotonic_time()},
-        %{error: error}
-      )
-
-      {:error, Exception.message(error)}
-  end
-
-  defp create_enhanced_async_response(stream, step_name, prompt, pipeline_options) do
-    # Wrap the stream with telemetry and cost tracking
-    enhanced_stream = wrap_stream_with_telemetry(stream, step_name, pipeline_options)
-
-    # Create AsyncResponse with enhanced metadata
-    AsyncResponse.new(enhanced_stream, step_name,
-      handler: get_option(pipeline_options, "stream_handler"),
-      buffer_size: get_option(pipeline_options, "stream_buffer_size", 10),
-      metadata: %{
-        prompt_length: String.length(prompt),
-        started_at: DateTime.utc_now(),
-        enhanced_provider: true,
-        telemetry_enabled: get_option(pipeline_options, "telemetry_enabled", false),
-        cost_tracking: get_option(pipeline_options, "cost_tracking", false),
-        retry_config: get_option(pipeline_options, "retry_config", %{})
-      }
-    )
-  end
-
-  defp wrap_stream_with_telemetry(stream, step_name, options) do
-    start_time = System.monotonic_time(:millisecond)
-    first_token_ref = make_ref()
-
-    # Initialize accumulator for progressive cost calculation
-    initial_acc = %{
-      message_count: 0,
-      total_tokens: 0,
-      cost_accumulator: 0.0,
-      first_token_time: nil,
-      last_token_time: nil
-    }
-
-    Stream.transform(
-      stream,
-      fn -> {initial_acc, first_token_ref} end,
-      fn message, {acc, ref} ->
-        # Update metrics
-        now = System.monotonic_time(:millisecond)
-
-        new_acc = update_streaming_metrics(acc, message, now, start_time, ref)
-
-        # Emit telemetry for each message if enabled
-        if get_option(options, "telemetry_enabled", false) do
-          emit_message_telemetry(message, new_acc, step_name)
-        end
-
-        # Track progressive cost if enabled
-        if get_option(options, "cost_tracking", false) do
-          emit_cost_telemetry(new_acc, step_name)
-        end
-
-        {[message], {new_acc, ref}}
-      end,
-      fn {final_acc, _ref} ->
-        # Emit final telemetry
-        :telemetry.execute(
-          [:pipeline, :enhanced_claude, :stream, :complete],
-          %{
-            duration_ms: System.monotonic_time(:millisecond) - start_time,
-            message_count: final_acc.message_count,
-            total_tokens: final_acc.total_tokens,
-            total_cost: final_acc.cost_accumulator
-          },
-          %{step_name: step_name}
-        )
-      end
-    )
-  end
-
-  defp update_streaming_metrics(acc, message, now, start_time, _first_token_ref) do
-    # Check if this is the first token
-    first_token_time =
-      if is_nil(acc.first_token_time) and acc.message_count == 0 do
-        # Emit time to first token telemetry
-        time_to_first = now - start_time
-
-        :telemetry.execute(
-          [:pipeline, :enhanced_claude, :stream, :first_token],
-          %{time_to_first_token_ms: time_to_first},
-          %{}
-        )
-
-        now
-      else
-        acc.first_token_time
-      end
-
-    # Extract token count from message
-    tokens = extract_message_tokens(message)
-
-    # Calculate incremental cost
-    incremental_cost = calculate_incremental_cost(message, tokens)
-
-    %{
-      acc
-      | message_count: acc.message_count + 1,
-        total_tokens: acc.total_tokens + tokens,
-        cost_accumulator: acc.cost_accumulator + incremental_cost,
-        first_token_time: first_token_time,
-        last_token_time: now
-    }
-  end
-
-  defp extract_message_tokens(message) do
-    case message do
-      %{data: %{tokens: count}} when is_integer(count) ->
-        count
-
-      %{data: %{token_count: count}} when is_integer(count) ->
-        count
-
-      %{type: :assistant, data: %{message: %{"content" => content}}} when is_binary(content) ->
-        # Approximate: 1 token ≈ 4 characters
-        div(String.length(content), 4)
-
-      _ ->
-        0
-    end
-  end
-
-  defp calculate_incremental_cost(message, tokens) do
-    # Cost per 1K tokens (approximate)
-    cost_per_1k = 0.003
-
-    case message.type do
-      :assistant -> tokens * cost_per_1k / 1000
-      # Tool use is more expensive
-      :tool_use -> tokens * cost_per_1k * 1.5 / 1000
-      _ -> 0.0
-    end
-  end
-
-  defp emit_message_telemetry(message, acc, step_name) do
-    :telemetry.execute(
-      [:pipeline, :enhanced_claude, :stream, :message],
-      %{
-        message_count: acc.message_count,
-        total_tokens: acc.total_tokens,
-        timestamp: System.monotonic_time()
-      },
-      %{
-        message_type: message.type,
-        step_name: step_name
-      }
-    )
-  end
-
-  defp emit_cost_telemetry(acc, step_name) do
-    # Calculate tokens per second if we have timing data
-    tokens_per_second =
-      if not is_nil(acc.first_token_time) and acc.last_token_time > acc.first_token_time do
-        elapsed_seconds = (acc.last_token_time - acc.first_token_time) / 1000
-        if elapsed_seconds > 0, do: acc.total_tokens / elapsed_seconds, else: 0.0
-      else
-        0.0
-      end
-
-    :telemetry.execute(
-      [:pipeline, :enhanced_claude, :stream, :cost],
-      %{
-        progressive_cost: acc.cost_accumulator,
-        total_tokens: acc.total_tokens,
-        tokens_per_second: tokens_per_second
-      },
-      %{step_name: step_name}
-    )
-  end
-
-  defp execute_mock_async_query(prompt, options) do
-    Logger.debug("🎭 Creating mock async streaming response")
-
-    # Emit telemetry event for stream start (same as live mode)
-    :telemetry.execute(
-      [:pipeline, :enhanced_claude, :stream, :start],
-      %{timestamp: System.monotonic_time()},
-      %{
-        prompt_length: String.length(prompt),
-        options: options
-      }
-    )
-
-    # Create a mock stream that emits messages over time
-    mock_stream = create_mock_message_stream(prompt, options)
-
-    step_name = get_option(options, "step_name", "mock_enhanced_claude")
-
-    # Create enhanced async response with the mock stream
-    async_response = create_enhanced_async_response(mock_stream, step_name, prompt, options)
-
-    {:ok, async_response}
-  end
-
-  defp create_mock_message_stream(prompt, options) do
-    preset = get_option(options, "preset", "development")
-
-    # Create a stream that emits mock messages
-    Stream.resource(
-      # Start function
-      fn ->
-        %{
-          messages_sent: 0,
-          max_messages: 5,
-          preset: preset,
-          prompt_length: String.length(prompt)
-        }
-      end,
-      # Next function
-      fn state ->
-        if state.messages_sent < state.max_messages do
-          # Simulate processing delay
-          :timer.sleep(100)
-
-          message = create_mock_stream_message(state)
-          new_state = %{state | messages_sent: state.messages_sent + 1}
-
-          {[message], new_state}
-        else
-          {:halt, state}
-        end
-      end,
-      # Cleanup function
-      fn _state -> :ok end
-    )
-  end
-
-  defp create_mock_stream_message(state) do
-    case state.messages_sent do
-      0 ->
-        # System message
-        %ClaudeCodeSDK.Message{
-          type: :system,
-          subtype: :info,
-          data: %{
-            session_id: "mock-session-#{:rand.uniform(10000)}",
-            message: "Mock enhanced streaming session started"
-          }
-        }
-
-      n when n == state.max_messages - 1 ->
-        # Result message
-        %ClaudeCodeSDK.Message{
-          type: :result,
-          subtype: :success,
-          data: %{
-            session_id: "mock-session",
-            total_cost_usd: calculate_mock_cost(state.preset),
-            num_turns: 1,
-            duration_ms: 500
-          }
-        }
-
-      _ ->
-        # Assistant message
-        %ClaudeCodeSDK.Message{
-          type: :assistant,
-          subtype: nil,
-          data: %{
-            message: %{
-              "content" => "Mock chunk #{state.messages_sent} for preset #{state.preset}. ",
-              "role" => "assistant"
-            },
-            tokens: 10 + :rand.uniform(20)
-          }
-        }
     end
   end
 

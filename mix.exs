@@ -4,7 +4,7 @@ defmodule Pipeline.MixProject do
   def project do
     [
       app: :pipeline,
-      version: "0.0.1",
+      version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -42,9 +42,12 @@ defmodule Pipeline.MixProject do
       {:yaml_elixir, "~> 2.11"},
       {:req, "~> 0.5"},
       {:instructor_lite, "~> 1.0.0"},
-      {:claude_code_sdk, git: "https://github.com/nshkrdotcom/claude_code_sdk_elixir.git"},
       {:nimble_options, "~> 1.1"},
       {:ecto, "~> 3.12"},
+
+      # Development dependencies (not included in Hex package)
+      {:claude_code_sdk,
+       git: "https://github.com/nshkrdotcom/claude_code_sdk_elixir.git", only: [:dev, :test]},
 
       # Code quality and analysis tools
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},

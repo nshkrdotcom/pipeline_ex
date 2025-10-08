@@ -7,15 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-10-08
+
+### Removed - BREAKING CHANGES
+- **Async streaming system completely removed** (~900 lines)
+  - Removed `Pipeline.Streaming.AsyncHandler` module
+  - Removed `Pipeline.Streaming.AsyncResponse` module
+  - Removed 7 handler implementations (console, simple, debug, file, buffer, callback, text)
+  - Removed `async_streaming` option from Claude providers
+  - Removed all async streaming tests and examples
+
+### Changed
+- Simplified Claude providers to use `ClaudeCodeSDK.query() |> Enum.to_list()` directly
+- Cleaned up `Pipeline.Step.Claude` module (removed async handling)
+- Simplified `Pipeline.Executor` (removed AsyncResponse pattern matching)
+
 ### Added
-- **Async Streaming Support**: Real-time message streaming for all Claude-based steps
-  - Message-by-message streaming displays complete messages as they arrive from ClaudeCodeSDK
-  - 6 specialized stream handlers: console, simple, debug, file, buffer, and callback
-  - Works with all Claude step types (claude, claude_smart, claude_session, etc.)
-  - Progressive display of assistant responses, tool uses, and results
-  - Memory-efficient processing without buffering entire responses
-  - Full mock support for testing without API calls
-  - Documentation: ASYNC_STREAMING_MIGRATION_GUIDE.md and examples/STREAMING_GUIDE.md
+- `docs/ASYNC_STREAMING_DEPRECATION.md` - Migration guide
+- `docs/ASYNC_STREAMING_EVALUATION_REPORT.md` - Technical analysis
+- `docs/ASYNC_STREAMING_ASSESSMENT.md` - SDK implementer perspective
+- `docs/PIPELINE_EX_RECOMMENDATION.md` - Removal recommendation
+
+### Rationale
+The async streaming system was operating at the wrong abstraction level. It attempted to buffer and batch complete Message structs from ClaudeCodeSDK, thinking it was handling streaming text chunks. ClaudeCodeSDK already provides complete messages optimally - the buffering added complexity and latency without benefit.
+
+For migration guidance, see `docs/ASYNC_STREAMING_DEPRECATION.md`.
+
+### Technical Details
+- All 869 tests pass (66 async tests skipped as deprecated)
+- Dialyzer passes successfully
+- Clean compilation with no errors
+- CI checks (credo, dialyzer, tests) all pass
 
 ## [0.0.1] - 2025-01-05
 

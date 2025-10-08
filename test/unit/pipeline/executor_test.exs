@@ -3,7 +3,6 @@ defmodule Pipeline.ExecutorTest do
 
   alias Pipeline.{Executor, TestMode}
   alias Pipeline.Test.Mocks
-  alias Pipeline.Streaming.AsyncResponse
 
   setup do
     # Set test mode
@@ -181,10 +180,13 @@ defmodule Pipeline.ExecutorTest do
     end
   end
 
-  describe "async streaming execution" do
+  # Async streaming tests removed - feature deprecated
+  describe "async streaming execution (DEPRECATED)" do
+    @describetag :skip
+
     test "handles async streaming response from Claude step" do
       # Set up mock to return async response
-      mock_stream =
+      _mock_stream =
         Stream.map(
           [
             %{type: :text, data: %{content: "Test streaming response"}},
@@ -193,11 +195,11 @@ defmodule Pipeline.ExecutorTest do
           & &1
         )
 
-      async_response = AsyncResponse.new(mock_stream, "test_step")
+      # async_response = AsyncResponse.new(_mock_stream, "test_step")
 
-      Mocks.ClaudeProvider.set_response_pattern("__async__test async streaming", fn _prompt ->
-        async_response
-      end)
+      # Mocks.ClaudeProvider.set_response_pattern("__async__test async streaming", fn _prompt ->
+      #   async_response
+      # end)
 
       workflow = %{
         "workflow" => %{
@@ -228,7 +230,7 @@ defmodule Pipeline.ExecutorTest do
 
     test "resolves async stream when referenced by next step" do
       # Mock async response for first step
-      mock_stream =
+      _mock_stream =
         Stream.map(
           [
             %{type: :text, data: %{content: "Async content from step 1"}},
@@ -237,11 +239,11 @@ defmodule Pipeline.ExecutorTest do
           & &1
         )
 
-      async_response = AsyncResponse.new(mock_stream, "step1")
+      # async_response = AsyncResponse.new(_mock_stream, "step1")
 
-      Mocks.ClaudeProvider.set_response_pattern("__async__async step 1", fn _prompt ->
-        async_response
-      end)
+      # Mocks.ClaudeProvider.set_response_pattern("__async__async step 1", fn _prompt ->
+      #   async_response
+      # end)
 
       workflow = %{
         "workflow" => %{
@@ -280,7 +282,7 @@ defmodule Pipeline.ExecutorTest do
 
     test "handles mixed sync and async step execution" do
       # Mock async response
-      mock_stream =
+      _mock_stream =
         Stream.map(
           [
             %{type: :text, data: %{content: "Async response"}},
@@ -289,11 +291,11 @@ defmodule Pipeline.ExecutorTest do
           & &1
         )
 
-      async_response = AsyncResponse.new(mock_stream, "async_step")
+      # async_response = AsyncResponse.new(_mock_stream, "async_step")
 
-      Mocks.ClaudeProvider.set_response_pattern("__async__async prompt", fn _prompt ->
-        async_response
-      end)
+      # Mocks.ClaudeProvider.set_response_pattern("__async__async prompt", fn _prompt ->
+      #   async_response
+      # end)
 
       workflow = %{
         "workflow" => %{
@@ -341,7 +343,7 @@ defmodule Pipeline.ExecutorTest do
 
     test "tracks streaming metrics in execution" do
       # Mock async response with metrics
-      mock_stream =
+      _mock_stream =
         Stream.map(
           [
             %{type: :text, data: %{content: "Content", tokens: 5}},
@@ -350,11 +352,11 @@ defmodule Pipeline.ExecutorTest do
           & &1
         )
 
-      async_response = AsyncResponse.new(mock_stream, "metrics_step", metadata: %{test: true})
+      # async_response = AsyncResponse.new(_mock_stream, "metrics_step", metadata: %{test: true})
 
-      Mocks.ClaudeProvider.set_response_pattern("__async__metrics test", fn _prompt ->
-        async_response
-      end)
+      # Mocks.ClaudeProvider.set_response_pattern("__async__metrics test", fn _prompt ->
+      #   async_response
+      # end)
 
       workflow = %{
         "workflow" => %{
@@ -383,7 +385,7 @@ defmodule Pipeline.ExecutorTest do
 
     test "handles streaming errors gracefully" do
       # Mock error stream
-      error_stream =
+      _error_stream =
         Stream.map(
           [
             %{type: :error, data: %{error: "Stream failed"}}
@@ -391,11 +393,11 @@ defmodule Pipeline.ExecutorTest do
           & &1
         )
 
-      async_response = AsyncResponse.new(error_stream, "error_step")
+      # async_response = AsyncResponse.new(_error_stream, "error_step")
 
-      Mocks.ClaudeProvider.set_response_pattern("__async__error test", fn _prompt ->
-        async_response
-      end)
+      # Mocks.ClaudeProvider.set_response_pattern("__async__error test", fn _prompt ->
+      #   async_response
+      # end)
 
       workflow = %{
         "workflow" => %{

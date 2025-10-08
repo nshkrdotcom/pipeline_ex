@@ -1,5 +1,6 @@
 defmodule Pipeline.EnhancedConfigAsyncStreamingTest do
   use ExUnit.Case, async: true
+  @moduletag :skip
   alias Pipeline.EnhancedConfig
 
   describe "enhanced config async streaming validation" do

@@ -2,7 +2,10 @@ defmodule Pipeline.Step.ClaudeTest do
   use Pipeline.Test.EnhancedTestCase
   alias Pipeline.Step.Claude
 
-  describe "claude step execution with async streaming" do
+  # Async streaming tests removed - feature deprecated
+  describe "claude step execution with async streaming (DEPRECATED)" do
+    @describetag :skip
+
     test "handles AsyncResponse from provider", %{workspace_dir: workspace_dir} do
       step = %{
         "name" => "async_test",

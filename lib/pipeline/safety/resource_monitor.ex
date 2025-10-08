@@ -49,8 +49,7 @@ defmodule Pipeline.Safety.ResourceMonitor do
       iex> Pipeline.Safety.ResourceMonitor.check_limits(usage, limits)
       {:error, "Memory limit exceeded: 1907.3 MB > 1024 MB"}
   """
-  @spec check_limits(resource_usage()) :: check_result()
-  def check_limits(usage) do
+  def check_limits(usage) when is_map(usage) do
     check_limits(usage, %{})
   end
 
@@ -113,8 +112,7 @@ defmodule Pipeline.Safety.ResourceMonitor do
   - `:ok` if within limits
   - `{:error, message}` if limits exceeded
   """
-  @spec monitor_execution(DateTime.t()) :: check_result()
-  def monitor_execution(start_time) do
+  def monitor_execution(start_time) when is_struct(start_time, DateTime) do
     monitor_execution(start_time, %{})
   end
 
@@ -257,8 +255,7 @@ defmodule Pipeline.Safety.ResourceMonitor do
   ## Returns
   - `:ok` always (warnings are logged, not returned as errors)
   """
-  @spec check_memory_pressure(resource_usage()) :: :ok
-  def check_memory_pressure(usage) do
+  def check_memory_pressure(usage) when is_map(usage) do
     check_memory_pressure(usage, %{})
   end
 

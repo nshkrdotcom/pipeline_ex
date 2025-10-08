@@ -7,6 +7,7 @@ defmodule Pipeline.Performance.StreamingPerformanceTest do
   """
 
   use ExUnit.Case, async: false
+  @moduletag :skip
   require Logger
   alias Pipeline.{Executor}
   alias Pipeline.Monitoring.Performance

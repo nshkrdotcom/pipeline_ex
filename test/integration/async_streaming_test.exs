@@ -1,5 +1,6 @@
 defmodule Pipeline.Integration.AsyncStreamingTest do
   use Pipeline.Test.Case, mode: :mixed
+  @moduletag :skip
 
   alias Pipeline.{Executor, EnhancedConfig}
   alias Pipeline.Test.{Mocks, AsyncMocks}

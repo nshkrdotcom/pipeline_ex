@@ -47,8 +47,7 @@ defmodule Pipeline.Safety.RecursionGuard do
       iex> Pipeline.Safety.RecursionGuard.check_limits(context)
       {:error, "Maximum nesting depth (10) exceeded: current depth is 15"}
   """
-  @spec check_limits(execution_context()) :: check_result()
-  def check_limits(context) do
+  def check_limits(context) when is_map(context) do
     check_limits(context, %{})
   end
 
@@ -120,8 +119,7 @@ defmodule Pipeline.Safety.RecursionGuard do
   - `:ok` if all checks pass
   - `{:error, message}` if any check fails
   """
-  @spec check_all_safety(String.t(), execution_context()) :: check_result()
-  def check_all_safety(pipeline_id, context) do
+  def check_all_safety(pipeline_id, context) when is_binary(pipeline_id) and is_map(context) do
     check_all_safety(pipeline_id, context, %{})
   end
 

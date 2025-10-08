@@ -220,20 +220,21 @@ defmodule Pipeline.Streaming.PerformanceAnalyzer do
 
     # Check buffer efficiency
     issues =
-      if summary.buffer_efficiency != nil &&
-           summary.buffer_efficiency < @optimization_thresholds.buffer_efficiency_min do
-        [
-          %{
-            type: :inefficient_buffering,
-            stream_id: metrics.stream_id,
-            value: summary.buffer_efficiency,
-            threshold: @optimization_thresholds.buffer_efficiency_min,
-            severity: :low
-          }
-          | issues
-        ]
-      else
-        issues
+      case summary.buffer_efficiency do
+        eff when is_float(eff) and eff < @optimization_thresholds.buffer_efficiency_min ->
+          [
+            %{
+              type: :inefficient_buffering,
+              stream_id: metrics.stream_id,
+              value: eff,
+              threshold: @optimization_thresholds.buffer_efficiency_min,
+              severity: :low
+            }
+            | issues
+          ]
+
+        _ ->
+          issues
       end
 
     issues

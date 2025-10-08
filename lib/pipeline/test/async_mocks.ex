@@ -29,8 +29,6 @@ defmodule Pipeline.Test.AsyncMocks do
       )
   """
 
-  alias Pipeline.Streaming.AsyncResponse
-
   @type streaming_pattern :: :fast | :slow | :chunked | :realistic
   @type error_type :: :network_error | :timeout | :invalid_message | :stream_interrupted
 
@@ -78,21 +76,14 @@ defmodule Pipeline.Test.AsyncMocks do
   @doc """
   Creates a mock AsyncResponse with streaming behavior.
 
-  This wraps a mock stream in an AsyncResponse for use in pipeline tests.
+  DEPRECATED: AsyncResponse module removed.
   """
-  @spec create_async_response(String.t(), String.t(), keyword()) :: AsyncResponse.t()
-  def create_async_response(content, step_name, opts \\ []) do
-    stream = create_stream(content, opts)
-
-    AsyncResponse.new(stream, step_name,
-      handler: opts[:handler],
-      buffer_size: opts[:buffer_size] || 10,
-      metadata: %{
-        mock: true,
-        pattern: opts[:pattern] || :fast,
-        created_at: DateTime.utc_now()
-      }
-    )
+  @spec create_async_response(String.t(), String.t(), keyword()) :: map()
+  def create_async_response(_content, _step_name, _opts \\ []) do
+    %{
+      "success" => false,
+      "error" => "AsyncResponse module deprecated and removed"
+    }
   end
 
   @doc """

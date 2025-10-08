@@ -53,13 +53,15 @@ mix pipeline.run evolved_pipelines/sentiment_analyzer_*.yaml
 defp deps do
   [
     # From Hex.pm (recommended)
-    {:pipeline_ex, "~> 0.0.1"}
-    
+    {:pipeline_ex, "~> 0.1.0"}
+
     # Or from GitHub
-    # {:pipeline_ex, git: "https://github.com/nshkrdotcom/pipeline_ex.git", tag: "v0.0.1"}
+    # {:pipeline_ex, git: "https://github.com/nshkrdotcom/pipeline_ex.git", tag: "v0.1.0"}
   ]
 end
 ```
+
+> **⚠️ Breaking Change in v0.1.0:** Async streaming system removed. ClaudeCodeSDK already streams messages optimally - the custom buffering system added unnecessary complexity. See `docs/ASYNC_STREAMING_DEPRECATION.md` for details.
 
 ### Simple API
 
