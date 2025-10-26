@@ -62,6 +62,7 @@ defmodule Pipeline.MixProject do
       # AI SDK dependencies
       {:claude_agent_sdk, "~> 0.5.3"},
       {:gemini_ex, "~> 0.3"},
+      {:codex_sdk, "~> 0.2.0"},
 
       # Code quality and analysis tools
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-10-25
+
+### Added
+- **Streaming Documentation**
+  - Added `examples/STREAMING_GUIDE.md` - Comprehensive guide for enabling streaming output in pipelines
+  - Added `docs/ASYNC_STREAMING_MIGRATION_GUIDE.md` - Migration path from legacy async streaming to current architecture
+  - Both documents integrated into ExDoc with proper titles and navigation
+
+### Changed
+- Updated version references in README.md from v0.1.0 to v0.1.1
+- Updated installation instructions to reference the new version
+- Updated GitHub dependency examples to use v0.1.1 tag
+- Updated mix.exs to version 0.1.1
+- Enhanced ExDoc configuration with streaming and migration guide entries
+
+### Documentation
+- **Streaming Guide** covers:
+  - When to use streaming (long-running prompts, UI updates, debugging)
+  - Quick start examples in Elixir and YAML
+  - Handler requirements and best practices
+  - Testing strategies and troubleshooting
+- **Migration Guide** provides:
+  - Checklist for migrating from legacy async streaming
+  - Architectural comparison table (event shapes, callbacks, state management)
+  - Code examples for updating Elixir steps and YAML workflows
+  - Testing strategy with StreamingRecorder helper
+  - Common issues and solutions
+
+### Notes
+- This release focuses on improving documentation and developer experience
+- No breaking changes - purely additive documentation updates
+- Builds on the async streaming removal from v0.1.0
+
 ## [0.1.0] - 2025-10-08
 
 ### Removed - BREAKING CHANGES
