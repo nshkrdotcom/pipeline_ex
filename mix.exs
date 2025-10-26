@@ -1,7 +1,7 @@
 defmodule Pipeline.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
   @source_url "https://github.com/nshkrdotcom/pipeline_ex"
 
   def project do
@@ -156,7 +156,9 @@ defmodule Pipeline.MixProject do
         "docs/specifications/data_processing_pipelines.md": [title: "Data Processing Pipelines"],
         "docs/specifications/model_development_pipelines.md": [
           title: "Model Development Pipelines"
-        ]
+        ],
+        "examples/STREAMING_GUIDE.md": [title: "Streaming Guide"],
+        "docs/ASYNC_STREAMING_MIGRATION_GUIDE.md": [title: "Async Streaming Migration"]
       ],
       groups_for_modules: [
         Core: [Pipeline, Pipeline.Config, Pipeline.Executor],
