@@ -1,6 +1,6 @@
 defmodule Pipeline.EnhancedConfig do
   @moduledoc """
-  Enhanced configuration management for Claude Code SDK integration.
+  Enhanced configuration management for Claude Agent SDK integration.
 
   Extends the base Pipeline.Config with support for:
   - Enhanced Claude options schema

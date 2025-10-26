@@ -231,7 +231,7 @@ defmodule Pipeline.Providers.ClaudeProviderTest do
     end
   end
 
-  if Code.ensure_loaded?(ClaudeCodeSDK) do
+  if Code.ensure_loaded?(ClaudeAgentSDK) do
     describe "live mode async streaming" do
       @describetag :skip
       @tag :integration

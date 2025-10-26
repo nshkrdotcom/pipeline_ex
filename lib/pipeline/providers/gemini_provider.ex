@@ -1,81 +1,33 @@
 defmodule Pipeline.Providers.GeminiProvider do
   @moduledoc """
-  Live Gemini provider using InstructorLite for structured generation.
+  Live Gemini provider backed by the `gemini_ex` client.
   """
 
   require Logger
 
-  # Simple response schema for text responses
-  defmodule TextResponse do
-    @moduledoc """
-    Simple response schema for Gemini text responses.
-    """
-    use Ecto.Schema
+  alias Gemini.Error
+  alias Gemini.Types.Response.GenerateContentResponse, as: GeminiResponse
 
-    @primary_key false
-    embedded_schema do
-      field(:content, :string)
-    end
-
-    @behaviour Access
-
-    def fetch(struct, key) do
-      case key do
-        :content -> {:ok, struct.content}
-        "content" -> {:ok, struct.content}
-        _ -> :error
-      end
-    end
-
-    def get_and_update(struct, key, function) do
-      case key do
-        :content ->
-          {current, new} = function.(struct.content)
-          {current, %{struct | content: new}}
-
-        "content" ->
-          {current, new} = function.(struct.content)
-          {current, %{struct | content: new}}
-
-        _ ->
-          {nil, struct}
-      end
-    end
-
-    def pop(struct, key) do
-      case key do
-        :content -> {struct.content, %{struct | content: nil}}
-        "content" -> {struct.content, %{struct | content: nil}}
-        _ -> {nil, struct}
-      end
-    end
-  end
+  @default_model "gemini-2.5-flash-lite-preview-06-17"
 
   @doc """
-  Query Gemini using InstructorLite for structured responses.
+  Query Gemini and return a structured response map.
   """
   def query(prompt, options \\ %{}) do
-    Logger.debug("🧠 Querying Gemini with prompt: #{String.slice(prompt, 0, 100)}...")
+    Logger.debug("🧠 Querying Gemini with prompt: #{String.slice(prompt, 0, 100)}…")
 
-    # Build instruction configuration
-    instruction_config = build_instruction_config(options)
+    request_opts = build_request_opts(options)
 
-    # Format prompt for Gemini adapter - it expects a structured format
-    formatted_prompt = %{
-      contents: [
-        %{
-          role: "user",
-          parts: [%{text: prompt}]
-        }
-      ]
-    }
-
-    # Execute the instruction
-    case InstructorLite.instruct(formatted_prompt, instruction_config) do
+    case Gemini.generate(prompt, request_opts) do
       {:ok, response} ->
-        formatted_response = format_gemini_response(response)
-        Logger.debug("✅ Gemini query successful")
-        {:ok, formatted_response}
+        case format_gemini_response(response, options) do
+          {:ok, formatted} ->
+            Logger.debug("✅ Gemini query successful")
+            {:ok, formatted}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
 
       {:error, reason} ->
         Logger.error("❌ Gemini query failed: #{inspect(reason)}")
@@ -88,20 +40,31 @@ defmodule Pipeline.Providers.GeminiProvider do
   end
 
   @doc """
-  Generate function calls using Gemini and InstructorLite.
+  Ask Gemini to emit function calls described in `tools`.
+
+  The model is instructed to respond with a JSON array of function call objects.
   """
   def generate_function_calls(prompt, tools, options \\ %{}) do
     Logger.debug("🔧 Generating function calls for tools: #{inspect(tools)}")
 
-    # Build function calling instruction
-    function_prompt = build_function_calling_prompt(prompt, tools)
-    instruction_config = build_function_calling_config(options)
+    request_prompt = build_function_calling_prompt(prompt, tools)
 
-    case InstructorLite.instruct(%{prompt: function_prompt}, instruction_config) do
+    request_opts =
+      build_request_opts(options)
+      |> Keyword.put(:response_mime_type, "application/json")
+      |> Keyword.put_new(:temperature, 0.0)
+
+    case Gemini.generate(request_prompt, request_opts) do
       {:ok, response} ->
-        function_calls = extract_function_calls(response)
-        Logger.debug("✅ Function call generation successful: #{length(function_calls)} calls")
-        {:ok, function_calls}
+        with {:ok, json_text} <- Gemini.extract_text(response),
+             {:ok, function_calls} <- decode_function_calls(json_text) do
+          Logger.debug("✅ Function call generation produced #{length(function_calls)} call(s)")
+          {:ok, function_calls}
+        else
+          {:error, reason} ->
+            Logger.error("❌ Failed to decode function calls: #{inspect(reason)}")
+            {:error, reason}
+        end
 
       {:error, reason} ->
         Logger.error("❌ Function call generation failed: #{inspect(reason)}")
@@ -113,195 +76,206 @@ defmodule Pipeline.Providers.GeminiProvider do
       {:error, "Function call generation crashed: #{Exception.message(error)}"}
   end
 
-  # Private helper functions
+  # Request option helpers ---------------------------------------------------
 
-  defp build_instruction_config(options) do
+  defp build_request_opts(options) do
     model = get_model_from_options(options)
-    token_budget = get_token_budget_from_options(options)
-    timeout_ms = get_timeout_from_options(options)
 
-    base_config = build_base_config(model, timeout_ms)
-    generation_config = build_generation_config(token_budget)
-
-    apply_generation_config(base_config, generation_config)
+    [
+      model: model,
+      api_key: get_api_key(),
+      system_instruction: get_system_instruction(options)
+    ]
+    |> Keyword.merge(build_generation_opts(options))
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
   end
 
   defp get_model_from_options(options) do
-    options["model"] || options[:model] || "gemini-2.5-flash-lite-preview-06-17"
+    options["model"] || options[:model] || @default_model
+  end
+
+  defp get_system_instruction(options) do
+    options["system_instruction"] || options[:system_instruction]
+  end
+
+  defp build_generation_opts(options) do
+    token_budget = get_token_budget_from_options(options)
+
+    [
+      temperature: fetch_number(token_budget, "temperature"),
+      max_output_tokens: fetch_integer(token_budget, "max_output_tokens"),
+      top_p: fetch_number(token_budget, "top_p"),
+      top_k: fetch_integer(token_budget, "top_k"),
+      response_mime_type: options["response_mime_type"] || options[:response_mime_type],
+      stop_sequences: options["stop_sequences"] || options[:stop_sequences],
+      candidate_count: fetch_integer(options, "candidate_count"),
+      presence_penalty: fetch_number(options, "presence_penalty"),
+      frequency_penalty: fetch_number(options, "frequency_penalty")
+    ]
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
   end
 
   defp get_token_budget_from_options(options) do
     options["token_budget"] || options[:token_budget] || %{}
   end
 
-  defp get_timeout_from_options(options) do
-    timeout_ms =
-      options["timeout_ms"] ||
-        options[:timeout_ms] ||
-        Application.get_env(:pipeline, :gemini_timeout_ms, 300_000)
+  defp fetch_number(source, key) do
+    value = fetch_option(source, key)
 
-    Logger.info("🕒 DEBUG: GeminiProvider received timeout_ms: #{timeout_ms}")
-    timeout_ms
-  end
+    cond do
+      is_number(value) ->
+        value
 
-  defp build_base_config(model, timeout_ms) do
-    Logger.info("🕒 DEBUG: Adding http_options with receive_timeout: #{timeout_ms}")
+      is_binary(value) ->
+        case Float.parse(value) do
+          {parsed, _} -> parsed
+          :error -> nil
+        end
 
-    adapter_context = [
-      model: model,
-      api_key: get_api_key(),
-      http_options: [receive_timeout: timeout_ms]
-    ]
-
-    json_schema = %{
-      type: "object",
-      required: ["content"],
-      properties: %{content: %{type: "string", description: "The response content"}}
-    }
-
-    [
-      adapter: InstructorLite.Adapters.Gemini,
-      adapter_context: adapter_context,
-      response_model: Pipeline.Providers.GeminiProvider.TextResponse,
-      json_schema: json_schema
-    ]
-  end
-
-  defp build_generation_config(token_budget) do
-    %{
-      "temperature" => token_budget["temperature"] || token_budget[:temperature],
-      "maxOutputTokens" => token_budget["max_output_tokens"] || token_budget[:max_output_tokens],
-      "topP" => token_budget["top_p"] || token_budget[:top_p],
-      "topK" => token_budget["top_k"] || token_budget[:top_k]
-    }
-    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-    |> Map.new()
-  end
-
-  defp apply_generation_config(base_config, generation_config) do
-    if map_size(generation_config) > 0 do
-      Keyword.put(base_config, :extra, %{generation_config: generation_config})
-    else
-      base_config
+      true ->
+        nil
     end
   end
 
-  defp build_function_calling_config(options) do
-    base_config = build_instruction_config(options)
+  defp fetch_integer(source, key) do
+    value = fetch_option(source, key)
 
-    # Add schema for function calling response
-    function_call_schema = %{
-      type: "array",
-      items: %{
-        type: "object",
-        properties: %{
-          name: %{type: "string"},
-          arguments: %{type: "object"}
-        },
-        required: ["name", "arguments"]
-      }
-    }
+    cond do
+      is_integer(value) ->
+        value
 
-    Keyword.put(base_config, :response_schema, function_call_schema)
-  end
+      is_binary(value) ->
+        case Integer.parse(value) do
+          {parsed, _} -> parsed
+          :error -> nil
+        end
 
-  defp build_function_calling_prompt(prompt, tools) do
-    tool_descriptions = Enum.map(tools, &describe_tool/1)
-
-    """
-    #{prompt}
-
-    Available tools:
-    #{Enum.join(tool_descriptions, "\n")}
-
-    Generate function calls as needed to accomplish the task. Return a JSON array of function calls.
-    Each function call should have a "name" and "arguments" field.
-    """
-  end
-
-  defp describe_tool(tool_name) do
-    case tool_name do
-      "file_creator" ->
-        "- file_creator: Create or write files. Arguments: {filename: string, content: string}"
-
-      "code_analyzer" ->
-        "- code_analyzer: Analyze code quality and structure. Arguments: {file_path: string, analysis_type: string}"
-
-      "test_runner" ->
-        "- test_runner: Run tests and return results. Arguments: {test_file: string, verbose: boolean}"
-
-      _ ->
-        "- #{tool_name}: Custom tool (see documentation for usage)"
+      true ->
+        nil
     end
   end
 
-  defp format_gemini_response(response) do
-    %{
-      content: extract_content(response),
-      success: true,
-      cost: extract_cost(response),
-      function_calls: extract_function_calls(response)
-    }
+  defp fetch_option(source, key) when is_map(source) do
+    source[key] || source[String.to_atom(to_string(key))]
+  rescue
+    ArgumentError -> source[key]
   end
 
-  defp extract_content(%Pipeline.Providers.GeminiProvider.TextResponse{content: content}),
-    do: content
-
-  defp extract_content(response) when is_binary(response), do: response
-  defp extract_content(response) when is_map(response), do: extract_content_from_map(response)
-  defp extract_content(response), do: Jason.encode!(response, pretty: true)
-
-  defp extract_content_from_map(response) when is_map(response) do
-    response[:content] || response["content"] || response[:text] || response["text"] ||
-      Jason.encode!(response, pretty: true)
-  end
-
-  defp extract_cost(response) when is_map(response), do: extract_cost_from_map(response)
-  defp extract_cost(_response), do: 0.0
-
-  defp extract_cost_from_map(response) when is_map(response) do
-    case response[:usage] || response["usage"] do
-      nil -> 0.0
-      usage -> calculate_cost_from_usage(usage)
-    end
-  end
-
-  defp extract_function_calls(response) when is_list(response), do: response
-
-  defp extract_function_calls(response) when is_map(response),
-    do: extract_function_calls_from_map(response)
-
-  defp extract_function_calls(_response), do: []
-
-  defp extract_function_calls_from_map(response) when is_map(response) do
-    response[:function_calls] || response["function_calls"] || []
-  end
-
-  defp calculate_cost_from_usage(usage) do
-    # Simplified cost calculation - in production, use actual Gemini pricing
-    input_tokens = usage["input_tokens"] || usage[:input_tokens] || 0
-    output_tokens = usage["output_tokens"] || usage[:output_tokens] || 0
-
-    # Approximate Gemini pricing (update with actual rates)
-    # $1 per 1M input tokens
-    input_cost = input_tokens * 0.000001
-    # $2 per 1M output tokens
-    output_cost = output_tokens * 0.000002
-
-    input_cost + output_cost
-  end
-
-  defp format_error(reason) do
-    case reason do
-      %{message: message} -> message
-      reason when is_binary(reason) -> reason
-      reason -> inspect(reason)
-    end
-  end
+  defp fetch_option(_source, _key), do: nil
 
   defp get_api_key do
     System.get_env("GEMINI_API_KEY") ||
       Application.get_env(:pipeline, :gemini_api_key) ||
       raise "GEMINI_API_KEY environment variable not set"
+  end
+
+  # Response helpers ---------------------------------------------------------
+
+  defp format_gemini_response(response, options) do
+    with {:ok, text} <- Gemini.extract_text(response) do
+      usage = GeminiResponse.token_usage(response) || %{}
+
+      {:ok,
+       %{
+         text: text,
+         success: true,
+         cost: estimate_cost(usage),
+         tokens: usage,
+         model: get_model_from_options(options)
+       }}
+    else
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp estimate_cost(%{input: input_tokens, output: output_tokens}) do
+    input = input_tokens || 0
+    output = output_tokens || 0
+
+    # Approximate public pricing (update as needed)
+    input * 0.000001 + output * 0.000002
+  end
+
+  defp estimate_cost(_), do: 0.0
+
+  defp format_error(%Error{message: message, type: type, http_status: status}) do
+    base = "[#{type}] #{message}"
+    if status, do: "#{base} (HTTP #{status})", else: base
+  end
+
+  defp format_error(other), do: inspect(other)
+
+  # Function calling helpers -------------------------------------------------
+
+  defp build_function_calling_prompt(prompt, tools) do
+    tool_descriptions =
+      tools
+      |> List.wrap()
+      |> Enum.map(&describe_tool/1)
+      |> Enum.join("\n")
+
+    """
+    #{prompt}
+
+    Available tools:
+    #{tool_descriptions}
+
+    Respond with a JSON array of function call objects. Each object must include:
+      - "name": the function to invoke
+      - "arguments": an object containing the arguments for the function
+    Do not include any additional text outside the JSON array.
+    """
+  end
+
+  defp describe_tool(%{"name" => name} = tool) do
+    description = Map.get(tool, "description") || "No description provided"
+    parameters = Map.get(tool, "parameters") || %{}
+    "- #{name}: #{description} — Parameters: #{Jason.encode!(parameters)}"
+  end
+
+  defp describe_tool(%{name: name} = tool) do
+    description = Map.get(tool, :description) || "No description provided"
+    parameters = Map.get(tool, :parameters) || %{}
+    "- #{name}: #{description} — Parameters: #{Jason.encode!(parameters)}"
+  end
+
+  defp describe_tool(name) when is_binary(name),
+    do: "- #{name}: Refer to documentation for arguments"
+
+  defp describe_tool(other), do: "- #{inspect(other)}"
+
+  defp decode_function_calls(json_text) when is_binary(json_text) do
+    cleaned =
+      json_text
+      |> String.trim()
+      |> strip_code_fence()
+
+    case Jason.decode(cleaned) do
+      {:ok, %{"function_calls" => calls}} when is_list(calls) ->
+        {:ok, calls}
+
+      {:ok, list} when is_list(list) ->
+        {:ok, list}
+
+      {:ok, other} ->
+        {:error, "Expected JSON array of function calls, got: #{inspect(other)}"}
+
+      {:error, reason} ->
+        {:error, "Failed to decode function calls JSON: #{inspect(reason)}"}
+    end
+  end
+
+  defp decode_function_calls(_other), do: {:error, "Gemini response did not contain JSON output"}
+
+  defp strip_code_fence("```json" <> rest), do: rest |> strip_trailing_fence()
+  defp strip_code_fence("```" <> rest), do: rest |> strip_trailing_fence()
+  defp strip_code_fence(text), do: text
+
+  defp strip_trailing_fence(text) do
+    text
+    |> String.trim()
+    |> String.replace(~r/```$/, "")
+    |> String.trim()
   end
 end

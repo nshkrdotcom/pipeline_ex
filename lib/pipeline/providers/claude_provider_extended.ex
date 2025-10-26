@@ -1,11 +1,11 @@
 defmodule Pipeline.Providers.ClaudeProviderExtended do
   @moduledoc """
   Extended Claude provider with configurable timeout support.
-  This module works around the hardcoded 30-second timeout in ClaudeCodeSDK.
+  This module works around the hardcoded 30-second timeout in ClaudeAgentSDK.
   """
 
   require Logger
-  alias ClaudeCodeSDK.{Options, Message}
+  alias ClaudeAgentSDK.{Options, Message}
 
   # Extra buffer for process cleanup
   @timeout_buffer_ms 5_000
@@ -100,14 +100,23 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
   end
 
   defp execute_live_claude_query_with_custom_timeout(prompt, options) do
+    verbose =
+      case options[:verbose] do
+        nil -> true
+        value -> value
+      end
+
     sdk_options =
       Options.new(
         max_turns:
           options[:max_turns] || Application.get_env(:pipeline, :max_turns_sdk_default, 1),
-        verbose: options[:verbose] || true,
+        verbose: verbose,
         allowed_tools: options[:allowed_tools],
         disallowed_tools: options[:disallowed_tools],
-        system_prompt: options[:system_prompt]
+        system_prompt: options[:system_prompt],
+        cwd: options[:cwd],
+        model: options[:model],
+        fallback_model: options[:fallback_model]
       )
 
     Logger.debug("🚀 Starting Claude SDK query with extended timeout...")
@@ -121,7 +130,7 @@ defmodule Pipeline.Providers.ClaudeProviderExtended do
     Logger.debug("📥 Collecting messages from Claude SDK stream (no timeout)...")
 
     # Create the stream
-    stream = ClaudeCodeSDK.query(prompt, sdk_options)
+    stream = ClaudeAgentSDK.query(prompt, sdk_options)
 
     # Collect all messages - the stream itself should complete when done
     # This avoids the 30-second timeout in the SDK

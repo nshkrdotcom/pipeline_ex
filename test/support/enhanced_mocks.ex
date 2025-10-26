@@ -1,6 +1,6 @@
 defmodule Pipeline.Test.EnhancedMocks do
   @moduledoc """
-  Enhanced mock system for testing Claude Code SDK integration features.
+  Enhanced mock system for testing Claude Agent SDK integration features.
   Provides sophisticated mocking for new step types and advanced features.
   """
 

@@ -153,7 +153,7 @@ defmodule Pipeline do
         ["GEMINI_API_KEY not set and not in mock mode" | issues]
       end
 
-    # Check Claude Code SDK availability (only in live mode)
+    # Check Claude Agent SDK availability (only in live mode)
     issues =
       if Pipeline.TestMode.live_mode?() do
         try do

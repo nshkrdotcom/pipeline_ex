@@ -1,0 +1,66 @@
+# Example: Using Hooks with PipelineEx
+# This demonstrates how to configure event-driven tool execution and monitoring
+
+workflow:
+  name: "hooks_integration_demo"
+  description: "Demonstrate hooks system for tool monitoring and security"
+  version: "1.0.0"
+
+  # Hooks configuration for event-driven tool execution
+  hooks:
+    PreToolUse:
+      - matcher: "Bash"
+        hooks: ["validate_bash", "log_tool_use"]
+      - matcher: "*"  # All tools
+        hooks: ["audit_tool"]
+
+    PostToolUse:
+      - matcher: "*"  # All tools
+        hooks: ["log_tool_use"]
+
+  steps:
+    - name: "safe_bash_commands"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Run some safe bash commands to demonstrate hooks:
+        1. List the current directory (ls -la)
+        2. Show the current working directory (pwd)
+        3. Display system information (uname -a)
+
+        The validate_bash hook should allow these safe commands.
+
+    - name: "dangerous_command_attempt"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Try to run a dangerous command:
+        rm -rf /tmp/test
+
+        The validate_bash hook should block this dangerous command and provide feedback.
+
+    - name: "file_operations"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Perform some file operations:
+        1. Create a test file
+        2. Read the file
+        3. Delete the file
+
+        All operations should be logged by the audit_tool hook.
+
+    - name: "comprehensive_audit_report"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Based on the hook logs and audit trail from the previous steps, create a comprehensive report:
+
+        1. **Security Analysis**: Which commands were allowed/blocked and why
+        2. **Usage Patterns**: What tools were used and how frequently
+        3. **Performance Metrics**: Any timing information from hooks
+        4. **Recommendations**: How to improve security and monitoring
+
+        The audit_tool hook should have logged all tool usage for analysis.
+
+        Provide insights into the effectiveness of the hooks system for security and compliance.

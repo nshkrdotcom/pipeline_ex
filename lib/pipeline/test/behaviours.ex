@@ -28,7 +28,7 @@ defmodule Pipeline.Test.ClaudeProvider do
 
   ## Parameters
     - prompt: The input prompt string
-    - options: ClaudeCodeSDK.Options struct
+    - options: ClaudeAgentSDK.Options struct
 
   ## Returns
     An Enumerable that yields message structs

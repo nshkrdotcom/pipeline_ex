@@ -1,0 +1,178 @@
+# Example: Memory Compaction for Long-Running Agents
+# This demonstrates automatic context management for extended AI conversations
+
+workflow:
+  name: "memory_compaction_demo"
+  description: "Demonstrate automatic memory compaction for long-running agent workflows"
+  version: "1.0.0"
+
+  # Memory configuration for long-running agents
+  memory_config:
+    max_context_length: 150000
+    auto_compact: true
+    compact_threshold: 100000
+
+  # Enable context management for persistence
+  enable_context_management: true
+  setting_sources: ["project"]
+
+  steps:
+    - name: "establish_long_term_context"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        We are beginning a comprehensive software architecture design project that will span multiple sessions.
+        Establish a detailed context for building a large-scale enterprise application.
+
+        **Project Scope:**
+        - Enterprise resource planning (ERP) system
+        - Multi-tenant SaaS architecture
+        - Real-time data processing capabilities
+        - Global deployment with regional data centers
+        - Compliance with GDPR, HIPAA, SOC2 standards
+
+        **Technical Requirements:**
+        - Microservices architecture with 15+ services
+        - Event-driven communication with Apache Kafka
+        - Multi-database support (PostgreSQL, MongoDB, Redis)
+        - Real-time analytics and reporting
+        - Mobile and web client applications
+
+        This context must be maintained across multiple workflow executions.
+        Update CLAUDE.md with comprehensive project documentation.
+
+    - name: "design_phase_1_architecture"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Begin Phase 1: High-level Architecture Design
+
+        **Deliverables:**
+        1. Service decomposition and boundaries
+        2. Data architecture and storage strategy
+        3. API design patterns and standards
+        4. Security architecture overview
+        5. Deployment and infrastructure strategy
+
+        **Key Decisions to Document:**
+        - Service granularity and communication patterns
+        - Database sharding and replication strategy
+        - Authentication and authorization framework
+        - Monitoring and observability approach
+        - CI/CD pipeline design
+
+        This is the first of multiple design sessions. Context must persist.
+
+    - name: "design_phase_2_detailed_services"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Continue Phase 2: Detailed Service Design
+
+        **Services to Design:**
+        1. User Management Service (authentication, profiles, permissions)
+        2. Product Catalog Service (inventory, pricing, categories)
+        3. Order Processing Service (carts, checkout, payments)
+        4. Inventory Management Service (stock levels, suppliers, alerts)
+        5. Analytics Service (reporting, dashboards, real-time metrics)
+        6. Notification Service (emails, SMS, push notifications)
+        7. Integration Service (third-party APIs, webhooks)
+        8. Admin Service (system configuration, user management)
+
+        **For Each Service:**
+        - API endpoints and data models
+        - Database schema design
+        - Integration points with other services
+        - Error handling and resilience patterns
+        - Performance requirements and caching strategy
+
+        Build on previous architectural decisions. Maintain context continuity.
+
+    - name: "design_phase_3_integration_patterns"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Phase 3: Integration Patterns and Data Flow
+
+        **Integration Requirements:**
+        1. Event-driven architecture with Kafka topics
+        2. Synchronous API communication patterns
+        3. Database consistency across services
+        4. Cross-service transactions and saga patterns
+        5. API gateway and service mesh configuration
+
+        **Data Flow Scenarios:**
+        - Order placement to payment processing
+        - Inventory updates across sales channels
+        - User profile synchronization
+        - Real-time analytics data collection
+        - Notification triggers from business events
+
+        **Quality Assurance:**
+        - Contract testing between services
+        - Integration testing strategies
+        - Monitoring and alerting setup
+        - Rollback and recovery procedures
+
+        Ensure all designs align with established architecture and maintain comprehensive documentation.
+
+    - name: "implementation_planning"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Create detailed implementation planning and roadmap.
+
+        **Implementation Phases:**
+        1. Foundation (infrastructure, core services)
+        2. Core Features (user management, product catalog)
+        3. Business Logic (orders, inventory, payments)
+        4. Advanced Features (analytics, notifications, integrations)
+        5. Production Readiness (security, performance, monitoring)
+
+        **For Each Phase:**
+        - Service dependencies and implementation order
+        - Database migration requirements
+        - Testing strategy and acceptance criteria
+        - Deployment procedures and rollback plans
+        - Risk assessment and mitigation strategies
+
+        **Resource Planning:**
+        - Development team composition and skills required
+        - Timeline estimates with milestones
+        - Budget considerations for infrastructure and tools
+        - Training and knowledge transfer requirements
+
+        This planning must consider all architectural decisions made across previous sessions.
+
+    - name: "memory_compaction_analysis"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Analyze the effectiveness of memory compaction and context management in this long-running workflow.
+
+        **Context Continuity Assessment:**
+        1. **Architectural Consistency:** Did design decisions remain consistent across sessions?
+        2. **Information Preservation:** Was critical context maintained without redundancy?
+        3. **Reference Accuracy:** Were previous decisions correctly referenced and built upon?
+        4. **Knowledge Accumulation:** Did the agent build knowledge progressively?
+
+        **Memory Management Effectiveness:**
+        1. **Compaction Triggers:** At what point did automatic compaction occur?
+        2. **Information Loss:** Was any critical information lost during compaction?
+        3. **Context Relevance:** Did compacted context maintain decision-making capability?
+        4. **Performance Impact:** How did compaction affect response times and quality?
+
+        **Workflow Efficiency:**
+        1. **Session Continuity:** How seamless was the transition between workflow steps?
+        2. **Context Retrieval:** How effectively could previous context be accessed?
+        3. **Decision Quality:** Did context depth improve decision-making quality?
+        4. **Development Velocity:** How did persistent context affect development speed?
+
+        **Recommendations for Long-Running Agents:**
+        1. Optimal context window sizes for different project types
+        2. Compaction strategies for different development phases
+        3. Context organization patterns for large projects
+        4. Monitoring and alerting for context management issues
+        5. Best practices for CLAUDE.md maintenance
+
+        Provide data-driven insights and specific recommendations for optimizing long-running AI agent workflows.

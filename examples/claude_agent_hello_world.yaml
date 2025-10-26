@@ -1,6 +1,6 @@
 workflow:
-  name: "claude_code_hello_world"
-  description: "Simple pipeline that starts Claude Code and writes a hello world text file"
+  name: "claude_agent_hello_world"
+  description: "Simple pipeline that starts Claude Agent and writes a hello world text file"
   
   steps:
     - name: "create_hello_world"

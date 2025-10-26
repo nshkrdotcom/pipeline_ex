@@ -1,0 +1,172 @@
+# Example: Using Subagents with PipelineEx
+# This demonstrates how to configure specialized subagents for different tasks
+
+workflow:
+  name: "subagents_integration_demo"
+  description: "Demonstrate subagent orchestration for specialized workflows"
+  version: "1.0.0"
+
+  # Subagent definitions for specialized tasks
+  agents:
+    code-reviewer:
+      description: "Expert code review specialist for security, performance, and best practices"
+      prompt: |
+        You are a senior code reviewer with expertise in security, performance, and maintainability.
+        When reviewing code:
+        1. Check for security vulnerabilities
+        2. Assess code quality and readability
+        3. Identify performance bottlenecks
+        4. Verify best practices compliance
+        5. Suggest specific improvements with examples
+
+        Be thorough but constructive. Prioritize critical issues first.
+      tools: ["Read", "Grep", "Glob"]
+      model: "sonnet"
+
+    test-generator:
+      description: "Automated test generation specialist"
+      prompt: |
+        You are a testing expert specializing in comprehensive test suite creation.
+        When generating tests:
+        1. Analyze the code structure and functionality
+        2. Create unit tests for all public functions
+        3. Add integration tests for key workflows
+        4. Include edge case and error scenario tests
+        5. Follow testing best practices for the language/framework
+
+        Generate executable, well-documented tests with good coverage.
+      tools: ["Read", "Write", "Grep", "Bash"]
+      model: "sonnet"
+
+    performance-optimizer:
+      description: "Performance optimization specialist for code and systems"
+      prompt: |
+        You are a performance optimization expert.
+        When optimizing code:
+        1. Identify performance bottlenecks
+        2. Analyze algorithmic complexity
+        3. Suggest optimization strategies
+        4. Profile and benchmark improvements
+        5. Ensure optimizations don't compromise correctness
+
+        Focus on measurable performance gains with data-driven recommendations.
+      tools: ["Read", "Edit", "Bash", "Grep", "Run"]
+      model: "opus"
+
+    documentation-writer:
+      description: "Technical documentation specialist"
+      prompt: |
+        You are a technical writing expert specializing in clear, comprehensive documentation.
+        When writing docs:
+        1. Create API documentation with examples
+        2. Write setup and installation guides
+        3. Document architecture and design decisions
+        4. Create troubleshooting guides
+        5. Ensure docs are accessible to different skill levels
+
+        Write clear, concise, and helpful documentation.
+      tools: ["Read", "Write", "Grep"]
+      model: "sonnet"
+
+  steps:
+    - name: "analyze_codebase"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Analyze this codebase and delegate specialized tasks to appropriate subagents:
+
+        1. **Code Review**: Ask the code-reviewer subagent to perform a comprehensive security and quality review
+        2. **Testing**: Have the test-generator subagent create a complete test suite
+        3. **Performance**: Let the performance-optimizer subagent identify and suggest optimizations
+        4. **Documentation**: Use the documentation-writer subagent to create API docs
+
+        Coordinate these subagents and synthesize their findings into a final report.
+
+    - name: "security_audit"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Perform a comprehensive security audit using the code-reviewer subagent.
+        Focus on:
+        - Input validation vulnerabilities
+        - Authentication and authorization issues
+        - Data exposure risks
+        - Dependency security
+        - Configuration security
+
+        The code-reviewer should provide specific recommendations with code examples.
+
+    - name: "generate_tests"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Generate comprehensive test suites using the test-generator subagent.
+        Ensure coverage for:
+        - Unit tests for all modules
+        - Integration tests for key workflows
+        - Error handling and edge cases
+        - Performance and load testing
+
+        The test-generator should create executable tests following best practices.
+
+    - name: "optimize_performance"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Perform performance analysis and optimization using the performance-optimizer subagent.
+        Focus on:
+        - Algorithm complexity analysis
+        - Database query optimization
+        - Memory usage optimization
+        - Caching strategies
+        - Concurrent processing improvements
+
+        The performance-optimizer should provide measurable improvements with benchmarks.
+
+    - name: "create_documentation"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Generate comprehensive documentation using the documentation-writer subagent.
+        Create:
+        - API reference documentation
+        - Setup and deployment guides
+        - Architecture overview
+        - Troubleshooting guides
+        - Developer onboarding materials
+
+        The documentation-writer should ensure docs are clear and comprehensive.
+
+    - name: "final_integration_report"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Synthesize all subagent findings into a comprehensive project improvement plan:
+
+        **Code Quality & Security (from code-reviewer):**
+        - Summarize critical issues found
+        - List security vulnerabilities
+        - Highlight code quality improvements
+
+        **Testing Strategy (from test-generator):**
+        - Test coverage analysis
+        - Test automation recommendations
+        - Quality assurance improvements
+
+        **Performance Enhancements (from performance-optimizer):**
+        - Performance bottlenecks identified
+        - Optimization recommendations
+        - Expected performance gains
+
+        **Documentation Status (from documentation-writer):**
+        - Documentation coverage
+        - Documentation quality assessment
+        - Additional documentation needs
+
+        **Integration Recommendations:**
+        - Implementation priorities
+        - Resource requirements
+        - Timeline estimates
+        - Risk assessments
+
+        Provide an actionable roadmap for project improvement with specific deliverables and timelines.

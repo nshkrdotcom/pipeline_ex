@@ -41,7 +41,7 @@ defmodule Pipeline.Test.MocksTest do
 
   describe "ClaudeSDKMock" do
     test "returns message stream for basic prompts" do
-      options = %ClaudeCodeSDK.Options{output_format: :json}
+      options = %ClaudeAgentSDK.Options{output_format: :json}
 
       messages =
         ClaudeSDKMock.query("Test prompt", options)
@@ -58,7 +58,7 @@ defmodule Pipeline.Test.MocksTest do
     end
 
     test "returns JSON result for json output format" do
-      options = %ClaudeCodeSDK.Options{output_format: :json}
+      options = %ClaudeAgentSDK.Options{output_format: :json}
 
       messages =
         ClaudeSDKMock.query("write a file", options)

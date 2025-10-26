@@ -1,21 +1,36 @@
 defmodule Pipeline.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/nshkrdotcom/pipeline_ex"
+
   def project do
     [
       app: :pipeline,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer(),
+      aliases: aliases(),
 
       # Library package configuration
       description: description(),
       package: package(),
       docs: docs(),
-      source_url: "https://github.com/nshkrdotcom/pipeline_ex",
-      homepage_url: "https://github.com/nshkrdotcom/pipeline_ex"
+      name: "PipelineEx",
+      source_url: @source_url,
+      homepage_url: @source_url,
+
+      # Test coverage
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "pipeline.test.live": :test
+      ]
     ]
   end
 
@@ -41,13 +56,12 @@ defmodule Pipeline.MixProject do
       {:jason, "~> 1.4"},
       {:yaml_elixir, "~> 2.11"},
       {:req, "~> 0.5"},
-      {:instructor_lite, "~> 1.0.0"},
       {:nimble_options, "~> 1.1"},
       {:ecto, "~> 3.12"},
 
-      # Development dependencies (not included in Hex package)
-      {:claude_code_sdk,
-       git: "https://github.com/nshkrdotcom/claude_code_sdk_elixir.git", only: [:dev, :test]},
+      # AI SDK dependencies
+      {:claude_agent_sdk, "~> 0.5.3"},
+      {:gemini_ex, "~> 0.3"},
 
       # Code quality and analysis tools
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
@@ -65,12 +79,14 @@ defmodule Pipeline.MixProject do
   defp package do
     [
       name: "pipeline_ex",
+      description: description(),
       licenses: ["MIT"],
       links: %{
-        "GitHub" => "https://github.com/nshkrdotcom/pipeline_ex",
-        "Docs" => "https://hexdocs.pm/pipeline_ex"
+        "GitHub" => @source_url,
+        "Online documentation" => "https://hexdocs.pm/pipeline_ex",
+        "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
       },
-      maintainers: ["NSHkr <ZeroTrust@NSHkr.com>"],
+      maintainers: ["nshkrdotcom"],
       files: ~w(lib mix.exs README.md LICENSE CHANGELOG.md
                 docs/20250704_yaml_format_v2
                 docs/architecture
@@ -88,16 +104,24 @@ defmodule Pipeline.MixProject do
                 RECURSIVE_PIPELINES_GUIDE.md
                 TESTING_ARCHITECTURE.md
                 USE_CASES.md
-                USE_CASES_2.md),
-      exclude_patterns: ["priv/plts/*"]
+                USE_CASES_2.md
+                assets),
+      exclude_patterns: [
+        "priv/plts",
+        ".DS_Store"
+      ]
     ]
   end
 
   defp docs do
     [
       main: "readme",
-      source_ref: "v0.0.1",
-      source_url: "https://github.com/nshkrdotcom/pipeline_ex",
+      name: "PipelineEx",
+      source_ref: "v#{@version}",
+      source_url: @source_url,
+      homepage_url: @source_url,
+      assets: %{"assets" => "assets"},
+      logo: "assets/logo.svg",
       before_closing_head_tag: &before_closing_head_tag/1,
       before_closing_body_tag: &before_closing_body_tag/1,
       extras: [
@@ -174,14 +198,47 @@ defmodule Pipeline.MixProject do
         }
       });
     </script>
+    <script>
+      if (location.hostname === "hexdocs.pm") {
+        var script = document.createElement("script");
+        script.src = "https://plausible.io/js/script.js";
+        script.setAttribute("data-domain", "hexdocs.pm");
+        document.head.appendChild(script);
+      }
+    </script>
     """
   end
 
-  defp before_closing_head_tag(:epub), do: ""
+  defp before_closing_head_tag(_), do: ""
 
   defp before_closing_body_tag(:html), do: ""
 
   defp before_closing_body_tag(:epub), do: ""
+
+  defp aliases do
+    [
+      "run.live": fn args ->
+        suggestion =
+          case args do
+            [] -> "<path/to/workflow.yaml>"
+            [first | _] -> first
+          end
+
+        Mix.shell().info("""
+        It looks like you ran `mix run.live`, which executes an Elixir script.
+        Pipeline workflows use `mix pipeline.run.live <config.yaml>` instead.
+
+        Try this command next:
+            mix pipeline.run.live #{suggestion}
+
+        Need a local dry run with no real API calls?
+            mix pipeline.run #{suggestion}
+        """)
+
+        System.halt(1)
+      end
+    ]
+  end
 
   defp dialyzer do
     [

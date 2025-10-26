@@ -94,7 +94,7 @@ defmodule Pipeline.Test.Mocks do
 
   defmodule ClaudeSDKMock do
     @moduledoc """
-    Mock implementation of Claude Code SDK for testing.
+    Mock implementation of Claude Agent SDK for testing.
     """
 
     @behaviour Pipeline.Test.ClaudeProvider

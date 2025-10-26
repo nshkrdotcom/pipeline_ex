@@ -1,0 +1,50 @@
+<svg width="200" height="200" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" version="1.1">
+  <defs>
+    <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4e2a8e;" />
+      <stop offset="50%" style="stop-color:#5e3a9e;" />
+      <stop offset="100%" style="stop-color:#007acc;" />
+    </linearGradient>
+    <filter id="symbol-shadow" height="130%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+      <feOffset dx="1" dy="1" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.5"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="offsetblur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Hexagon background -->
+  <path
+    d="M 50 0 L 93.3 25 L 93.3 75 L 50 100 L 6.7 75 L 6.7 25 Z"
+    fill="url(#logo-gradient)"
+  />
+
+  <!-- Pipeline flow symbol (three connected nodes) -->
+  <g filter="url(#symbol-shadow)">
+    <!-- First circle -->
+    <circle cx="25" cy="50" r="6" fill="white" stroke="white" stroke-width="1.5"/>
+
+    <!-- Connection line 1 -->
+    <line x1="31" y1="50" x2="44" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Arrow 1 -->
+    <polygon points="44,47 50,50 44,53" fill="white"/>
+
+    <!-- Second circle -->
+    <circle cx="50" cy="50" r="6" fill="white" stroke="white" stroke-width="1.5"/>
+
+    <!-- Connection line 2 -->
+    <line x1="56" y1="50" x2="69" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Arrow 2 -->
+    <polygon points="69,47 75,50 69,53" fill="white"/>
+
+    <!-- Third circle -->
+    <circle cx="75" cy="50" r="6" fill="white" stroke="white" stroke-width="1.5"/>
+  </g>
+</svg>

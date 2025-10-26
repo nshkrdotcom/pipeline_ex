@@ -1,0 +1,105 @@
+# Example: Using MCP Servers with PipelineEx
+# This demonstrates how to integrate external tools via Model Context Protocol
+
+workflow:
+  name: "mcp_integration_demo"
+  description: "Demonstrate MCP server integration for external tool access"
+  version: "1.0.0"
+
+  # MCP server configurations
+  mcp_servers:
+    # File system access
+    filesystem:
+      type: "stdio"
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp", "/home/user/projects"]
+      env:
+        NODE_PATH: "/usr/local/lib/node_modules"
+
+    # Web search capabilities
+    brave_search:
+      type: "stdio"
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-brave-search"]
+      env:
+        BRAVE_API_KEY: "${BRAVE_API_KEY}"
+
+    # Database access (example)
+    postgres_db:
+      type: "stdio"
+      command: "node"
+      args: ["./mcp-postgres-server.js"]
+      env:
+        DATABASE_URL: "postgresql://user:pass@localhost:5432/myapp"
+
+    # Remote API server
+    remote_api:
+      type: "sse"
+      url: "https://api.example.com/mcp/sse"
+      headers:
+        Authorization: "Bearer ${API_TOKEN}"
+
+  steps:
+    - name: "filesystem_analysis"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Analyze the project structure in the /home/user/projects directory.
+        Use the filesystem MCP server to:
+        1. List the contents of the projects directory
+        2. Identify the main project files
+        3. Check for common configuration files (package.json, mix.exs, etc.)
+        4. Summarize the project structure
+
+        Provide a detailed analysis of what you find.
+
+    - name: "web_research"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Based on the project analysis above, research the technologies used.
+        Use the brave_search MCP server to search for:
+        1. Documentation for the main frameworks/libraries identified
+        2. Best practices for the project structure
+        3. Recent updates or issues related to the technologies
+
+        Summarize your findings and provide recommendations.
+
+    - name: "database_integration"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Design a database integration for this project using the postgres_db MCP server.
+        Consider:
+        1. What tables/schemas would be needed
+        2. How to integrate with the existing codebase
+        3. Migration strategies
+        4. API endpoints that would interact with the database
+
+        Provide a complete integration plan.
+
+    - name: "remote_api_coordination"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Using the remote_api MCP server, design an integration that:
+        1. Fetches external data relevant to this project
+        2. Processes and transforms the data
+        3. Stores results appropriately
+        4. Provides API endpoints for accessing the processed data
+
+        Create a comprehensive integration design.
+
+    - name: "final_report"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Synthesize all the analysis above into a comprehensive project enhancement plan.
+        Include:
+        1. Technology stack recommendations
+        2. Architecture improvements
+        3. Integration strategies for all MCP servers
+        4. Implementation roadmap
+        5. Testing and deployment considerations
+
+        Provide actionable recommendations with specific code examples where relevant.

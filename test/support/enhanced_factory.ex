@@ -1,7 +1,7 @@
 defmodule Pipeline.Test.EnhancedFactory do
   @moduledoc """
   Enhanced factory for creating test configurations and mock responses
-  for the Claude Code SDK integration features.
+  for the Claude Agent SDK integration features.
   """
 
   @doc """

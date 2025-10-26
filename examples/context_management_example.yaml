@@ -1,0 +1,146 @@
+# Example: Using Context Management with PipelineEx
+# This demonstrates how to enable CLAUDE.md context management for long-running conversations
+
+workflow:
+  name: "context_management_demo"
+  description: "Demonstrate CLAUDE.md context management for persistent AI conversations"
+  version: "1.0.0"
+
+  # Enable context management to load CLAUDE.md files
+  enable_context_management: true
+
+  # Setting sources to load project-level configuration
+  setting_sources: ["project"]
+
+  # CLAUDE.md file should be created in the project root or .claude/ directory
+  # This file maintains context across workflow executions
+
+  steps:
+    - name: "establish_context"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        This is the beginning of a long-running development project.
+        Establish context for building a comprehensive e-commerce platform.
+
+        **Project Context:**
+        - Technology Stack: Elixir/Phoenix, PostgreSQL, React
+        - Features: User authentication, product catalog, shopping cart, payments
+        - Architecture: Microservices with API gateway
+        - Deployment: Docker containers on Kubernetes
+
+        **Current Phase:** Initial planning and architecture design
+
+        Document this context in CLAUDE.md for future reference and continuity.
+
+    - name: "design_architecture"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Building on the established context, design the system architecture.
+
+        **Architecture Requirements:**
+        1. Scalable microservices architecture
+        2. API gateway for service orchestration
+        3. Event-driven communication between services
+        4. Database design with proper normalization
+        5. Caching strategy for performance
+
+        **Services to Design:**
+        - User Service (authentication, profiles)
+        - Product Service (catalog, inventory)
+        - Order Service (cart, checkout, payments)
+        - Notification Service (emails, SMS)
+
+        Update CLAUDE.md with the architectural decisions and design rationale.
+
+    - name: "implement_user_service"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Using the established architecture and context, implement the User Service.
+
+        **Requirements:**
+        - User registration and authentication
+        - JWT token management
+        - Password hashing and security
+        - User profile management
+        - Role-based access control
+
+        **Implementation Details:**
+        - Elixir/Phoenix API
+        - PostgreSQL database
+        - Proper error handling
+        - Input validation
+        - Comprehensive tests
+
+        Reference the existing context in CLAUDE.md and update with implementation decisions.
+
+    - name: "implement_product_service"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Implement the Product Service using the established patterns and context.
+
+        **Requirements:**
+        - Product catalog management
+        - Category and tag system
+        - Inventory tracking
+        - Product search and filtering
+        - Image management
+
+        **Integration Points:**
+        - Connect with User Service for permissions
+        - Event publishing for inventory changes
+        - API documentation
+        - Performance optimization
+
+        Leverage the context from CLAUDE.md and previous implementations.
+
+    - name: "testing_and_integration"
+      type: "claude_smart"
+      preset: "development"
+      prompt: |
+        Create comprehensive tests and integration setup for the services.
+
+        **Testing Strategy:**
+        - Unit tests for all modules
+        - Integration tests between services
+        - API contract testing
+        - Load testing for performance
+        - Security testing
+
+        **Integration Tasks:**
+        - Docker Compose setup for local development
+        - API gateway configuration
+        - Database migrations
+        - Monitoring and logging setup
+
+        Document testing approach and integration details in CLAUDE.md.
+
+    - name: "final_project_review"
+      type: "claude_smart"
+      preset: "analysis"
+      prompt: |
+        Review the complete project implementation using the accumulated context.
+
+        **Review Areas:**
+        1. **Architecture Quality:** Evaluate design decisions and scalability
+        2. **Code Quality:** Assess implementation patterns and best practices
+        3. **Testing Coverage:** Analyze test completeness and effectiveness
+        4. **Integration Success:** Verify service communication and data flow
+        5. **Documentation:** Review CLAUDE.md context completeness
+
+        **Context Continuity Analysis:**
+        - How well did CLAUDE.md maintain project understanding?
+        - Were architectural decisions consistently applied?
+        - Did context prevent redundant work or conflicts?
+        - How effective was long-term memory retention?
+
+        **Recommendations:**
+        - Areas for improvement in the implementation
+        - Best practices for context management
+        - Future development roadmap
+        - Maintenance and evolution strategies
+
+        Provide a comprehensive project assessment with specific actionable recommendations.

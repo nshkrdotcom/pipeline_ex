@@ -1,0 +1,125 @@
+# Example: Using Agent Skills with PipelineEx
+# This demonstrates how to enable and configure agent skills for specialized capabilities
+
+workflow:
+  name: "skills_integration_demo"
+  description: "Demonstrate agent skills for specialized AI capabilities"
+  version: "1.0.0"
+
+  # Enable skills functionality
+  enable_skills: true
+
+  # Setting sources to load project-level configuration (required for skills)
+  setting_sources: ["project"]
+
+  # Skills will be automatically discovered from .claude/skills/ directory
+  # Example skill directory structure:
+  # .claude/skills/
+  #   excel_processing/
+  #     SKILL.md
+  #     resources/
+  #       templates/
+  #       scripts/
+  #   document_analysis/
+  #     SKILL.md
+  #     analyze.py
+
+  steps:
+    - name: "excel_data_processing"
+      type: "claude_smart"
+      preset: "analysis"
+      options:
+        timeout_ms: 600000      # 10 minutes for skill execution
+        max_turns: 20           # More turns for complex operations
+        allowed_tools:          # Add tools skills might need
+          - "Read"
+          - "Glob"
+          - "Grep"
+          - "Write"             # Skills may need to create files
+          - "Edit"              # Skills may need to modify files
+      prompt:
+        - type: "static"
+          content: |
+            Use the excel_processing skill to analyze the sales data in sales_data.xlsx.
+            Generate a comprehensive sales report including:
+            1. Monthly revenue trends
+            2. Top performing products
+            3. Regional performance analysis
+            4. Growth forecasts
+
+            The excel_processing skill should handle all Excel operations automatically.
+
+    - name: "document_intelligence"
+      type: "claude_smart"
+      preset: "analysis"
+      options:
+        timeout_ms: 600000      # 10 minutes for skill execution
+        max_turns: 20           # More turns for complex operations
+        allowed_tools:
+          - "Read"
+          - "Glob"
+          - "Grep"
+          - "Write"
+          - "Edit"
+      prompt:
+        - type: "static"
+          content: |
+            Use the document_analysis skill to process the quarterly report PDF.
+            Extract and analyze:
+            1. Key performance indicators
+            2. Risk factors mentioned
+            3. Strategic initiatives
+            4. Financial projections
+
+            The document_analysis skill should provide structured analysis of the document content.
+
+    - name: "presentation_creation"
+      type: "claude_smart"
+      preset: "development"
+      options:
+        timeout_ms: 600000      # 10 minutes for skill execution
+        max_turns: 25           # Even more turns for presentation generation
+      prompt:
+        - type: "static"
+          content: |
+            Use the presentation_creation skill to generate a PowerPoint presentation
+            summarizing the analysis from the previous steps.
+
+            Include slides for:
+            1. Executive summary with key metrics
+            2. Sales performance analysis
+            3. Document insights
+            4. Recommendations and next steps
+
+            The presentation_creation skill should handle all PowerPoint formatting and layout.
+
+    - name: "skill_coordination_report"
+      type: "claude_smart"
+      preset: "analysis"
+      options:
+        timeout_ms: 300000      # 5 minutes - less complex task
+        max_turns: 15
+      prompt:
+        - type: "static"
+          content: |
+            Analyze how the various skills worked together in this workflow:
+
+            **Skills Used:**
+            - excel_processing: Excel data analysis and reporting
+            - document_analysis: PDF content extraction and analysis
+            - presentation_creation: PowerPoint slide generation
+
+            **Analysis Points:**
+            1. Effectiveness of skill specialization
+            2. Data flow between skills
+            3. Quality of outputs from each skill
+            4. Integration challenges and solutions
+            5. Performance and efficiency gains
+
+            **Recommendations:**
+            - When to use specialized skills vs general capabilities
+            - Best practices for skill development
+            - Workflow design patterns for multi-skill operations
+            - Maintenance and versioning strategies
+
+            Provide insights into the power and limitations of the agent skills framework.

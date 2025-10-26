@@ -1,6 +1,6 @@
 defmodule Pipeline.OptionBuilder do
   @moduledoc """
-  Pipeline wrapper for ClaudeCodeSDK.OptionBuilder with additional pipeline-specific functionality.
+  Pipeline wrapper for ClaudeAgentSDK.OptionBuilder with additional pipeline-specific functionality.
 
   Provides preset configurations optimized for different environments and use cases:
   - Development: Permissive settings, verbose logging, full tool access

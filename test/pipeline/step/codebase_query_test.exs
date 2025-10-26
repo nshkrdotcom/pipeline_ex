@@ -454,7 +454,9 @@ defmodule Pipeline.Step.CodebaseQueryTest do
       context = %{}
 
       # Should still work with default "." directory
-      assert {:ok, _result} = CodebaseQuery.execute(step, context)
+      File.cd!(@test_workspace_dir, fn ->
+        assert {:ok, _result} = CodebaseQuery.execute(step, context)
+      end)
     end
   end
 

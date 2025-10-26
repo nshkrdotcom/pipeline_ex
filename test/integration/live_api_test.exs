@@ -14,12 +14,12 @@ defmodule Pipeline.Integration.LiveAPITest do
 
   describe "live API calls" do
     @tag :claude
-    test "claude provider integration with ClaudeCodeSDK" do
+    test "claude provider integration with ClaudeAgentSDK" do
       if System.get_env("TEST_MODE") != "live" do
         IO.puts("Skipping live API test - TEST_MODE is not 'live'")
         :ok
       else
-        # Claude Code SDK uses CLI authentication, no API key needed
+        # Claude Agent SDK uses CLI authentication, no API key needed
         # Note: This test verifies the integration works, but may fail if
         # the Claude CLI is not properly configured in the environment
 

@@ -1,27 +1,19 @@
 defmodule Pipeline.Providers.ClaudeProvider do
   @moduledoc """
-  Live Claude provider using the existing Claude SDK integration.
+  Live Claude provider built on top of `ClaudeAgentSDK`.
   """
 
   require Logger
 
   @doc """
-  Query Claude using the existing Claude SDK integration.
+  Execute a prompt against Claude using the SDK integration.
   """
   def query(prompt, options \\ %{}) do
-    Logger.debug("💪 Querying Claude with prompt: #{String.slice(prompt, 0, 100)}...")
-    IO.puts("DEBUG: ClaudeProvider.query called with prompt length: #{String.length(prompt)}")
-    IO.puts("DEBUG: Options: #{inspect(options)}")
-
-    # For now, delegate to the existing Claude step implementation
-    # This maintains compatibility with the working Claude SDK integration
+    Logger.debug("💪 Querying Claude with prompt: #{String.slice(prompt, 0, 100)}…")
 
     try do
-      # Build Claude options from the provider options
       claude_options = build_claude_options(options)
-      IO.puts("DEBUG: Built claude_options: #{inspect(claude_options)}")
 
-      # Use the existing Claude SDK via the step module
       case execute_claude_sdk(prompt, claude_options, options) do
         {:ok, response} ->
           Logger.debug("✅ Claude query successful")
@@ -37,7 +29,7 @@ defmodule Pipeline.Providers.ClaudeProvider do
     end
   end
 
-  # Private helper functions
+  # Internal helpers ---------------------------------------------------------
 
   defp build_claude_options(options) do
     %{
@@ -51,27 +43,41 @@ defmodule Pipeline.Providers.ClaudeProvider do
       allowed_tools: get_option_value(options, "allowed_tools", :allowed_tools, []),
       disallowed_tools: get_option_value(options, "disallowed_tools", :disallowed_tools, []),
       system_prompt: get_option_value(options, "system_prompt", :system_prompt, nil),
-      verbose: get_option_value(options, "verbose", :verbose, false),
+      append_system_prompt:
+        get_option_value(options, "append_system_prompt", :append_system_prompt, nil),
+      verbose: get_option_value(options, "verbose", :verbose, nil),
       cwd: get_option_value(options, "cwd", :cwd, "./workspace"),
-      timeout_ms: get_option_value(options, "timeout_ms", :timeout_ms, get_default_timeout_ms()),
       model: get_option_value(options, "model", :model, nil),
-      fallback_model: get_option_value(options, "fallback_model", :fallback_model, nil)
+      fallback_model: get_option_value(options, "fallback_model", :fallback_model, nil),
+      output_format: normalize_output_format(options)
     }
   end
 
   defp get_option_value(options, string_key, atom_key, default) do
-    options[string_key] || options[atom_key] || default
+    cond do
+      Map.has_key?(options, string_key) -> options[string_key]
+      Map.has_key?(options, atom_key) -> options[atom_key]
+      true -> default
+    end
   end
 
-  defp get_default_timeout_ms do
-    Application.get_env(:pipeline, :timeout_seconds, 300) * 1000
+  defp normalize_output_format(options) do
+    format = options["output_format"] || options[:output_format]
+
+    case format do
+      nil -> nil
+      "text" -> :text
+      "json" -> :json
+      "stream_json" -> :stream_json
+      "stream-json" -> :stream_json
+      atom when is_atom(atom) -> atom
+      other -> other |> to_string() |> String.to_atom()
+    end
   end
 
   defp execute_claude_sdk(prompt, claude_options, original_options) do
-    # Use the actual Claude Code SDK for live API calls
     case Pipeline.TestMode.get_mode() do
       :mock ->
-        # Use the mock provider to support async streaming
         provider = Pipeline.TestMode.provider_for(:ai)
         provider.query(prompt, original_options)
 
@@ -88,33 +94,42 @@ defmodule Pipeline.Providers.ClaudeProvider do
     process_claude_messages(messages)
   rescue
     error ->
-      Logger.error("ClaudeCodeSDK error: #{inspect(error)}")
+      Logger.error("ClaudeAgentSDK error: #{inspect(error)}")
       {:error, Exception.message(error)}
   end
 
   defp build_sdk_options(options) do
-    ClaudeCodeSDK.Options.new(
+    verbose =
+      case Map.fetch(options, :verbose) do
+        {:ok, value} -> value
+        :error -> true
+      end
+
+    [
       max_turns: options[:max_turns] || Application.get_env(:pipeline, :max_turns_sdk_default, 1),
-      verbose: options[:verbose] || true,
+      verbose: verbose,
       allowed_tools: options[:allowed_tools],
       disallowed_tools: options[:disallowed_tools],
       system_prompt: options[:system_prompt],
+      append_system_prompt: options[:append_system_prompt],
+      output_format: options[:output_format],
       cwd: options[:cwd],
-      timeout_ms: options[:timeout_ms] || get_default_timeout_ms(),
       model: options[:model],
       fallback_model: options[:fallback_model]
-    )
+    ]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> ClaudeAgentSDK.Options.new()
   end
 
   defp log_debug_info(prompt, sdk_options) do
-    IO.puts("DEBUG: Calling ClaudeCodeSDK.query with prompt length: #{String.length(prompt)}")
-    IO.puts("DEBUG: SDK options: #{inspect(sdk_options)}")
-    Logger.debug("🚀 Starting Claude SDK query...")
+    Logger.debug("🚀 Starting Claude SDK query (prompt length: #{String.length(prompt)})")
+    Logger.debug("🔧 SDK options: #{inspect(sdk_options)}")
   end
 
   defp collect_claude_messages(prompt, sdk_options) do
-    Logger.debug("📥 Collecting messages from Claude SDK stream...")
-    stream = ClaudeCodeSDK.query(prompt, sdk_options)
+    Logger.debug("📥 Collecting messages from Claude SDK stream…")
+
+    stream = ClaudeAgentSDK.query(prompt, sdk_options)
 
     messages =
       try do
@@ -147,12 +162,10 @@ defmodule Pipeline.Providers.ClaudeProvider do
   end
 
   defp log_message_debug_info(messages) do
-    Logger.debug("ClaudeCodeSDK messages: #{inspect(messages, limit: :infinity)}")
+    Logger.debug("ClaudeAgentSDK messages: #{inspect(messages, limit: :infinity)}")
 
     message_types =
-      Enum.map(messages, fn msg ->
-        "#{msg.type}:#{msg.subtype || "nil"}"
-      end)
+      Enum.map(messages, fn msg -> "#{msg.type}:#{msg.subtype || "nil"}" end)
       |> Enum.join(", ")
 
     Logger.debug("📋 Message types: #{message_types}")
@@ -184,7 +197,6 @@ defmodule Pipeline.Providers.ClaudeProvider do
   defp extract_text_from_messages(messages) do
     Logger.debug("📋 Extracting text from #{length(messages)} Claude SDK messages")
 
-    # Check if we have a result message - this tells us if the conversation completed
     result_msg = Enum.find(messages, fn msg -> msg.type == :result end)
 
     validate_result_message(result_msg, messages)
@@ -192,105 +204,76 @@ defmodule Pipeline.Providers.ClaudeProvider do
   end
 
   defp validate_result_message(nil, messages) do
-    # No explicit result message found, but check if we have successful assistant messages with content
-    assistant_messages = Enum.filter(messages, fn msg -> msg.type == :assistant end)
+    assistant_messages = Enum.filter(messages, &(&1.type == :assistant))
 
-    if length(assistant_messages) > 0 and has_meaningful_content?(assistant_messages) do
+    if assistant_messages != [] and has_meaningful_content?(assistant_messages) do
       Logger.debug(
         "✅ Claude SDK conversation completed with assistant messages (no explicit result)"
       )
-
-      :ok
     else
-      Logger.error("❌ Claude SDK conversation incomplete - no result message found")
-
-      Logger.debug(
-        "Available message types: #{inspect(Enum.map(messages, &{&1.type, &1.subtype}))}"
-      )
-
-      throw({:error, "Claude SDK conversation incomplete"})
+      Logger.error("❌ No result message received from Claude SDK")
+      throw({:error, "Claude SDK response missing result message"})
     end
   end
 
-  defp validate_result_message(%{subtype: :success}, _messages) do
-    Logger.debug("✅ Claude SDK conversation completed successfully")
-    :ok
+  defp validate_result_message(%{subtype: :success}, messages) do
+    Logger.debug("✅ Claude SDK result message indicates success (#{length(messages)} messages)")
   end
 
-  defp validate_result_message(%{subtype: subtype} = result_msg, _messages)
-       when subtype != :success do
-    error_text = extract_error_text(result_msg.data, subtype)
-    throw({:error, error_text})
-  end
-
-  defp extract_error_text(data, subtype) do
-    cond do
-      subtype == :error_max_turns ->
-        "Task exceeded max_turns limit. Increase max_turns in claude_options for complex tasks."
-
-      Map.has_key?(data, :error) and data.error not in [nil, ""] ->
-        data.error
-
-      Map.has_key?(data, :message) and data.message not in [nil, ""] ->
-        data.message
-
-      Map.has_key?(data, :result) and data.result not in [nil, ""] ->
-        data.result
-
-      true ->
-        "Claude SDK error (#{subtype}): No error details available"
-    end
-  end
-
-  defp extract_assistant_messages_text(messages) do
-    assistant_messages = Enum.filter(messages, fn msg -> msg.type == :assistant end)
-    Logger.debug("🔍 Found #{length(assistant_messages)} assistant messages")
-
-    text_parts = Enum.map(assistant_messages, &extract_message_content/1)
-    result = Enum.join(text_parts, "\n")
-    Logger.debug("✅ Extracted #{String.length(result)} characters from Claude response")
-    result
-  end
-
-  defp extract_message_content(msg) do
-    case msg.data.message["content"] do
-      text when is_binary(text) ->
-        text
-
-      [%{"text" => text} | _] ->
-        text
-
-      content_array when is_list(content_array) ->
-        extract_text_from_content_array(content_array)
-
-      other ->
-        Logger.warning("⚠️ Unknown Claude content format: #{inspect(other, limit: 100)}")
-        inspect(other)
-    end
-  end
-
-  defp extract_text_from_content_array(content_array) do
-    text_items =
-      Enum.filter(content_array, fn item ->
-        Map.has_key?(item, "text") and item["type"] == "text"
-      end)
-
-    texts = Enum.map(text_items, fn item -> item["text"] end)
-    Enum.join(texts, " ")
+  defp validate_result_message(%{subtype: other}, _messages) do
+    Logger.error("❌ Claude SDK result message indicates failure: #{inspect(other)}")
+    throw({:error, "Claude SDK reported failure: #{inspect(other)}"})
   end
 
   defp has_meaningful_content?(assistant_messages) do
-    # Check if any assistant message has substantial content
-    Enum.any?(assistant_messages, fn msg ->
-      content = extract_message_content(msg)
-      # At least 10 meaningful characters
-      String.length(String.trim(content)) > 10
-    end)
+    assistant_messages
+    |> Enum.map(&extract_message_content/1)
+    |> Enum.any?(fn content -> String.trim(content) != "" end)
   end
 
+  defp extract_assistant_messages_text(messages) do
+    messages
+    |> Enum.filter(&(&1.type == :assistant))
+    |> Enum.map(&extract_message_content/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n")
+  end
+
+  defp extract_message_content(%{message: %{content: content}}) when is_binary(content),
+    do: content
+
+  defp extract_message_content(%{message: %{content: content}}) when is_list(content) do
+    content
+    |> Enum.map(fn part ->
+      cond do
+        is_binary(part) -> part
+        is_map(part) and Map.has_key?(part, "text") -> part["text"]
+        is_map(part) and Map.has_key?(part, :text) -> part[:text]
+        true -> inspect(part)
+      end
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp extract_message_content(%{message: %{content: content}}) when is_map(content) do
+    cond do
+      Map.has_key?(content, "text") -> content["text"]
+      Map.has_key?(content, :text) -> content[:text]
+      true -> inspect(content)
+    end
+  end
+
+  defp extract_message_content(_other), do: ""
+
   defp calculate_cost(messages) do
-    # Simple cost calculation based on message count
-    # In reality, this would be based on token usage
-    length(messages) * 0.0001
+    result_msg = Enum.find(messages, fn msg -> msg.type == :result end)
+
+    case result_msg do
+      %{data: %{total_cost_usd: cost}} -> cost
+      %{total_cost_usd: cost} -> cost
+      %{data: %{cost: cost}} -> cost
+      %{cost: cost} -> cost
+      _ -> 0
+    end
   end
 end

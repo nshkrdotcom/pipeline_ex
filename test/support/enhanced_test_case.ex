@@ -1,7 +1,7 @@
 defmodule Pipeline.Test.EnhancedTestCase do
   @moduledoc """
   Enhanced test case module that provides utilities for testing
-  the new Claude Code SDK integration features.
+  the new Claude Agent SDK integration features.
   """
 
   use ExUnit.CaseTemplate
@@ -25,9 +25,9 @@ defmodule Pipeline.Test.EnhancedTestCase do
         Application.put_env(:claude_code_sdk, :use_mock, true)
 
         # Start the mock system if not already started
-        case Process.whereis(ClaudeCodeSDK.Mock) do
+        case Process.whereis(ClaudeAgentSDK.Mock) do
           nil ->
-            {:ok, _} = ClaudeCodeSDK.Mock.start_link()
+            {:ok, _} = ClaudeAgentSDK.Mock.start_link()
 
           _pid ->
             # Already started, just continue
@@ -35,7 +35,7 @@ defmodule Pipeline.Test.EnhancedTestCase do
         end
 
         # Clear any existing mock responses
-        ClaudeCodeSDK.Mock.clear_responses()
+        ClaudeAgentSDK.Mock.clear_responses()
 
         # Create test workspace
         workspace_dir = "./test_workspace_#{:rand.uniform(10000)}"
@@ -62,7 +62,7 @@ defmodule Pipeline.Test.EnhancedTestCase do
 
     # Create a unique key for this test
     test_key = "#{step_type}_#{:rand.uniform(10000)}"
-    ClaudeCodeSDK.Mock.set_response(test_key, responses)
+    ClaudeAgentSDK.Mock.set_response(test_key, responses)
 
     test_key
   end
@@ -75,7 +75,7 @@ defmodule Pipeline.Test.EnhancedTestCase do
     responses = Map.get(mock_responses, error_type, mock_responses["error_max_turns"])
 
     test_key = "error_#{error_type}_#{:rand.uniform(10000)}"
-    ClaudeCodeSDK.Mock.set_response(test_key, responses)
+    ClaudeAgentSDK.Mock.set_response(test_key, responses)
 
     test_key
   end
