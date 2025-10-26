@@ -189,7 +189,8 @@ defmodule Pipeline.Providers.ClaudeProvider do
          %{
            text: text_content,
            success: true,
-           cost: calculate_cost(messages)
+           cost: calculate_cost(messages),
+           model: extract_model(messages)
          }}
     end
   end
@@ -239,10 +240,23 @@ defmodule Pipeline.Providers.ClaudeProvider do
     |> Enum.join("\n")
   end
 
-  defp extract_message_content(%{message: %{content: content}}) when is_binary(content),
-    do: content
+  # Extract from ClaudeAgentSDK.Message struct with data.message.content
+  defp extract_message_content(%{data: %{message: message}}) when is_map(message) do
+    content = message["content"] || message[:content]
+    extract_content_text(content)
+  end
 
-  defp extract_message_content(%{message: %{content: content}}) when is_list(content) do
+  # Legacy pattern for atom-keyed messages
+  defp extract_message_content(%{message: %{content: content}}) do
+    extract_content_text(content)
+  end
+
+  defp extract_message_content(_other), do: ""
+
+  # Extract text from content (handles string, list, or map)
+  defp extract_content_text(content) when is_binary(content), do: content
+
+  defp extract_content_text(content) when is_list(content) do
     content
     |> Enum.map(fn part ->
       cond do
@@ -255,7 +269,7 @@ defmodule Pipeline.Providers.ClaudeProvider do
     |> Enum.join("\n")
   end
 
-  defp extract_message_content(%{message: %{content: content}}) when is_map(content) do
+  defp extract_content_text(content) when is_map(content) do
     cond do
       Map.has_key?(content, "text") -> content["text"]
       Map.has_key?(content, :text) -> content[:text]
@@ -263,7 +277,7 @@ defmodule Pipeline.Providers.ClaudeProvider do
     end
   end
 
-  defp extract_message_content(_other), do: ""
+  defp extract_content_text(_other), do: ""
 
   defp calculate_cost(messages) do
     result_msg = Enum.find(messages, fn msg -> msg.type == :result end)
@@ -274,6 +288,25 @@ defmodule Pipeline.Providers.ClaudeProvider do
       %{data: %{cost: cost}} -> cost
       %{cost: cost} -> cost
       _ -> 0
+    end
+  end
+
+  defp extract_model(messages) do
+    # Try to find model from assistant message
+    assistant_msg = Enum.find(messages, fn msg -> msg.type == :assistant end)
+
+    case assistant_msg do
+      %{data: %{message: %{"model" => model}}} when is_binary(model) ->
+        model
+
+      _ ->
+        # Try to find from system init message
+        system_msg = Enum.find(messages, fn msg -> msg.type == :system end)
+
+        case system_msg do
+          %{data: %{model: model}} when is_binary(model) -> model
+          _ -> nil
+        end
     end
   end
 end

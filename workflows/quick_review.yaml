@@ -1,0 +1,27 @@
+workflow:
+  name: "quick_code_review"
+  description: "Fast code review with haiku - use daily"
+
+  steps:
+    - name: "review"
+      type: "claude"
+      output_to_file: "quick_review_{{ timestamp }}.md"
+      claude_options:
+        model: "haiku"
+        max_turns: 1
+      prompt:
+        - type: "file"
+          path: "{{ code_file }}"
+        - type: "static"
+          content: |
+            Quick code review focusing on:
+            - Security vulnerabilities
+            - Obvious bugs
+            - Style issues
+            - Performance red flags
+
+            Be concise. List specific issues with line numbers.
+
+# Usage:
+# mix pipeline.run.live workflows/quick_review.yaml CODE_FILE="src/auth.ex"
+# cat outputs/quick_review_*.md

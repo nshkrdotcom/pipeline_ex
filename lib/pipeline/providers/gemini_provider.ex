@@ -8,7 +8,7 @@ defmodule Pipeline.Providers.GeminiProvider do
   alias Gemini.Error
   alias Gemini.Types.Response.GenerateContentResponse, as: GeminiResponse
 
-  @default_model "gemini-2.5-flash-lite-preview-06-17"
+  @default_model "gemini-flash-lite-latest"
 
   @doc """
   Query Gemini and return a structured response map.

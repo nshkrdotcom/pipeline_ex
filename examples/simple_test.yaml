@@ -1,16 +1,18 @@
 workflow:
   name: "simple_test"
-  
+
   steps:
     - name: "gemini_test"
       type: "gemini"
+      model: "gemini-flash-lite-latest"  # Fastest, most cost-effective
       prompt:
         - type: "static"
           content: "Hello from Gemini! Respond with a simple greeting."
-    
+
     - name: "claude_test"
       type: "claude"
       claude_options:
+        model: "haiku"  # Fastest, most cost-effective
         max_turns: 1
         allowed_tools: []
       prompt:

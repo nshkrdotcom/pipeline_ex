@@ -1,0 +1,109 @@
+#!/bin/bash
+# AI Workflow Helper - Seamless integration for daily use
+
+set -e
+
+WORKFLOWS_DIR="workflows"
+OUTPUTS_DIR="outputs"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+show_usage() {
+  cat << EOF
+${GREEN}AI Workflow Helper${NC}
+
+Usage: ai <command> <file> [options]
+
+Commands:
+  review <file>          Quick code review
+  explain <file>         Explain how code works
+  fix <error_log>        Analyze bug and suggest fix
+  test <file>            Generate tests
+  doc <file>             Generate documentation
+
+Examples:
+  ai review src/auth.ex
+  ai explain lib/complex_module.ex
+  ai fix logs/error.log
+
+Environment:
+  TEST_MODE=mock         Run without API calls (default for testing)
+  TEST_MODE=live         Run with real APIs (costs money)
+
+EOF
+}
+
+run_pipeline() {
+  local workflow=$1
+  shift
+  local args=("$@")
+
+  echo -e "${BLUE}🤖 Running AI workflow: $workflow${NC}"
+
+  mix pipeline.run.live "$WORKFLOWS_DIR/$workflow.yaml" "${args[@]}"
+
+  echo -e "${GREEN}✅ Complete! Check $OUTPUTS_DIR/ for results${NC}"
+}
+
+view_output() {
+  local pattern=$1
+  local latest=$(ls -t $OUTPUTS_DIR/$pattern* 2>/dev/null | head -1)
+
+  if [ -n "$latest" ]; then
+    echo -e "${YELLOW}📄 Latest result:${NC}"
+    echo ""
+    cat "$latest"
+  else
+    echo -e "${YELLOW}No output found matching: $pattern${NC}"
+  fi
+}
+
+case "$1" in
+  review)
+    if [ -z "$2" ]; then
+      echo "Usage: ai review <file>"
+      exit 1
+    fi
+    run_pipeline "quick_review" "CODE_FILE=$2"
+    view_output "quick_review"
+    ;;
+
+  explain)
+    if [ -z "$2" ]; then
+      echo "Usage: ai explain <file>"
+      exit 1
+    fi
+    run_pipeline "explain_code" "CODE_FILE=$2"
+    view_output "explanation"
+    ;;
+
+  fix)
+    if [ -z "$2" ]; then
+      echo "Usage: ai fix <error_log>"
+      exit 1
+    fi
+    run_pipeline "fix_bug" "ERROR_LOG=$2"
+    view_output "fix_suggestion"
+    ;;
+
+  test)
+    echo "Test generation workflow not yet implemented"
+    echo "Create workflows/test_gen.yaml to enable"
+    exit 1
+    ;;
+
+  doc)
+    echo "Documentation generation workflow not yet implemented"
+    echo "Create workflows/doc_gen.yaml to enable"
+    exit 1
+    ;;
+
+  *)
+    show_usage
+    exit 1
+    ;;
+esac

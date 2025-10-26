@@ -65,7 +65,7 @@ defmodule Pipeline.Config do
         }
   def get_provider_config(:claude) do
     %{
-      model: System.get_env("CLAUDE_MODEL") || "claude-4-sonnet",
+      model: System.get_env("CLAUDE_MODEL") || "haiku",
       timeout: String.to_integer(System.get_env("CLAUDE_TIMEOUT") || "30000")
     }
   end
@@ -73,7 +73,7 @@ defmodule Pipeline.Config do
   def get_provider_config(:gemini) do
     %{
       api_key: System.get_env("GEMINI_API_KEY"),
-      model: System.get_env("GEMINI_MODEL") || "gemini-2.5-flash-lite-preview-06-17",
+      model: System.get_env("GEMINI_MODEL") || "gemini-flash-lite-latest",
       base_url: System.get_env("GEMINI_BASE_URL"),
       timeout: String.to_integer(System.get_env("GEMINI_TIMEOUT") || "30000")
     }

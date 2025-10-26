@@ -137,6 +137,9 @@ defmodule Mix.Tasks.Pipeline.Run do
       Logger.configure(level: :debug)
     end
 
+    # Track if any outputs were saved
+    has_output_files = workflow_has_output_files?(config)
+
     # Execute the pipeline
     case Pipeline.Executor.execute(config, output_dir: output_dir) do
       {:ok, results} ->
@@ -146,12 +149,78 @@ defmodule Mix.Tasks.Pipeline.Run do
           Mix.shell().info("📊 Results:")
           Mix.shell().info(inspect(results, pretty: true, limit: :infinity))
         else
-          Mix.shell().info("📁 Check #{output_dir} for detailed results")
+          display_results_summary(results, has_output_files, output_dir)
         end
 
       {:error, reason} ->
         Mix.shell().error("❌ Pipeline failed: #{reason}")
         System.halt(1)
+    end
+  end
+
+  defp workflow_has_output_files?(config) do
+    steps = get_in(config, ["workflow", "steps"]) || []
+    Enum.any?(steps, fn step -> step["output_to_file"] != nil end)
+  end
+
+  defp display_results_summary(results, has_output_files, output_dir) do
+    if has_output_files do
+      Mix.shell().info("📁 Check #{output_dir} for detailed results")
+    else
+      Mix.shell().info("")
+      Mix.shell().info("📊 Results summary:")
+
+      results
+      |> Enum.each(fn {step_name, result} ->
+        display_step_result(step_name, result)
+      end)
+
+      Mix.shell().info("")
+      Mix.shell().info("💡 Tip: Add 'output_to_file: \"filename\"' to steps to save results")
+    end
+  end
+
+  defp display_step_result(step_name, result) when is_map(result) do
+    text = extract_result_text(result)
+    model = extract_result_model(result)
+
+    model_info = if model, do: " [#{format_model_name(model)}]", else: ""
+
+    if text && String.trim(text) != "" do
+      preview = String.slice(text, 0, 100)
+      preview = if String.length(text) > 100, do: preview <> "...", else: preview
+      Mix.shell().info("  • #{step_name}#{model_info}: #{preview}")
+    else
+      Mix.shell().info("  • #{step_name}#{model_info}: completed")
+    end
+  end
+
+  defp display_step_result(step_name, _result) do
+    Mix.shell().info("  • #{step_name}: completed")
+  end
+
+  defp extract_result_text(%{"text" => text}) when is_binary(text), do: text
+  defp extract_result_text(%{text: text}) when is_binary(text), do: text
+  defp extract_result_text(_), do: nil
+
+  defp extract_result_model(%{"model" => model}) when is_binary(model), do: model
+  defp extract_result_model(%{model: model}) when is_binary(model), do: model
+  defp extract_result_model(_), do: nil
+
+  defp format_model_name(model) do
+    # Simplify long model names for display
+    cond do
+      String.contains?(model, "claude-sonnet-4-5") -> "Claude Sonnet 4.5"
+      String.contains?(model, "claude-sonnet-3-5") -> "Claude Sonnet 3.5"
+      String.contains?(model, "claude-opus") -> "Claude Opus"
+      String.contains?(model, "claude-haiku") -> "Claude Haiku"
+      String.contains?(model, "gemini-flash-lite-latest") -> "Gemini Flash Lite"
+      String.contains?(model, "gemini-2.5-flash-lite") -> "Gemini 2.5 Flash Lite"
+      String.contains?(model, "gemini-2.5-flash") -> "Gemini 2.5 Flash"
+      String.contains?(model, "gemini-2.0-flash") -> "Gemini 2.0 Flash"
+      String.contains?(model, "gemini-1.5-pro") -> "Gemini 1.5 Pro"
+      String.contains?(model, "gemini-1.5-flash") -> "Gemini 1.5 Flash"
+      true -> model
     end
   end
 end

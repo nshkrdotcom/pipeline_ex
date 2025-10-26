@@ -1,0 +1,26 @@
+workflow:
+  name: "explain_code"
+  description: "Understand unfamiliar code quickly"
+
+  steps:
+    - name: "explain"
+      type: "gemini"
+      output_to_file: "explanation_{{ timestamp }}.md"
+      model: "gemini-flash-lite-latest"
+      prompt:
+        - type: "file"
+          path: "{{ code_file }}"
+        - type: "static"
+          content: |
+            Explain this code in simple terms:
+
+            1. What does it do? (high level)
+            2. How does it work? (key logic)
+            3. Important functions/modules
+            4. Potential gotchas or tricky parts
+            5. How to modify it safely
+
+            Write for a developer unfamiliar with this codebase.
+
+# Usage:
+# mix pipeline.run.live workflows/explain_code.yaml CODE_FILE="lib/complex_module.ex"

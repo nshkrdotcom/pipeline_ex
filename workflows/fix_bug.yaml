@@ -1,0 +1,63 @@
+workflow:
+  name: "fix_bug"
+  description: "Analyze error and suggest fix"
+
+  steps:
+    - name: "analyze_error"
+      type: "gemini"
+      model: "gemini-2.5-flash"
+      prompt:
+        - type: "file"
+          path: "{{ error_log }}"
+        - type: "static"
+          content: |
+            Analyze this error/stack trace:
+
+            1. What's the root cause?
+            2. Which file/line is the problem?
+            3. What likely triggered it?
+            4. Severity (critical/high/medium/low)
+
+    - name: "find_code"
+      type: "claude"
+      claude_options:
+        model: "haiku"
+        allowed_tools: ["Grep", "Read", "Glob"]
+        max_turns: 5
+      prompt:
+        - type: "static"
+          content: "Based on this error analysis, find and read the relevant code:"
+        - type: "previous_response"
+          step: "analyze_error"
+
+    - name: "suggest_fix"
+      type: "claude"
+      output_to_file: "fix_suggestion_{{ timestamp }}.md"
+      claude_options:
+        model: "sonnet"
+        max_turns: 1
+      prompt:
+        - type: "static"
+          content: |
+            Suggest a fix for this bug.
+
+            Error analysis:
+        - type: "previous_response"
+          step: "analyze_error"
+        - type: "static"
+          content: |
+
+            Relevant code:
+        - type: "previous_response"
+          step: "find_code"
+        - type: "static"
+          content: |
+
+            Provide:
+            1. Explanation of the fix
+            2. Code changes needed
+            3. How to test it
+            4. Potential side effects
+
+# Usage:
+# mix pipeline.run.live workflows/fix_bug.yaml ERROR_LOG="logs/crash.log"
