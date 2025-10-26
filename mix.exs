@@ -121,7 +121,7 @@ defmodule Pipeline.MixProject do
       source_url: @source_url,
       homepage_url: @source_url,
       assets: %{"assets" => "assets"},
-      logo: "assets/logo.svg",
+      logo: "assets/pipeline_ex.svg",
       before_closing_head_tag: &before_closing_head_tag/1,
       before_closing_body_tag: &before_closing_body_tag/1,
       extras: [

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/pipeline_ex.svg" alt="PipelineEx Logo" width="200" height="200">
+</p>
+
 # Pipeline
 
 [![CI](https://github.com/nshkrdotcom/pipeline_ex/actions/workflows/elixir.yaml/badge.svg)](https://github.com/nshkrdotcom/pipeline_ex/actions/workflows/elixir.yaml)
