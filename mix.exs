@@ -106,8 +106,6 @@ defmodule Pipeline.MixProject do
                 TESTING_ARCHITECTURE.md
                 USE_CASES.md
                 USE_CASES_2.md
-                assets/flowstone.svg
-                assets/logo.svg
                 assets),
       exclude_patterns: [
         "priv/plts",
