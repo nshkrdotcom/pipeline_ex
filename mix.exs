@@ -60,16 +60,16 @@ defmodule Pipeline.MixProject do
       {:ecto, "~> 3.12"},
 
       # AI SDK dependencies
-      {:claude_agent_sdk, "~> 0.5.3"},
+      {:claude_agent_sdk, "~> 0.16.0"},
       {:gemini_ex, "~> 0.3"},
-      {:codex_sdk, "~> 0.2.0"},
+      {:codex_sdk, "~> 0.7.2"},
 
       # Code quality and analysis tools
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
 
       # Documentation
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.40.0", only: :dev, runtime: false}
     ]
   end
 
@@ -106,6 +106,8 @@ defmodule Pipeline.MixProject do
                 TESTING_ARCHITECTURE.md
                 USE_CASES.md
                 USE_CASES_2.md
+                assets/flowstone.svg
+                assets/logo.svg
                 assets),
       exclude_patterns: [
         "priv/plts",
